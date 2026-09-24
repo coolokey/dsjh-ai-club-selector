@@ -14,6 +14,8 @@
 | **聯絡電話** | 09xx-xxx-xxx |
 | **現行成熟雛型網址** | [大溪國中社團選社系統（基礎版）](https://script.google.com/macros/s/AKfycbxAylRjBIVCbLKen2ZP8u-1byWOolZTO5fn9dow530T_k3rH9RGpJr2SRB5M9WihjZB/exec) |
 | **全新 AI 智慧系統網址** | [大溪國中 AI 智慧社團選社與適性導航系統（參賽正式版）](https://script.google.com/macros/s/AKfycbxAylRjBIVCbLKen2ZP8u-1byWOolZTO5fn9dow530T_k3rH9RGpJr2SRB5M9WihjZB/exec) |
+| **GitHub 開源倉庫** | [https://github.com/coolokey/dsjh-ai-club-selector](https://github.com/coolokey/dsjh-ai-club-selector) |
+| **GitHub Pages 線上預覽** | [https://coolokey.github.io/dsjh-ai-club-selector/](https://coolokey.github.io/dsjh-ai-club-selector/) |
 
 ---
 
