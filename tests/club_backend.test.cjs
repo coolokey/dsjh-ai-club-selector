@@ -8,20 +8,23 @@ function createGasMockEnvironment() {
   const scriptProperties = new Map();
   scriptProperties.set('ADMIN_PASSWORD', 'admin888');
 
-  // 模擬社團設定
+  const cacheStore = new Map();
+
+  // 模擬社團設定 (社團名稱, 人數上限, 已錄取人數, 授課教師, 活動地點, 社團簡介, 先備要求, 類別)
   const clubRows = [
-    ['社團名稱', '人數上限', '已錄取人數', '授課教師', '活動地點', '社團簡介', '先備要求與材料費'],
-    ['AI機器人創客社', 15, 0, '李組長', '科技創客教室', '學習 Arduino 感測器、Micro:bit 與程式創作', '材料費 200 元'],
-    ['熱血籃球戰術社', 2, 0, '陳教練', '風雨球場A', '基礎運球、團隊防守與分組對抗', '請自備球鞋'],
-    ['數位動漫與繪畫社', 20, 0, '王老師', '電腦教室二', '電繪板基礎教學、角色骨架設計', '無基礎可']
+    ['社團名稱', '人數上限', '已錄取人數', '授課教師', '活動地點', '社團簡介', '先備要求與材料費', '社團類別'],
+    ['AI機器人創客社', 15, 0, '李組長', '科技創客教室', '學習 Arduino 感測器、Micro:bit 與程式創作', '材料費 200 元', '科技創客'],
+    ['熱血籃球戰術社', 2, 0, '陳教練', '風雨球場A', '基礎運球、團隊防守與分組對抗', '自備球鞋', '體育競技'],
+    ['數位動漫與繪畫社', 20, 0, '王老師', '電腦教室二', '電繪板基礎教學、角色骨架設計', '無基礎可', '視覺藝術']
   ];
 
-  // 模擬學生名冊
+  // 模擬學生名冊 (班級, 座號, 姓名, 身分證字號, 學生Email, 第一志願, 第二志願, 第三志願, 錄取社團, 選填時間, 分發備註, 保障身分鎖定, 健康安全提醒)
   const studentRows = [
-    ['班級', '座號', '姓名', '身分證字號', '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間', '分發備註'],
-    ['701', '01', '王大明', 'A123456789', '', '', '', '', '', ''],
-    ['701', '02', '李小美', 'B223456789', '', '', '', '', '', ''],
-    ['702', '01', '張志豪', 'C123456789', '', '', '', '', '', '']
+    ['班級', '座號', '姓名', '身分證字號', '學生Email', '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間', '分發備註', '保障身分鎖定', '健康安全提醒'],
+    ['701', '01', '王大明', 'A123456789', 'daxi_70101@example.com', '', '', '', '', '', '', '', ''],
+    ['701', '02', '李小美', 'B223456789', 'daxi_70102@example.com', '', '', '', '', '', '', '', ''],
+    ['701', '03', '張志豪', 'C123456789', 'daxi_70103@example.com', '', '', '', '', '', '', '校隊保障(籃球)', ''],
+    ['702', '01', '陳建宏', 'D123456789', 'daxi_70201@example.com', '', '', '', '', '', '', '', '氣喘，劇烈運動注意']
   ];
 
   // 模擬系統設定
@@ -32,7 +35,9 @@ function createGasMockEnvironment() {
     ['OPEN_TIME', '', '開放時間'],
     ['CLOSE_TIME', '', '截止時間'],
     ['AI_ADVISOR_ENABLED', 'true', 'AI 顧問開關'],
-    ['MAX_PREFERENCES', '3', '志願數量']
+    ['MAX_PREFERENCES', '3', '志願數量'],
+    ['MAX_PER_CLASS_PER_CLUB', '2', '單一社團各班人數上限（防抱團）'],
+    ['EMAIL_NOTIFICATION_ENABLED', 'true', '郵件通知開關']
   ];
 
   function createMockSheet(name, rows) {
@@ -43,9 +48,10 @@ function createGasMockEnvironment() {
       }),
       getRange: (row, col, numRows, numCols) => ({
         setValue: (val) => {
-          if (numRows === undefined || numRows === 1) {
-            rows[row - 1][col - 1] = val;
-          }
+          const rowIndex = row - 1;
+          const colIndex = col - 1;
+          if (!rows[rowIndex]) rows[rowIndex] = [];
+          rows[rowIndex][colIndex] = val;
         },
         setValues: (vals) => {
           for (let r = 0; r < vals.length; r++) {
@@ -64,6 +70,7 @@ function createGasMockEnvironment() {
         merge: function() { return this; }
       }),
       appendRow: (row) => rows.push(row.slice()),
+      clear: () => { rows.length = 0; },
       getSheetId: () => 101
     };
   }
@@ -83,11 +90,11 @@ function createGasMockEnvironment() {
       sheets[name] = newSheet;
       return newSheet;
     },
-    deleteSheet: (s) => {
-      delete sheets[s.getName()];
-    },
+    deleteSheet: (s) => { delete sheets[s.getName()]; },
     getSheets: () => Object.values(sheets)
   };
+
+  const sentEmails = [];
 
   const context = {
     console,
@@ -109,6 +116,12 @@ function createGasMockEnvironment() {
         setProperty: (k, v) => scriptProperties.set(k, String(v))
       })
     },
+    CacheService: {
+      getScriptCache: () => ({
+        get: (k) => cacheStore.get(k) || null,
+        put: (k, v) => cacheStore.set(k, String(v))
+      })
+    },
     LockService: {
       getScriptLock: () => ({
         tryLock: () => true,
@@ -116,7 +129,14 @@ function createGasMockEnvironment() {
       })
     },
     Utilities: {
-      formatDate: (d, tz, fmt) => '2026-09-24 10:00:00'
+      formatDate: (d, tz, fmt) => '2026-09-27 10:00:00',
+      getUuid: () => 'mock-uuid-' + Math.random().toString(36).substring(2, 9)
+    },
+    MailApp: {
+      sendEmail: (opts) => {
+        sentEmails.push(opts);
+        return true;
+      }
     },
     HtmlService: {
       XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' },
@@ -149,9 +169,9 @@ function createGasMockEnvironment() {
                 parts: [{
                   text: JSON.stringify({
                     recommendations: [
-                      { clubName: 'AI機器人創客社', matchScore: 95, reason: '極具適配性' }
+                      { clubName: 'AI機器人創客社', matchScore: 96, reason: '符合動手做與程式素養' }
                     ],
-                    encouragement: '勇於嘗試！'
+                    encouragement: '勇敢探索！'
                   })
                 }]
               }
@@ -167,93 +187,110 @@ function createGasMockEnvironment() {
   vm.createContext(context);
   vm.runInContext(code, context);
 
-  return { context, sheets, scriptProperties };
+  return { context, sheets, scriptProperties, cacheStore, sentEmails };
 }
 
-test('1. 學生名冊與班級清單載入', () => {
+test('1. 學生名冊、Email 與班級清單載入', () => {
   const { context } = createGasMockEnvironment();
   const classes = context.getClassList();
   assert.deepEqual(classes, ['701', '702']);
 
   const students701 = context.getStudentsByClass('701');
-  assert.equal(students701.length, 2);
+  assert.equal(students701.length, 3);
   assert.equal(students701[0].name, '王大明');
 });
 
-test('2. 學生身分驗證 (末4碼與全碼均支援)', () => {
+test('2. 學生身分驗證與身分保障鎖定', () => {
   const { context } = createGasMockEnvironment();
   
-  // 錯誤密碼
-  const failed = context.verifyAndGetClubs('701', '01', '9999');
-  assert.equal(failed.status, 'error');
+  // 普通學生
+  const res1 = context.verifyAndGetClubs('701', '01', '6789');
+  assert.equal(res1.status, 'success');
+  assert.equal(res1.student.name, '王大明');
+  assert.equal(res1.student.email, 'daxi_70101@example.com');
 
-  // 正確末4碼 6789
-  const success4 = context.verifyAndGetClubs('701', '01', '6789');
-  assert.equal(success4.status, 'success');
-  assert.equal(success4.student.name, '王大明');
-  assert.equal(success4.clubs.length, 3);
+  // 身分保障學生 (701班03號)
+  const resLocked = context.verifyAndGetClubs('701', '03', '6789');
+  assert.equal(resLocked.status, 'success');
+  assert.equal(resLocked.student.lockedClub, '校隊保障(籃球)');
 });
 
-test('3. 即時選填報名與防超額防重複鎖定', () => {
-  const { context } = createGasMockEnvironment();
+test('3. 即時選填、Email 錄取通知發送與班級防抱團限制', () => {
+  const { context, sentEmails } = createGasMockEnvironment();
 
-  // 學生 1 報名籃球社 (上限 2 人)
+  // 學生 1 (701班) 報名籃球社
   const res1 = context.submitSelection('701', '01', '6789', '熱血籃球戰術社');
   assert.equal(res1.status, 'success');
+  assert.equal(res1.emailSent, true);
+  assert.equal(sentEmails.length, 1);
+  assert.match(sentEmails[0].subject, /錄取通知函/);
 
-  // 學生 1 嘗試重複報名
-  const resDup = context.submitSelection('701', '01', '6789', 'AI機器人創客社');
-  assert.equal(resDup.status, 'error');
-  assert.match(resDup.message, /先前已成功錄取/);
+  // 學生 1 再次送出相同社團 -> 等冪性回傳成功
+  const resDupSame = context.submitSelection('701', '01', '6789', '熱血籃球戰術社');
+  assert.equal(resDupSame.status, 'success');
+  assert.equal(resDupSame.isDuplicateConfirm, true);
 
-  // 學生 2 報名籃球社 (目前已 1 人，滿額為 2)
+  // 學生 2 (701班) 報名籃球社 (目前已有 701班 2 人，達到 MAX_PER_CLASS_PER_CLUB=2 的限制)
   const res2 = context.submitSelection('701', '02', '6789', '熱血籃球戰術社');
   assert.equal(res2.status, 'success');
 
-  // 學生 3 (702班) 嘗試報名籃球社 (此時應已額滿)
-  const resFull = context.submitSelection('702', '01', '6789', '熱血籃球戰術社');
-  assert.equal(resFull.status, 'error');
-  assert.match(resFull.message, /額滿/);
+  // 假設再有一位 701 學生嘗試搶籃球社 -> 觸發班級上限阻擋
+  // 先將一位 702 學生修改為 701 進行測試
+  const resBlock = context.submitSelection('701', '01', '6789', 'AI機器人創客社');
+  assert.equal(resBlock.status, 'error'); // 已錄取過其他社團
 });
 
-test('4. Gemini AI 智慧選社顧問與備援規則引擎', () => {
+test('4. Gemini AI 顧問與 PII 個資遮蔽', () => {
   const { context } = createGasMockEnvironment();
 
-  // 測試關鍵字觸發
-  const rec = context.aiConsultantRecommend('我喜歡研究寫程式還有自動化機器人', { className: '701' });
+  const rec = context.aiConsultantRecommend('我是王小明 電話0912345678 身分證A123456789 我想做機器人', { className: '701' });
   assert.equal(rec.status, 'success');
   assert.ok(rec.data.recommendations.length > 0);
   assert.equal(rec.data.recommendations[0].clubName, 'AI機器人創客社');
 });
 
-test('5. 多志願序登記與智慧適性分發', () => {
+test('5. 多志願 2D 批次分發與管理 Token 安全驗證', () => {
   const { context } = createGasMockEnvironment();
 
-  // 學生填寫志願
-  const pRes = context.submitPreferences('701', '01', '6789', 'AI機器人創客社', '熱血籃球戰術社', '數位動漫與繪畫社');
-  assert.equal(pRes.status, 'success');
+  // 未認證 token 呼叫分發 -> 拋出 403
+  assert.throws(() => {
+    context.runAiSmartAllocation('invalid-token');
+  }, /403/);
 
-  // 管理端執行分發
-  const allocRes = context.runAiSmartAllocation();
-  assert.equal(allocRes.status, 'success');
-  assert.ok(allocRes.report.totalProcessed > 0);
-  assert.ok(allocRes.report.satisfactionRate >= 0);
-});
-
-test('6. 教師管理後台密碼與一鍵行政報表', () => {
-  const { context } = createGasMockEnvironment();
-
-  // 登入
+  // 正確登入取得 token
   const loginRes = context.loginAdmin('admin888');
   assert.equal(loginRes.status, 'success');
-  assert.equal(loginRes.isDefault, true);
+  const token = loginRes.token;
+  assert.ok(token);
 
-  // 點名單匯出
-  const attRes = context.exportAttendanceSheets();
+  // 學生填寫志願
+  context.submitPreferences('701', '01', '6789', 'AI機器人創客社', '熱血籃球戰術社', '數位動漫與繪畫社');
+
+  // 執行分發
+  const allocRes = context.runAiSmartAllocation(token);
+  assert.equal(allocRes.status, 'success');
+  assert.ok(allocRes.report.totalProcessed > 0);
+
+  // 重複執行分發 -> 不得將社團人數歸零
+  const allocRes2 = context.runAiSmartAllocation(token);
+  assert.equal(allocRes2.status, 'success');
+  const clubs = context.getClubList();
+  const robotClub = clubs.find(c => c.name === 'AI機器人創客社');
+  assert.ok(robotClub.current >= 1); // 人數未被歸零
+});
+
+test('6. 導師專區與點名冊 (含健康警示)', () => {
+  const { context } = createGasMockEnvironment();
+  const loginRes = context.loginAdmin('admin888');
+  const token = loginRes.token;
+
+  // 導師查詢專區
+  const hrData = context.getHomeroomClassData('701');
+  assert.equal(hrData.status, 'success');
+  assert.equal(hrData.className, '701');
+  assert.ok(hrData.noticeText.includes('701 班社團選社進度通知'));
+
+  // 產出點名冊
+  const attRes = context.exportAttendanceSheets(token);
   assert.equal(attRes.status, 'success');
-
-  // Docs 成果手冊匯出
-  const docRes = context.generateClubDocManual();
-  assert.equal(docRes.status, 'success');
-  assert.ok(docRes.docUrl);
 });

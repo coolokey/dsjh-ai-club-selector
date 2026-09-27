@@ -4,52 +4,73 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>大溪國中 AI 智慧社團選社系統</title>
+  <title>大溪國中 AI 智慧社團選社與適性導航系統</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <!-- 粒子慶祝彩帶輕量庫 -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
     :root {
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --primary-light: #eff6ff;
-      --accent: #8b5cf6;
-      --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
+      --primary: #1e40af;
+      --primary-light: #3b82f6;
+      --primary-glow: rgba(59, 130, 246, 0.25);
+      --accent: #7c3aed;
+      --accent-gradient: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #7c3aed 100%);
+      --gold: #f59e0b;
+      --emerald: #10b981;
+      --rose: #ef4444;
       --bg: #f8fafc;
       --card-bg: #ffffff;
-      --text-main: #1e293b;
+      --text-main: #0f172a;
       --text-muted: #64748b;
       --border: #e2e8f0;
-      --radius: 14px;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
-      --shadow-md: 0 4px 14px rgba(0,0,0,0.08);
-      --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+      --border-focus: #3b82f6;
+      --radius: 16px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 20px -2px rgba(0,0,0,0.06), 0 2px 6px -1px rgba(0,0,0,0.03);
+      --shadow-lg: 0 12px 36px -4px rgba(15, 23, 42, 0.1), 0 4px 12px -2px rgba(15, 23, 42, 0.05);
+      --shadow-glow: 0 0 25px -5px rgba(59, 130, 246, 0.25);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans TC', sans-serif; }
-    body { background-color: var(--bg); color: var(--text-main); min-height: 100vh; padding: 20px 16px 40px; display: flex; justify-content: center; }
+    
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.05) 0px, transparent 50%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+      display: flex;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
 
     .app-container {
       width: 100%;
-      max-width: 620px;
+      max-width: 640px;
       background: var(--card-bg);
       border-radius: var(--radius);
       box-shadow: var(--shadow-lg);
-      border: 1px solid var(--border);
+      border: 1px solid rgba(226, 232, 240, 0.85);
       overflow: hidden;
       display: flex;
       flex-direction: column;
       position: relative;
+      transition: max-width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .app-container.admin-expanded {
+      max-width: 980px;
     }
 
-    /* 頂部裝飾條與導航 */
-    .top-bar {
+    .top-aurora {
       height: 6px;
       background: var(--accent-gradient);
     }
+
     .header {
       padding: 24px 24px 16px;
       display: flex;
@@ -60,19 +81,21 @@
     .brand-title {
       font-size: 22px;
       font-weight: 900;
-      color: #0f172a;
-      letter-spacing: -0.5px;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
+      letter-spacing: -0.5px;
     }
     .brand-badge {
       font-size: 11px;
-      background: #e0e7ff;
-      color: #4338ca;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+      color: #3b82f6;
+      border: 1px solid #bfdbfe;
       padding: 3px 8px;
       border-radius: 999px;
-      font-weight: 700;
+      font-weight: 800;
     }
     .status-badge {
       display: inline-flex;
@@ -86,10 +109,16 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background-color: var(--success);
+      background-color: var(--emerald);
       display: inline-block;
+      box-shadow: 0 0 8px var(--emerald);
     }
-    .admin-entry-btn {
+
+    .nav-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .nav-btn {
       background: #f1f5f9;
       border: 1px solid var(--border);
       color: var(--text-muted);
@@ -98,39 +127,36 @@
       font-size: 13px;
       cursor: pointer;
       transition: all 0.2s;
-      font-weight: 500;
+      font-weight: 600;
     }
-    .admin-entry-btn:hover {
+    .nav-btn:hover {
       background: #e2e8f0;
       color: var(--text-main);
     }
 
-    /* 預覽模式橫幅 */
     #mock-banner {
-      background: #fffbeb;
+      background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 100%);
       border-bottom: 1px solid #fde68a;
       color: #b45309;
       font-size: 12px;
       padding: 8px 16px;
       text-align: center;
-      font-weight: 600;
+      font-weight: 700;
       display: none;
     }
 
-    /* 核心內容區 */
     .content-body {
       padding: 24px;
       flex: 1;
     }
 
     .step-section { display: none; }
-    .step-section.active { display: block; animation: fadeIn 0.3s ease-out; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
+    .step-section.active { display: block; animation: slideFadeIn 0.3s ease-out; }
+    @keyframes slideFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* 表單元件 */
     .form-group { margin-bottom: 18px; }
     label { display: block; font-size: 14px; font-weight: 700; margin-bottom: 8px; color: #334155; }
     .form-control {
@@ -139,17 +165,16 @@
       border: 1.5px solid var(--border);
       border-radius: 10px;
       font-size: 15px;
-      transition: border-color 0.2s;
+      transition: all 0.2s;
       outline: none;
       background: #fff;
     }
     .form-control:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px var(--primary-glow);
     }
     .help-text { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
 
-    /* 按鈕樣式 */
     .btn {
       width: 100%;
       padding: 13px 18px;
@@ -167,27 +192,22 @@
     .btn-primary {
       background: var(--accent-gradient);
       color: white;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
     }
-    .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
-    .btn-secondary {
-      background: #f1f5f9;
-      color: #475569;
-      margin-top: 10px;
-    }
+    .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35); }
+    .btn-secondary { background: #f1f5f9; color: #475569; margin-top: 10px; }
     .btn-secondary:hover { background: #e2e8f0; }
-    .btn-success { background: var(--success); color: white; }
-    .btn-danger { background: var(--danger); color: white; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-danger { background: var(--rose); color: white; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
 
     /* AI 顧問專區 */
     .ai-advisor-box {
-      background: linear-gradient(145deg, #f0fdf4 0%, #eff6ff 100%);
+      background: linear-gradient(145deg, #f0fdf4 0%, #eff6ff 50%, #faf5ff 100%);
       border: 1.5px solid #bfdbfe;
-      border-radius: 12px;
-      padding: 18px;
+      border-radius: 14px;
+      padding: 20px;
       margin-bottom: 24px;
-      position: relative;
+      box-shadow: var(--shadow-sm);
     }
     .ai-advisor-header {
       display: flex;
@@ -196,7 +216,7 @@
       margin-bottom: 12px;
     }
     .ai-advisor-title {
-      font-weight: 800;
+      font-weight: 900;
       font-size: 15px;
       color: #1e3a8a;
       display: flex;
@@ -212,49 +232,74 @@
     .ai-chip {
       background: white;
       border: 1px solid #cbd5e1;
-      padding: 4px 10px;
+      padding: 5px 11px;
       border-radius: 20px;
       font-size: 12px;
       cursor: pointer;
       color: #475569;
+      font-weight: 500;
       transition: all 0.15s;
     }
     .ai-chip:hover {
       background: #e0f2fe;
       border-color: #38bdf8;
       color: #0369a1;
+      transform: scale(0.98);
     }
+
+    /* 骨架屏與打字效果 */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton-box {
+      display: none;
+      margin-top: 12px;
+    }
+    .skeleton-line {
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+      height: 18px;
+      margin-bottom: 8px;
+    }
+
     .ai-result-panel {
       background: white;
-      border-radius: 10px;
+      border-radius: 12px;
       border: 1px solid #e2e8f0;
-      padding: 14px;
-      margin-top: 12px;
+      padding: 16px;
+      margin-top: 14px;
       display: none;
+      box-shadow: var(--shadow-sm);
     }
     .ai-rec-card {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 10px 12px;
-      margin-top: 8px;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 12px;
     }
-    .ai-rec-title { font-weight: 700; color: #1e293b; font-size: 14px; }
-    .ai-rec-reason { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .ai-rec-title { font-weight: 800; color: #0f172a; font-size: 14px; }
+    .ai-rec-reason { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
     .btn-apply-rec {
-      background: #2563eb;
+      background: var(--primary-light);
       color: white;
       border: none;
-      padding: 5px 12px;
+      padding: 6px 14px;
       border-radius: 6px;
       font-size: 12px;
       font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
+      transition: all 0.2s;
     }
+    .btn-apply-rec:hover { background: var(--primary); }
 
     /* 社團卡片列表 */
     .club-list {
@@ -262,31 +307,30 @@
       flex-direction: column;
       gap: 12px;
       margin-bottom: 20px;
-      max-height: 420px;
-      overflow-y: auto;
-      padding-right: 4px;
+      padding-right: 2px;
     }
     .club-card {
       border: 1.5px solid var(--border);
-      border-radius: 12px;
-      padding: 14px 16px;
+      border-radius: 14px;
+      padding: 16px;
       background: white;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
       position: relative;
     }
     .club-card:hover {
       border-color: #93c5fd;
       background: #f8faff;
-      transform: translateY(-1px);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
     }
     .club-card.selected {
-      border-color: var(--primary);
+      border-color: var(--primary-light);
       background: #eff6ff;
-      box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+      box-shadow: 0 0 0 2px var(--primary-light);
     }
     .club-card.full {
-      opacity: 0.65;
+      opacity: 0.6;
       background: #f8fafc;
       cursor: not-allowed;
       border-color: #e2e8f0;
@@ -297,128 +341,260 @@
       align-items: center;
       margin-bottom: 6px;
     }
-    .club-name { font-size: 16px; font-weight: 800; color: #0f172a; }
+    .club-name { font-size: 16px; font-weight: 900; color: var(--text-main); }
+    .club-category-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      background: #f1f5f9;
+      color: #475569;
+      margin-left: 6px;
+    }
     .club-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
-    .club-desc { font-size: 13px; color: #475569; line-height: 1.4; }
+    .club-desc { font-size: 13px; color: #475569; line-height: 1.45; }
     .badge-quota {
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 800;
       padding: 4px 10px;
       border-radius: 20px;
     }
     .badge-avail { background: #dcfce7; color: #15803d; }
     .badge-full { background: #fee2e2; color: #b91c1c; }
 
-    /* 確認與成果卡片 */
-    .confirm-card {
-      background: #fffbeb;
-      border: 2px dashed #f59e0b;
-      border-radius: 12px;
+    /* 文創票券風「錄取通知卡」 */
+    .admission-ticket {
+      background: #ffffff;
+      border: 2px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      margin: 20px 0;
+      overflow: hidden;
+      position: relative;
+    }
+    .ticket-header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+      position: relative;
+    }
+    .ticket-school { font-size: 13px; opacity: 0.9; letter-spacing: 1px; font-weight: 700; }
+    .ticket-title { font-size: 20px; font-weight: 900; margin: 4px 0; }
+    .ticket-serial { font-family: monospace; font-size: 11px; color: #bfdbfe; font-weight: 700; }
+    .ticket-body {
       padding: 24px;
-      text-align: center;
-      margin-bottom: 20px;
+      background: #fff;
     }
-    .success-card {
+    .ticket-club-box {
+      background: #f0fdf4;
+      border: 1.5px dashed #86efac;
+      padding: 16px;
+      border-radius: 10px;
       text-align: center;
-      padding: 30px 10px;
+      margin-bottom: 18px;
     }
-    .receipt-box {
+    .ticket-club-label { font-size: 12px; color: #166534; font-weight: 700; }
+    .ticket-club-name { font-size: 24px; font-weight: 900; color: #15803d; margin-top: 4px; }
+    .ticket-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .ticket-perforated {
+      height: 16px;
+      background: radial-gradient(circle, transparent, transparent 50%, #f8fafc 50%, #f8fafc 100%);
+      background-size: 16px 16px;
+      border-top: 1px dashed #cbd5e1;
+      border-bottom: 1px dashed #cbd5e1;
+    }
+    .ticket-footer {
+      padding: 16px 24px;
+      background: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .official-stamp {
+      border: 2px solid #ef4444;
+      color: #ef4444;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 900;
+      font-size: 11px;
+      letter-spacing: 2px;
+      transform: rotate(-5deg);
+      display: inline-block;
+    }
+
+    /* 導師班級專區視圖 */
+    .homeroom-box {
       background: #f8fafc;
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 20px;
-      margin: 20px 0;
-      text-align: left;
+      padding: 18px;
+      margin-top: 14px;
     }
+    .student-badge-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .student-badge-item {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+    }
+    .st-enrolled { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+    .st-unassigned { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 
-    /* 管理後台 UI */
+    /* 管理後台寬螢幕儀表板 */
     .admin-stats-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
       margin-bottom: 20px;
     }
     .admin-stat-card {
       background: #f8fafc;
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px;
+      border-radius: 12px;
+      padding: 16px;
       text-align: center;
     }
-    .admin-stat-num { font-size: 24px; font-weight: 900; color: var(--primary); }
-    .admin-stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .admin-stat-num { font-size: 26px; font-weight: 900; color: var(--primary); font-family: 'Plus Jakarta Sans', sans-serif; }
+    .admin-stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 600; }
+    
+    .club-heatmap-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 13px;
+    }
+    .progress-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent-gradient);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
     .admin-action-btn {
       display: flex;
       align-items: center;
       justify-content: space-between;
       width: 100%;
-      padding: 12px 16px;
+      padding: 14px 18px;
       background: white;
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 12px;
       margin-bottom: 10px;
       font-size: 14px;
       font-weight: 700;
       color: #334155;
       cursor: pointer;
       transition: all 0.2s;
+      box-shadow: var(--shadow-sm);
     }
-    .admin-action-btn:hover { background: #f8fafc; border-color: var(--primary); color: var(--primary); }
+    .admin-action-btn:hover { background: #f8fafc; border-color: var(--primary-light); color: var(--primary-light); }
+
+    /* Glass Modal 彈窗 */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    .modal-box {
+      background: white;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      animation: modalPop 0.25s ease-out;
+    }
+    @keyframes modalPop {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
 
     .loading-overlay {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(255,255,255,0.85);
+      background: rgba(255,255,255,0.88);
       backdrop-filter: blur(3px);
       display: none;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 100;
+      z-index: 200;
     }
     .spinner {
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border: 4px solid #e2e8f0;
-      border-top-color: var(--primary);
+      border-top-color: var(--primary-light);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .error-msg { color: var(--danger); font-size: 13px; text-align: center; margin-top: 8px; font-weight: 600; }
+    .error-msg { color: var(--rose); font-size: 13px; text-align: center; margin-top: 8px; font-weight: 700; }
   </style>
 </head>
 <body>
 
-<div class="app-container">
-  <div class="top-bar"></div>
+<div class="app-container" id="mainContainer">
+  <div class="top-aurora"></div>
   
-  <!-- 本機預覽橫幅 -->
-  <div id="mock-banner">⚠️ 離線預覽模式：使用本地模擬資料（包含 AI 智慧顧問與教師後台）</div>
+  <div id="mock-banner">⚠️ 離線預覽展示模式：本地全功能模擬（含 Email 通知、AI 顧問與導師專區）</div>
 
   <!-- Header -->
   <div class="header">
     <div>
       <div class="brand-title">
-        <span id="titleText">社團選社系統</span>
-        <span class="brand-badge">AI 智慧版</span>
+        <span id="titleText">大溪國中社團選社</span>
+        <span class="brand-badge">AI 旗艦版</span>
       </div>
       <div class="status-badge">
         <span class="status-dot" id="statusDot"></span>
         <span id="timeStatusText">載入系統狀態中...</span>
       </div>
     </div>
-    <button class="admin-entry-btn" onclick="openAdminLogin()">⚙️ 教師管理</button>
+    <div class="nav-actions">
+      <button class="nav-btn" onclick="openHomeroomView()">👨‍🏫 導師專區</button>
+      <button class="nav-btn" onclick="openAdminLogin()">⚙️ 教師管理</button>
+    </div>
   </div>
 
   <div class="content-body">
 
     <!-- 步驟 0: 系統尚未開放或截止 -->
     <div id="stepClosed" class="step-section">
-      <div style="text-align: center; padding: 40px 10px;">
-        <div style="font-size: 50px; margin-bottom: 16px;" id="closedIcon">⏳</div>
-        <h2 id="closedTitle" style="color: #334155; margin-bottom: 10px;">系統目前未開放選填</h2>
+      <div style="text-align: center; padding: 48px 10px;">
+        <div style="font-size: 56px; margin-bottom: 16px;" id="closedIcon">⏳</div>
+        <h2 id="closedTitle" style="color: #334155; margin-bottom: 10px; font-weight: 900;">系統目前未開放選填</h2>
         <p id="closedDesc" style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">請依照學校公告時間進行選社。</p>
         <button class="btn btn-secondary" onclick="initApp()">🔄 重新整理檢查</button>
       </div>
@@ -426,9 +602,9 @@
 
     <!-- 步驟 1: 學生登入驗證 -->
     <div id="stepLogin" class="step-section active">
-      <div style="margin-bottom: 20px;">
-        <h2 style="font-size: 20px; font-weight: 800; color: #0f172a;">學生身分驗證</h2>
-        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">請選擇您的班級、座號並輸入身分證字號驗證身分。</p>
+      <div style="margin-bottom: 22px;">
+        <h2 style="font-size: 20px; font-weight: 900; color: #0f172a;">學生身分驗證</h2>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">請選擇班級、座號並輸入身分證字號驗證進入選社。</p>
       </div>
 
       <div class="form-group">
@@ -448,69 +624,78 @@
       <div class="form-group">
         <label>身分證字號 (驗證密碼)</label>
         <input type="password" id="idInput" class="form-control" placeholder="請輸入完整身分證號或末 4 碼" autocomplete="off">
-        <div class="help-text">系統採去識別化嚴密保護，僅用於本校身分確認。</div>
+        <div class="help-text">🛡️ 本校嚴格遵守資安個資指引，密碼僅於伺服器端核對，絕不外流。</div>
       </div>
 
       <div id="loginError" class="error-msg"></div>
 
       <div style="margin-top: 24px;">
         <button class="btn btn-primary" onclick="doStudentLogin()" id="btnLogin">
-          <span>驗證身分，進入社團探索</span> →
+          <span>驗證身分，進入適性選社</span> →
         </button>
       </div>
     </div>
 
-    <!-- 步驟 2: 社團瀏覽、AI 適性選社顧問、選填 -->
+    <!-- 步驟 2: 社團瀏覽、Gemini AI 適性顧問、選填 -->
     <div id="stepSelect" class="step-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
         <div>
-          <span style="font-size: 13px; color: var(--text-muted);">歡迎同學：</span>
+          <span style="font-size: 13px; color: var(--text-muted);">登入同學：</span>
           <strong id="displayStudentName" style="color: var(--primary); font-size: 16px;"></strong>
           <span id="displayClassSeat" style="font-size: 13px; color: var(--text-muted); margin-left: 4px;"></span>
         </div>
-        <button class="btn-secondary" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border:none; cursor:pointer;" onclick="logoutStudent()">登出</button>
+        <button class="nav-btn" style="padding: 4px 10px; font-size: 12px;" onclick="logoutStudent()">登出</button>
       </div>
 
       <!-- AI 智慧適性顧問區 -->
       <div class="ai-advisor-box" id="aiAdvisorBox">
         <div class="ai-advisor-header">
           <div class="ai-advisor-title">
-            <span>✨ Gemini 智慧適性選社顧問</span>
+            <span>✨ Gemini 1.5 智慧適性選社顧問</span>
           </div>
-          <span style="font-size: 11px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-weight: 700;">AI 導航</span>
+          <span style="font-size: 11px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-weight: 800;">108課綱適性導航</span>
         </div>
         <p style="font-size: 13px; color: #475569; margin-bottom: 10px;">
-          不知道該選哪個社團？點擊探索標籤或告訴 AI 你的興趣，讓 Gemini 為你推薦最合適的社團！
+          不知道選什麼？輸入口語興趣（如「我喜歡做模型但討厭跑步」）或點擊探索標籤，讓 AI 為你分析契合社團！
         </p>
         
         <div class="ai-chips-wrap">
-          <div class="ai-chip" onclick="addInterestTag('喜歡組裝機器人與程式創客')">🤖 機器人與程式</div>
-          <div class="ai-chip" onclick="addInterestTag('熱愛籃球與運動體能鍛鍊')">🏀 籃球與運動</div>
-          <div class="ai-chip" onclick="addInterestTag('喜愛動漫插畫角色繪畫創作')">🎨 動漫電繪</div>
+          <div class="ai-chip" onclick="addInterestTag('喜歡動手組裝機器人與寫程式')">🤖 機器人創客</div>
+          <div class="ai-chip" onclick="addInterestTag('熱愛籃球運動與體能鍛鍊')">🏀 籃球運動</div>
+          <div class="ai-chip" onclick="addInterestTag('喜愛動漫插畫與電繪二次元創作')">🎨 動漫電繪</div>
           <div class="ai-chip" onclick="addInterestTag('想學吉他彈唱與流行歌曲')">🎸 吉他音樂</div>
-          <div class="ai-chip" onclick="addInterestTag('熱愛推理密室與邏輯桌遊')">🎲 桌遊推理</div>
-          <div class="ai-chip" onclick="addInterestTag('好奇科學實驗與動手玩自然')">🔬 科學實驗</div>
+          <div class="ai-chip" onclick="addInterestTag('熱愛推理密室與策略桌遊')">🎲 桌遊推理</div>
+          <div class="ai-chip" onclick="addInterestTag('好奇化學變色與動手做生活實驗')">🔬 科學實驗</div>
         </div>
 
         <div style="display: flex; gap: 8px;">
-          <input type="text" id="aiInterestInput" class="form-control" style="font-size: 13px; padding: 8px 12px;" placeholder="例如：我想學動手做，但不喜歡大量跑步...">
-          <button class="btn btn-primary" style="width: auto; padding: 8px 14px; font-size: 13px; white-space: nowrap;" onclick="triggerAiAdvisor()">
+          <input type="text" id="aiInterestInput" class="form-control" style="font-size: 13px; padding: 10px 12px;" placeholder="例如：我想學動手操作，不想大量跑步曬太陽...">
+          <button class="btn btn-primary" style="width: auto; padding: 10px 16px; font-size: 13px; white-space: nowrap;" onclick="triggerAiAdvisor()">
             <span>✨ AI 分析</span>
           </button>
         </div>
 
+        <!-- 骨架屏載入動效 -->
+        <div class="skeleton-box" id="aiSkeleton">
+          <div style="font-size: 12px; color: var(--primary); margin-bottom: 6px; font-weight: 700;">🤖 Gemini 正在深度比對全校課綱能力關鍵詞...</div>
+          <div class="skeleton-line" style="width: 90%;"></div>
+          <div class="skeleton-line" style="width: 75%;"></div>
+          <div class="skeleton-line" style="width: 85%;"></div>
+        </div>
+
+        <!-- AI 結果面板 -->
         <div id="aiResultPanel" class="ai-result-panel">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <strong style="color: #1e3a8a; font-size: 13px;">🎯 專屬適性推薦結果</strong>
-            <span id="aiSourceBadge" style="font-size: 11px; color: #64748b;"></span>
+            <span id="aiSourceBadge" style="font-size: 11px; color: #64748b; font-weight: 700;"></span>
           </div>
           <div id="aiRecList"></div>
-          <div id="aiEncouragement" style="font-size: 12px; color: #3b82f6; background: #eff6ff; padding: 8px; border-radius: 6px; margin-top: 10px; font-style: italic;"></div>
+          <div id="aiEncouragement" style="font-size: 12px; color: #2563eb; background: #eff6ff; padding: 10px; border-radius: 8px; margin-top: 10px; line-height: 1.45;"></div>
         </div>
       </div>
 
       <!-- 社團清單 -->
-      <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+      <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
         <label style="margin: 0; font-size: 15px;">全校開放社團清單</label>
         <span style="font-size: 12px; color: var(--text-muted);" id="clubCountInfo"></span>
       </div>
@@ -528,17 +713,17 @@
 
     <!-- 步驟 3: 二次確認防呆視窗 -->
     <div id="stepConfirm" class="step-section">
-      <div class="confirm-card">
-        <span style="font-size: 32px; display: block; margin-bottom: 8px;">⚠️</span>
-        <h3 style="color: #b45309; font-size: 18px; margin-bottom: 10px;">請再次確認您的選社志願</h3>
+      <div style="background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 14px; padding: 24px; text-align: center; margin-bottom: 20px;">
+        <span style="font-size: 36px; display: block; margin-bottom: 8px;">⚠️</span>
+        <h3 style="color: #b45309; font-size: 18px; margin-bottom: 8px; font-weight: 900;">請確認您的最終選社志願</h3>
         <p style="color: #78350f; font-size: 14px;">您即將報名選填的社團為：</p>
         
-        <div style="font-size: 24px; font-weight: 900; color: #1e293b; margin: 16px 0; background: white; padding: 12px; border-radius: 8px; border: 1px solid #fde68a;" id="confirmClubText">
+        <div style="font-size: 24px; font-weight: 900; color: #1e293b; margin: 16px 0; background: white; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; box-shadow: var(--shadow-sm);" id="confirmClubText">
         </div>
 
-        <div style="background: #fef2f2; border: 2px dashed #ef4444; padding: 14px; border-radius: 8px; margin-top: 16px;">
-          <p style="color: #b91c1c; font-weight: 800; font-size: 14px; line-height: 1.5; margin: 0;">
-            🛑 送出後即完成選社程序，系統將鎖定名額！<br>
+        <div style="background: #fef2f2; border: 1.5px dashed #ef4444; padding: 12px; border-radius: 8px; margin-top: 16px;">
+          <p style="color: #b91c1c; font-weight: 800; font-size: 13px; line-height: 1.5; margin: 0;">
+            🛑 送出後即完成選社程序並鎖定名額，系統將同步發送 Email 錄取通知。<br>
             若需異動請洽學務處訓育組辦理。
           </p>
         </div>
@@ -554,42 +739,90 @@
       </button>
     </div>
 
-    <!-- 步驟 4: 報名成功電子憑證 -->
+    <!-- 步驟 4: 文創票券風「錄取通知卡」 -->
     <div id="stepSuccess" class="step-section">
-      <div class="success-card">
-        <div style="font-size: 64px; color: var(--success); margin-bottom: 12px;">🎉</div>
-        <h2 style="color: #065f46; font-size: 24px; font-weight: 900;">社團報名成功！</h2>
-        <p style="color: var(--text-muted); font-size: 14px; margin-top: 6px;">您已順利取得本學期社團名額，請妥善留存收據。</p>
+      <div style="text-align: center; margin-bottom: 12px;">
+        <div style="font-size: 52px; color: var(--emerald); margin-bottom: 6px;">🎉</div>
+        <h2 style="color: #065f46; font-size: 22px; font-weight: 900;">社團報名錄取成功！</h2>
+        <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">恭喜您獲得開課席次，錄取通知函已同步寄至您的信箱。</p>
+      </div>
 
-        <div class="receipt-box">
-          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px;">
-            <span style="font-size: 13px; color: var(--text-muted);">錄取學生</span>
-            <strong id="receiptStudent"></strong>
+      <div class="admission-ticket">
+        <div class="ticket-header">
+          <div class="ticket-school">TAOYUAN DAXI JUNIOR HIGH SCHOOL</div>
+          <div class="ticket-title">社團適性錄取通知書</div>
+          <div class="ticket-serial" id="ticketSerial">NO. DX-2026-70101-AI</div>
+        </div>
+        <div class="ticket-body">
+          <div class="ticket-club-box">
+            <div class="ticket-club-label">錄取社團 OFFICIAL ADMISSION</div>
+            <div class="ticket-club-name" id="receiptClub">社團名稱</div>
           </div>
-          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px;">
-            <span style="font-size: 13px; color: var(--text-muted);">錄取社團</span>
-            <strong id="receiptClub" style="color: var(--primary); font-size: 16px;"></strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px;">
-            <span style="font-size: 13px; color: var(--text-muted);">授課師資與地點</span>
-            <span id="receiptTeacherLoc" style="font-size: 13px;"></span>
-          </div>
-          <div style="display: flex; justify-content: space-between;">
-            <span style="font-size: 13px; color: var(--text-muted);">報名時間戳記</span>
-            <span id="receiptTimestamp" style="font-size: 13px; color: var(--text-muted);"></span>
+          <div class="ticket-grid">
+            <div><span style="color:var(--text-muted);">錄取學生：</span><strong id="receiptStudent">王大明</strong></div>
+            <div><span style="color:var(--text-muted);">所屬班級：</span><span id="receiptClass">701班 01號</span></div>
+            <div><span style="color:var(--text-muted);">指導師資：</span><span id="receiptTeacher">專業師資</span></div>
+            <div><span style="color:var(--text-muted);">上課教室：</span><span id="receiptLocation">專科教室</span></div>
           </div>
         </div>
+        <div class="ticket-perforated"></div>
+        <div class="ticket-footer">
+          <div>
+            <span>時間戳記：</span><span id="receiptTimestamp">2026-09-24 10:00:00</span><br>
+            <span style="font-size:11px; color:#10b981;">✓ 錄取信件已同步寄送</span>
+          </div>
+          <div class="official-stamp">學務處<br>訓育組</div>
+        </div>
+      </div>
 
-        <button class="btn btn-primary" onclick="window.print()">🖨️ 列印 / 截圖留存憑證</button>
-        <button class="btn btn-secondary" onclick="logoutStudent()">返回系統首頁</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨️ 列印 / 截圖留存憑證</button>
+      <button class="btn btn-secondary" onclick="logoutStudent()">返回系統首頁</button>
+    </div>
+
+    <!-- 導師班級專區 -->
+    <div id="stepHomeroom" class="step-section">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+        <div>
+          <h2 style="font-size: 18px; font-weight: 900;">👨‍🏫 導師班級選社專區</h2>
+          <span style="font-size: 12px; color: var(--text-muted);">即時查驗本班選社進度與一鍵催繳</span>
+        </div>
+        <button class="nav-btn" onclick="showStep('Login')">返回</button>
+      </div>
+
+      <div class="form-group">
+        <label>請選擇您的導師班級</label>
+        <select id="teacherClassSelect" class="form-control" onchange="loadHomeroomData()">
+          <option value="">請選擇班級</option>
+        </select>
+      </div>
+
+      <div id="homeroomContent" style="display: none;">
+        <div class="homeroom-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <strong id="hrClassTitle" style="color: var(--primary);">701 班選社進度</strong>
+            <span id="hrProgressText" style="font-size: 13px; font-weight: 700; color: var(--emerald);">已完成 28 / 30 人</span>
+          </div>
+
+          <div style="font-size: 13px; font-weight: 700; margin-top: 14px; color: #b91c1c;">⚠️ 尚未完成選社學生：</div>
+          <div class="student-badge-grid" id="hrUnassignedBadges"></div>
+
+          <div style="font-size: 13px; font-weight: 700; margin-top: 14px; color: #15803d;">✅ 已完成選社學生：</div>
+          <div class="student-badge-grid" id="hrEnrolledBadges"></div>
+
+          <div style="margin-top: 18px;">
+            <button class="btn btn-primary" onclick="copyLineNotice()" style="background: #06c755; box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);">
+              📋 一鍵複製班級 LINE 催繳提醒文案
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- 教師登入 -->
+    <!-- 教師行政登入 -->
     <div id="stepAdminLogin" class="step-section">
       <div style="margin-bottom: 20px;">
-        <h2 style="font-size: 20px; font-weight: 800; color: #0f172a;">🔐 教師行政管理登入</h2>
-        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">請輸入管理員密碼以進入智慧行政管理儀表板。</p>
+        <h2 style="font-size: 20px; font-weight: 900; color: #0f172a;">🔐 教師行政管理登入</h2>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">請輸入管理員密碼以進入智慧治理儀表板。</p>
       </div>
 
       <div class="form-group">
@@ -599,14 +832,14 @@
 
       <div id="adminLoginError" class="error-msg"></div>
 
-      <button class="btn btn-primary" onclick="doAdminLogin()">登入管理後台</button>
+      <button class="btn btn-primary" onclick="doAdminLogin()">登入管理中心</button>
       <button class="btn btn-secondary" onclick="showStep('Login')">取消返回</button>
     </div>
 
     <!-- 教師修改密碼 -->
     <div id="stepChangePwd" class="step-section">
       <div style="margin-bottom: 20px;">
-        <h2 style="font-size: 20px; font-weight: 800; color: #b45309;">⚠️ 安全提升：請修改管理密碼</h2>
+        <h2 style="font-size: 20px; font-weight: 900; color: #b45309;">⚠️ 安全提升：修改管理密碼</h2>
         <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">為了系統資安防護，首次登入請自訂高強度密碼。</p>
       </div>
 
@@ -628,14 +861,14 @@
       <button class="btn btn-primary" onclick="doChangePassword()">儲存並進入管理後台</button>
     </div>
 
-    <!-- 教師行政儀表板 (Dashboard) -->
+    <!-- 教師行政智慧治理中心 (寬螢幕儀表板) -->
     <div id="stepAdminDashboard" class="step-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <div>
-          <h2 style="font-size: 18px; font-weight: 800;">⚙️ 智慧行政管理中心</h2>
-          <span style="font-size: 12px; color: var(--text-muted);">大溪國中 學務處訓育組</span>
+          <h2 style="font-size: 20px; font-weight: 900;">⚙️ 智慧行政管理中心</h2>
+          <span style="font-size: 12px; color: var(--text-muted);">大溪國中 學務處訓育組 ｜ 特優旗艦版</span>
         </div>
-        <button class="btn-secondary" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; border:none; cursor:pointer;" onclick="showStep('Login')">登出</button>
+        <button class="nav-btn" onclick="logoutAdmin()">登出管理</button>
       </div>
 
       <!-- 統計數據 -->
@@ -648,88 +881,125 @@
           <div class="admin-stat-num" id="statRate">0%</div>
           <div class="admin-stat-label">全校選填進度</div>
         </div>
+        <div class="admin-stat-card">
+          <div class="admin-stat-num" id="statUnassigned">0</div>
+          <div class="admin-stat-label">待分發/未選人數</div>
+        </div>
+      </div>
+
+      <!-- 社團名額即時熱度監控 -->
+      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 22px;">
+        <label style="margin-bottom: 12px; font-size: 14px;">🔥 各社團名額即時熱度監控</label>
+        <div id="clubHeatmapList"></div>
       </div>
 
       <!-- 智慧行政一鍵自動化 -->
-      <div style="margin-bottom: 20px;">
-        <label>⚡ 智慧行政自動化工具 (參賽亮點)</label>
+      <div style="margin-bottom: 22px;">
+        <label style="font-size: 14px;">⚡ 智慧行政自動化工具箱 (參賽殺手級亮點)</label>
         
         <button class="admin-action-btn" onclick="triggerSmartAllocation()">
-          <span>🤖 執行 AI 多志願公平適性分發</span>
-          <span style="font-size: 12px; color: var(--primary);">一鍵分發 →</span>
+          <span>🤖 執行 AI 多志願公平適性分發（含防抱團限制）</span>
+          <span style="font-size: 12px; color: var(--primary-light);">一鍵分發 →</span>
+        </button>
+
+        <button class="admin-action-btn" onclick="triggerBatchSendEmails()">
+          <span>📧 一鍵批次寄送全校分發錄取通知函 (Email)</span>
+          <span style="font-size: 12px; color: var(--emerald);">批次發信 →</span>
         </button>
 
         <button class="admin-action-btn" onclick="triggerExportAttendance()">
-          <span>📊 一鍵產出各社團點名簽到單 (Google Sheets)</span>
-          <span style="font-size: 12px; color: var(--success);">匯出分頁 →</span>
+          <span>📊 一鍵產出各社團點名簽到單 (Google Sheets，含健康警示)</span>
+          <span style="font-size: 12px; color: var(--emerald);">匯出分頁 →</span>
         </button>
 
         <button class="admin-action-btn" onclick="triggerGenerateManual()">
-          <span>📄 一鍵生成社團手冊與行政成果報告 (Google Docs)</span>
+          <span>📄 一鍵生成社團手冊與行政成果報告書 (Google Docs)</span>
           <span style="font-size: 12px; color: var(--accent);">生成文件 →</span>
-        </button>
-
-        <button class="admin-action-btn" onclick="triggerUnassignedNotice()">
-          <span>📢 檢核未選社名單與 AI 催繳文案</span>
-          <span style="font-size: 12px; color: var(--warning);">查看名單 →</span>
         </button>
       </div>
 
       <!-- 系統設定區 -->
-      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-        <label style="margin-bottom: 12px;">系統參數設定</label>
+      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 20px;">
+        <label style="margin-bottom: 14px;">系統參數設定</label>
         
         <div class="form-group">
           <label style="font-size: 12px;">系統名稱</label>
           <input type="text" id="adminTitleInput" class="form-control" style="font-size: 13px;">
         </div>
 
-        <div class="form-group">
-          <label style="font-size: 12px;">選社開放時間 (留空為立即開放)</label>
-          <input type="datetime-local" id="adminOpenTime" class="form-control" style="font-size: 13px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label style="font-size: 12px;">開放選填時間</label>
+            <input type="datetime-local" id="adminOpenTime" class="form-control" style="font-size: 13px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size: 12px;">截止選填時間</label>
+            <input type="datetime-local" id="adminCloseTime" class="form-control" style="font-size: 13px;">
+          </div>
         </div>
 
-        <div class="form-group">
-          <label style="font-size: 12px;">選社截止時間 (留空為不截止)</label>
-          <input type="datetime-local" id="adminCloseTime" class="form-control" style="font-size: 13px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label style="font-size: 12px;">各班每社人數上限 (防抱團)</label>
+            <input type="number" id="adminMaxPerClass" class="form-control" style="font-size: 13px;" min="1" max="10">
+          </div>
+          <div class="form-group">
+            <label style="font-size: 12px;">Gemini API Key</label>
+            <input type="password" id="adminGeminiKey" class="form-control" style="font-size: 13px;" placeholder="自訂 Google AI Studio Key">
+          </div>
         </div>
 
-        <div class="form-group">
-          <label style="font-size: 12px;">Gemini API Key (自訂 Google AI Studio Key)</label>
-          <input type="password" id="adminGeminiKey" class="form-control" style="font-size: 13px;" placeholder="AIzaSy...">
-        </div>
-
-        <button class="btn btn-primary" style="font-size: 13px; padding: 10px;" onclick="saveAdminSettings()">儲存系統設定</button>
+        <button class="btn btn-primary" style="font-size: 13px; padding: 11px;" onclick="saveAdminSettings()">儲存系統設定</button>
       </div>
 
       <div style="display: flex; gap: 8px;">
-        <button class="btn btn-secondary" style="font-size: 13px;" onclick="openSpreadsheetDirectly()">🔗 前往 Google 資料庫試算表</button>
+        <button class="btn btn-secondary" style="font-size: 13px;" onclick="openSpreadsheetDirectly()">🔗 開啟 Google 試算表資料庫</button>
         <button class="btn btn-secondary" style="font-size: 13px;" onclick="showStep('ChangePwd')">🔑 修改密碼</button>
       </div>
     </div>
 
   </div>
 
+  <!-- Glass Modal 彈窗 -->
+  <div class="modal-overlay" id="customModal">
+    <div class="modal-box">
+      <h3 style="font-size: 18px; font-weight: 900; color: #0f172a; margin-bottom: 12px;" id="modalTitle">系統通知</h3>
+      <div style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 20px;" id="modalMessage"></div>
+      <button class="btn btn-primary" onclick="closeModal()">確定</button>
+    </div>
+  </div>
+
   <!-- Loading 遮罩 -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="spinner"></div>
-    <div style="font-weight: 700; color: #1e293b;" id="loadingText">系統處理中...</div>
+    <div style="font-weight: 800; color: #1e293b;" id="loadingText">系統處理中...</div>
   </div>
 </div>
 
 <script>
-  // ==================== 本地 Mock 模擬環境 (供離線預覽與參賽展示) ====================
+  // ==================== 安全防 XSS 工具函式 ====================
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // ==================== 本地 Mock 模擬環境 (供離線預覽與展示) ====================
   var isMock = (typeof google === 'undefined');
   if (isMock) {
     document.getElementById('mock-banner').style.display = 'block';
 
     var mockClubs = [
-      { name: 'AI機器人創客社', limit: 15, current: 7, teacher: '李組長', location: '科技創客教室', desc: '學習 Arduino 感測器、Micro:bit 與簡易 AI 影像辨識小車設計，適合喜愛動手組裝與程式創作的同學。', requirement: '材料費 200 元' },
-      { name: '熱血籃球戰術社', limit: 25, current: 20, teacher: '陳教練', location: '風雨球場A', desc: '基礎運球、團隊防守跑位、半場戰術演練與分組對抗，適合熱愛團隊運動與體能鍛鍊者。', requirement: '自備籃球鞋' },
-      { name: '數位動漫與繪畫社', limit: 20, current: 12, teacher: '王老師', location: '電腦教室二', desc: '電繪板基礎教學、角色骨架設計、分鏡繪製與 AI 輔助著色探索，引導創作出個人專屬角色。', requirement: '無基礎可' },
-      { name: '烏克麗麗與吉他彈唱社', limit: 18, current: 10, teacher: '林老師', location: '音樂教室B', desc: '由淺入深學習和弦彈奏、節奏刷法與流行曲目彈唱，培養音樂美感與表演自信。', requirement: '歡迎自備樂器' },
-      { name: '桌遊與邏輯推理社', limit: 24, current: 15, teacher: '張老師', location: '多功能教室', desc: '精選德式策略桌遊、邏輯解謎密室與溝通推理遊戲，培養批判性思維與團隊協作溝通力。', requirement: '無須自備道具' },
-      { name: '趣味生活科學實驗社', limit: 16, current: 8, teacher: '黃老師', location: '理化實驗室三', desc: '生活中的化學變色、大氣壓力水火箭、簡易分子料理與電磁魔法，探索科學好玩奧秘。', requirement: '材料費 150 元' }
+      { name: 'AI機器人創客社', limit: 15, current: 8, teacher: '李組長', location: '科技創客教室', desc: '學習 Arduino 感測器、Micro:bit 與程式創作', requirement: '材料費 200 元', category: '科技創客' },
+      { name: '熱血籃球戰術社', limit: 25, current: 21, teacher: '陳教練', location: '風雨球場A', desc: '基礎運球、團隊防守與分組對抗', requirement: '自備籃球鞋', category: '體育競技' },
+      { name: '數位動漫與繪畫社', limit: 20, current: 14, teacher: '王老師', location: '電腦教室二', desc: '電繪板基礎教學、角色骨架設計', requirement: '無基礎可', category: '視覺藝術' },
+      { name: '烏克麗麗與吉他彈唱社', limit: 18, current: 11, teacher: '林老師', location: '音樂教室B', desc: '和弦彈奏、流行曲目彈唱', requirement: '歡迎自備樂器', category: '音樂表演' },
+      { name: '桌遊與邏輯推理社', limit: 24, current: 16, teacher: '張老師', location: '多功能教室', desc: '精選德式策略桌遊、邏輯解謎', requirement: '無須自備道具', category: '策略邏輯' },
+      { name: '趣味生活科學實驗社', limit: 16, current: 9, teacher: '黃老師', location: '理化實驗室三', desc: '化學變色、大氣壓力水火箭', requirement: '材料費 150 元', category: '自然實驗' }
     ];
 
     var mockSettings = {
@@ -738,6 +1008,8 @@
       openTime: '',
       closeTime: '',
       aiAdvisorEnabled: true,
+      maxPerClass: 4,
+      emailNotificationEnabled: true,
       spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/186jh-V-z7reYO9Y2ybJJhugITiz2pqqmH9pLheDayJ4/edit'
     };
 
@@ -745,135 +1017,158 @@
       script: {
         run: {
           withSuccessHandler: function(cb) {
-            return {
-              getSystemSettings: function() { setTimeout(function(){ cb(mockSettings); }, 300); },
-              getClassList: function() { setTimeout(function(){ cb(['701', '702', '703', '801', '802']); }, 250); },
-              getStudentsByClass: function(cls) {
-                setTimeout(function(){
-                  cb([
-                    { seat: '01', name: '王大明' },
-                    { seat: '02', name: '李小美' },
-                    { seat: '03', name: '張志豪' },
-                    { seat: '04', name: '林佩君' }
-                  ]);
-                }, 250);
-              },
-              verifyAndGetClubs: function(c, s, id) {
-                setTimeout(function(){
-                  if (id.length < 4) {
-                    cb({ status: 'error', message: '身分證字號驗證長度不足！' });
-                  } else {
-                    cb({
-                      status: 'success',
-                      student: { className: c, seat: s, name: '王大明', assignedClub: '' },
-                      clubs: mockClubs,
-                      settings: mockSettings
-                    });
-                  }
-                }, 400);
-              },
-              aiConsultantRecommend: function(input, sInfo) {
-                setTimeout(function(){
-                  cb({
-                    status: 'success',
-                    source: 'gemini-mock',
-                    data: {
-                      recommendations: [
-                        { clubName: 'AI機器人創客社', matchScore: 96, reason: '符合你對動手做與程式的探索渴望，能學習感測器與智能小車！' },
-                        { clubName: '數位動漫與繪畫社', matchScore: 88, reason: '電繪板結合 AI 著色輔助，能發揮無限創意靈感。' }
-                      ],
-                      encouragement: '國中階段是發掘自我天賦的最佳起點！勇敢邁出第一步，社團生活將讓你收穫滿滿的成就感！'
-                    }
-                  });
-                }, 800);
-              },
-              submitSelection: function(cls, seat, id, club) {
-                setTimeout(function(){
-                  cb({ status: 'success', clubName: club, timestamp: '2026-09-24 10:00:00' });
-                }, 600);
-              },
-              loginAdmin: function(pwd) {
-                setTimeout(function(){
-                  if (pwd === 'admin888') cb({ status: 'success', isDefault: true });
-                  else if (pwd === 'admin') cb({ status: 'success', isDefault: false });
-                  else cb({ status: 'error', message: '密碼錯誤！' });
-                }, 300);
-              },
-              changeAdminPassword: function(o, n) {
-                setTimeout(function(){ cb({ status: 'success', message: '修改成功！' }); }, 300);
-              },
-              getAdminDashboardData: function() {
-                setTimeout(function(){
-                  cb({
-                    status: 'success',
-                    stats: { totalStudents: 150, enrolledCount: 112, unassignedCount: 38, enrollmentRate: 75 },
-                    clubs: mockClubs,
-                    settings: mockSettings
-                  });
-                }, 350);
-              },
-              runAiSmartAllocation: function() {
-                setTimeout(function(){
-                  cb({
-                    status: 'success',
-                    report: { totalProcessed: 38, pref1Count: 26, pref2Count: 8, pref3Count: 3, randomAssignedCount: 1, satisfactionRate: 97 }
-                  });
-                }, 1000);
-              },
-              exportAttendanceSheets: function() {
-                setTimeout(function(){ cb({ status: 'success', message: '各社團點名簽到冊已產出！' }); }, 500);
-              },
-              generateClubDocManual: function() {
-                setTimeout(function(){ cb({ status: 'success', message: 'Google Docs 成果手冊已產出！' }); }, 700);
-              },
-              getUnassignedStudents: function() {
-                setTimeout(function(){
-                  cb({
-                    status: 'success',
-                    count: 38,
-                    noticeText: '【大溪國中選社催繳通知】尚有 38 位同學尚未選社，請導師提醒同學把握權益！'
-                  });
-                }, 400);
-              },
-              saveSystemSettings: function(s) {
-                setTimeout(function(){ cb({ status: 'success' }); }, 400);
-              }
-            };
-          }
+            this._success = cb;
+            return this;
+          },
+          withFailureHandler: function(fb) {
+            this._failure = fb;
+            return this;
+          },
+          getSystemSettings: function() { var self = this; setTimeout(function(){ self._success(mockSettings); }, 250); },
+          getClassList: function() { var self = this; setTimeout(function(){ self._success(['701', '702', '703', '801', '802']); }, 200); },
+          getStudentsByClass: function(cls) {
+            var self = this;
+            setTimeout(function(){
+              self._success([
+                { seat: '01', name: '王大明' },
+                { seat: '02', name: '李小美' },
+                { seat: '03', name: '張志豪' },
+                { seat: '04', name: '林佩君' }
+              ]);
+            }, 200);
+          },
+          verifyAndGetClubs: function(c, s, id) {
+            var self = this;
+            setTimeout(function(){
+              if (id.length < 4) self._success({ status: 'error', message: '身分證字號驗證長度不足！' });
+              else self._success({
+                status: 'success',
+                student: { className: c, seat: s, name: '王大明', email: 'student@daxi.tyc.edu.tw', assignedClub: '' },
+                clubs: mockClubs,
+                settings: mockSettings
+              });
+            }, 300);
+          },
+          aiConsultantRecommend: function(input, sInfo) {
+            var self = this;
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                source: 'gemini',
+                data: {
+                  recommendations: [
+                    { clubName: 'AI機器人創客社', matchScore: 96, reason: '深度契合你對動手做與程式的探索渴望，能學習感測器與智能小車！' },
+                    { clubName: '數位動漫與繪畫社', matchScore: 88, reason: '電繪板結合 AI 著色輔助，能激發出無限創意靈感！' }
+                  ],
+                  encouragement: '國中階段是發掘自我天賦的最佳起點！勇敢嘗試不同領域，社團生活將讓你收穫滿滿的成就感！'
+                }
+              });
+            }, 700);
+          },
+          submitSelection: function(cls, seat, id, club) {
+            var self = this;
+            setTimeout(function(){
+              self._success({ status: 'success', clubName: club, timestamp: '2026-09-27 10:00:00', emailSent: true });
+            }, 500);
+          },
+          loginAdmin: function(pwd) {
+            var self = this;
+            setTimeout(function(){
+              if (pwd === 'admin888') self._success({ status: 'success', token: 'mock-token-xyz', isDefault: true });
+              else if (pwd === 'admin') self._success({ status: 'success', token: 'mock-token-xyz', isDefault: false });
+              else self._success({ status: 'error', message: '管理密碼錯誤！' });
+            }, 250);
+          },
+          changeAdminPassword: function(t, o, n) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: '密碼修改成功！' }); }, 200); },
+          getAdminDashboardData: function(t) {
+            var self = this;
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                stats: { totalStudents: 150, enrolledCount: 115, unassignedCount: 35, enrollmentRate: 77 },
+                clubs: mockClubs,
+                settings: mockSettings
+              });
+            }, 300);
+          },
+          runAiSmartAllocation: function(t) {
+            var self = this;
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                report: { totalProcessed: 35, pref1Count: 25, pref2Count: 7, pref3Count: 2, randomAssignedCount: 1, satisfactionRate: 97 }
+              });
+            }, 800);
+          },
+          batchSendAllocationEmails: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', sentCount: 115, message: '已成功寄送 115 封錄取通知信至學生信箱！' }); }, 600); },
+          exportAttendanceSheets: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: '各社團點名簽到冊（含健康警示標記）已產出！' }); }, 400); },
+          generateClubDocManual: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: 'Google Docs 成果手冊已建立！' }); }, 500); },
+          getHomeroomClassData: function(cls) {
+            var self = this;
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                className: cls,
+                total: 30,
+                enrolledCount: 27,
+                unassignedCount: 3,
+                enrolledList: [{ seat: '01', name: '王大明', club: 'AI機器人創客社' }, { seat: '02', name: '李小美', club: '數位動漫與繪畫社' }],
+                unassignedList: [{ seat: '05', name: '陳建宏', club: '' }, { seat: '08', name: '林雅婷', club: '' }, { seat: '12', name: '張家豪', club: '' }],
+                noticeText: '【701班社團選社通知】尚有 3 位同學未完成選社，請家長提醒把握權益！'
+              });
+            }, 300);
+          },
+          saveSystemSettings: function(t, s) { var self = this; setTimeout(function(){ self._success({ status: 'success' }); }, 300); }
         }
       }
     };
   }
 
-  // ==================== 全域狀態 ====================
+  // ==================== 全域狀態與封裝呼叫 ====================
   var appState = {
     settings: {},
     currentStudent: null,
     clubs: [],
-    selectedClub: ''
+    selectedClub: '',
+    adminToken: null,
+    currentHomeroomNotice: ''
   };
+
+  function callGas(fnName, args, onSuccess, customErrMsg) {
+    var runner = google.script.run
+      .withSuccessHandler(function(res) {
+        setLoading(false);
+        onSuccess(res);
+      })
+      .withFailureHandler(function(err) {
+        setLoading(false);
+        console.error('GAS Error in ' + fnName + ':', err);
+        showModal('連線異常', customErrMsg || ('系統處理連線逾時（' + (err.message || '網路波動') + '），請檢查網路或稍候再試。'));
+      });
+    runner[fnName].apply(runner, args);
+  }
 
   // 初始化
   window.onload = initApp;
 
   function initApp() {
     setLoading(true, '載入系統設定中...');
-    google.script.run.withSuccessHandler(function(settings) {
+    callGas('getSystemSettings', [], function(settings) {
       appState.settings = settings;
-      document.getElementById('titleText').innerText = settings.title || '大溪國中 AI 社團選社';
+      document.getElementById('titleText').innerText = settings.title || '大溪國中社團選社';
       checkTimeStatus(settings);
 
-      // 載入班級
-      google.script.run.withSuccessHandler(function(classes) {
-        setLoading(false);
+      callGas('getClassList', [], function(classes) {
         var html = '<option value="">請選擇班級</option>';
+        var hrHtml = '<option value="">請選擇班級</option>';
         classes.forEach(function(c) {
-          html += '<option value="' + c + '">' + c + ' 班</option>';
+          html += '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + ' 班</option>';
+          hrHtml += '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + ' 班</option>';
         });
         document.getElementById('classSelect').innerHTML = html;
-      }).getClassList();
-
-    }).getSystemSettings();
+        document.getElementById('teacherClassSelect').innerHTML = hrHtml;
+      });
+    });
   }
 
   function checkTimeStatus(settings) {
@@ -885,19 +1180,19 @@
 
     if (open && now < open) {
       statusText.innerText = '系統尚未開放 (開放時間: ' + settings.openTime.replace('T', ' ') + ')';
-      dot.style.backgroundColor = 'var(--warning)';
+      dot.style.backgroundColor = 'var(--gold)';
       showClosedView('⏳', '系統尚未開放選社', '開放時間為：' + settings.openTime.replace('T', ' '));
       return false;
     }
     if (close && now > close) {
       statusText.innerText = '選社已截止 (截止時間: ' + settings.closeTime.replace('T', ' ') + ')';
-      dot.style.backgroundColor = 'var(--danger)';
+      dot.style.backgroundColor = 'var(--rose)';
       showClosedView('🛑', '選社已截止', '截止時間為：' + settings.closeTime.replace('T', ' '));
       return false;
     }
 
     statusText.innerText = '開放選填中' + (close ? ' (截止：' + settings.closeTime.replace('T', ' ') + ')' : '');
-    dot.style.backgroundColor = 'var(--success)';
+    dot.style.backgroundColor = 'var(--emerald)';
     return true;
   }
 
@@ -908,7 +1203,6 @@
     showStep('Closed');
   }
 
-  // 班級改變時載入座號
   function onClassChange() {
     var cls = document.getElementById('classSelect').value;
     var seatSel = document.getElementById('seatSelect');
@@ -920,17 +1214,16 @@
     seatSel.disabled = true;
     seatSel.innerHTML = '<option>載入座號名冊中...</option>';
     
-    google.script.run.withSuccessHandler(function(students) {
+    callGas('getStudentsByClass', [cls], function(students) {
       var html = '<option value="">請選擇座號與姓名</option>';
       students.forEach(function(s) {
-        html += '<option value="' + s.seat + '">' + s.seat + ' 號 - ' + s.name + '</option>';
+        html += '<option value="' + escapeHtml(s.seat) + '">' + escapeHtml(s.seat) + ' 號 - ' + escapeHtml(s.name) + '</option>';
       });
       seatSel.innerHTML = html;
       seatSel.disabled = false;
-    }).getStudentsByClass(cls);
+    });
   }
 
-  // 學生身分登入驗證
   function doStudentLogin() {
     var cls = document.getElementById('classSelect').value;
     var seat = document.getElementById('seatSelect').value;
@@ -944,30 +1237,31 @@
     }
 
     setLoading(true, '驗證身分並取得社團資料中...');
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
+    callGas('verifyAndGetClubs', [cls, seat, idNum], function(res) {
       if (res.status === 'error') {
         errEl.innerText = res.message;
       } else {
         appState.currentStudent = res.student;
         appState.clubs = res.clubs;
         
-        // 若學生早已錄取某社團
+        // 若學生已保障錄取或早已有錄取社團
+        if (res.student.lockedClub) {
+          showReceiptView(res.student.name, res.student.lockedClub, res.student.selectedTime, true);
+          return;
+        }
         if (res.student.assignedClub) {
-          showReceiptView(res.student.name, res.student.assignedClub, res.student.selectedTime);
+          showReceiptView(res.student.name, res.student.assignedClub, res.student.selectedTime, false);
           return;
         }
 
-        // 進入選社頁面
         document.getElementById('displayStudentName').innerText = res.student.name;
         document.getElementById('displayClassSeat').innerText = '(' + res.student.className + '班 ' + res.student.seat + '號)';
         renderClubCards(res.clubs);
         showStep('Select');
       }
-    }).verifyAndGetClubs(cls, seat, idNum);
+    });
   }
 
-  // 渲染社團卡片
   function renderClubCards(clubs) {
     var container = document.getElementById('clubCardContainer');
     document.getElementById('clubCountInfo').innerText = '共 ' + clubs.length + ' 個社團';
@@ -978,18 +1272,18 @@
       var isFull = avail <= 0;
       var cardClass = isFull ? 'club-card full' : 'club-card';
       var badgeClass = isFull ? 'badge-quota badge-full' : 'badge-quota badge-avail';
-      var badgeText = isFull ? '額滿' : '餘額 ' + avail + ' 人';
-      var clickAttr = isFull ? '' : 'onclick="onSelectClubCard(this, \'' + club.name + '\')"';
+      var badgeText = isFull ? '額滿' : '餘 ' + avail + ' 席';
+      var clickAttr = isFull ? '' : 'onclick="onSelectClubCard(this, \'' + escapeHtml(club.name) + '\')"';
 
-      html += '<div class="' + cardClass + '" id="club-card-' + club.name + '" ' + clickAttr + '>';
+      html += '<div class="' + cardClass + '" id="club-card-' + escapeHtml(club.name) + '" ' + clickAttr + '>';
       html += '  <div class="club-card-top">';
-      html += '    <span class="club-name">' + club.name + '</span>';
+      html += '    <div><span class="club-name">' + escapeHtml(club.name) + '</span><span class="club-category-tag">' + escapeHtml(club.category) + '</span></div>';
       html += '    <span class="' + badgeClass + '">' + badgeText + '</span>';
       html += '  </div>';
-      html += '  <div class="club-meta">📍 地點：' + (club.location || '校內教室') + ' ｜ 👨‍🏫 老師：' + (club.teacher || '專業指導') + '</div>';
-      html += '  <div class="club-desc">' + club.desc + '</div>';
+      html += '  <div class="club-meta">📍 地點：' + escapeHtml(club.location || '校內教室') + ' ｜ 👨‍🏫 老師：' + escapeHtml(club.teacher || '專業指導') + '</div>';
+      html += '  <div class="club-desc">' + escapeHtml(club.desc) + '</div>';
       if (club.requirement) {
-        html += '  <div style="font-size:12px; color:#b45309; margin-top:4px;">⚠️ ' + club.requirement + '</div>';
+        html += '  <div style="font-size:12px; color:#b45309; margin-top:5px; font-weight:600;">⚠️ ' + escapeHtml(club.requirement) + '</div>';
       }
       html += '</div>';
     });
@@ -997,7 +1291,6 @@
     container.innerHTML = html;
   }
 
-  // 點擊選擇社團
   function onSelectClubCard(el, clubName) {
     document.querySelectorAll('.club-card').forEach(function(c) { c.classList.remove('selected'); });
     el.classList.add('selected');
@@ -1005,30 +1298,30 @@
 
     var btn = document.getElementById('btnGoConfirm');
     btn.disabled = false;
-    btn.innerHTML = '已選定：【' + clubName + '】 → 前往確認';
+    btn.innerHTML = '已選定：【' + escapeHtml(clubName) + '】 → 前往確認';
     document.getElementById('selectionError').innerText = '';
   }
 
-  // AI 顧問興趣標籤快選
   function addInterestTag(tagText) {
     var input = document.getElementById('aiInterestInput');
     if (input.value) input.value += '，' + tagText;
     else input.value = tagText;
   }
 
-  // 觸發 AI 智慧顧問
   function triggerAiAdvisor() {
     var interest = document.getElementById('aiInterestInput').value;
     if (!interest) {
-      alert('請先輸入您的興趣特質，或點擊上方探索標籤！');
+      showModal('提示', '請先輸入您的興趣特質，或點擊上方探索標籤！');
       return;
     }
 
-    setLoading(true, 'Gemini 正在為你適性分析最契合的社團...');
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
+    document.getElementById('aiSkeleton').style.display = 'block';
+    document.getElementById('aiResultPanel').style.display = 'none';
+
+    callGas('aiConsultantRecommend', [interest, appState.currentStudent], function(res) {
+      document.getElementById('aiSkeleton').style.display = 'none';
       if (res.status === 'error') {
-        alert(res.message);
+        showModal('AI 顧問提示', res.message);
         return;
       }
 
@@ -1044,17 +1337,16 @@
       res.data.recommendations.forEach(function(rec) {
         recHtml += '<div class="ai-rec-card">';
         recHtml += '  <div>';
-        recHtml += '    <div class="ai-rec-title">🏅 ' + rec.clubName + ' <span style="font-size:11px; color:#2563eb; font-weight:700;">(適配度 ' + (rec.matchScore || 95) + '%)</span></div>';
-        recHtml += '    <div class="ai-rec-reason">' + rec.reason + '</div>';
+        recHtml += '    <div class="ai-rec-title">🏅 ' + escapeHtml(rec.clubName) + ' <span style="font-size:11px; color:#2563eb; font-weight:800;">(適配度 ' + (rec.matchScore || 95) + '%)</span></div>';
+        recHtml += '    <div class="ai-rec-reason">' + escapeHtml(rec.reason) + '</div>';
         recHtml += '  </div>';
-        recHtml += '  <button class="btn-apply-rec" onclick="applyAiRecommendation(\'' + rec.clubName + '\')">一鍵填選</button>';
+        recHtml += '  <button class="btn-apply-rec" onclick="applyAiRecommendation(\'' + escapeHtml(rec.clubName) + '\')">一鍵填選</button>';
         recHtml += '</div>';
       });
 
       listEl.innerHTML = recHtml;
       panel.style.display = 'block';
-
-    }).aiConsultantRecommend(interest, appState.currentStudent);
+    });
   }
 
   function applyAiRecommendation(clubName) {
@@ -1063,11 +1355,10 @@
       targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
       targetCard.click();
     } else {
-      alert('目前清單中暫無該社團名額');
+      showModal('提示', '目前名單中無該社團餘額');
     }
   }
 
-  // 前往確認步驟
   function goToConfirm() {
     if (!appState.selectedClub) return;
     document.getElementById('confirmClubText').innerText = appState.selectedClub;
@@ -1079,28 +1370,42 @@
     showStep('Select');
   }
 
-  // 最終送出報名
   function doFinalSubmit() {
     setLoading(true, '正在寫入資料庫並鎖定名額...');
     var st = appState.currentStudent;
     var idNum = document.getElementById('idInput').value;
 
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
+    callGas('submitSelection', [st.className, st.seat, idNum, appState.selectedClub], function(res) {
       if (res.status === 'error') {
         document.getElementById('submitError').innerText = res.message;
       } else {
-        showReceiptView(st.name, res.clubName, res.timestamp);
+        showReceiptView(st.name, res.clubName, res.timestamp, false);
+        // 觸發全螢幕慶祝彩帶！
+        triggerConfettiAnimation();
       }
-    }).submitSelection(st.className, st.seat, idNum, appState.selectedClub);
+    });
   }
 
-  function showReceiptView(studentName, clubName, timestamp) {
+  function showReceiptView(studentName, clubName, timestamp, isLocked) {
+    var st = appState.currentStudent;
     document.getElementById('receiptStudent').innerText = studentName;
     document.getElementById('receiptClub').innerText = clubName;
-    document.getElementById('receiptTeacherLoc').innerText = '依教務處開課教室公佈為準';
+    document.getElementById('receiptClass').innerText = st.className + '班 ' + st.seat + '號';
+    document.getElementById('ticketSerial').innerText = 'NO. DX-2026-' + st.className + st.seat + '-VERIFIED';
+    document.getElementById('receiptTeacher').innerText = isLocked ? '校隊專任教練' : '校內專長師資';
+    document.getElementById('receiptLocation').innerText = '依教務處開課教室為準';
     document.getElementById('receiptTimestamp').innerText = timestamp || new Date().toLocaleString();
     showStep('Success');
+  }
+
+  function triggerConfettiAnimation() {
+    if (typeof confetti === 'function') {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    }
   }
 
   function logoutStudent() {
@@ -1111,6 +1416,48 @@
     document.getElementById('seatSelect').disabled = true;
     document.getElementById('classSelect').value = '';
     showStep('Login');
+  }
+
+  // ==================== 導師班級專區 ====================
+  function openHomeroomView() {
+    showStep('Homeroom');
+  }
+
+  function loadHomeroomData() {
+    var cls = document.getElementById('teacherClassSelect').value;
+    if (!cls) return;
+
+    setLoading(true, '載入本班選社名單中...');
+    callGas('getHomeroomClassData', [cls], function(res) {
+      document.getElementById('hrClassTitle').innerText = res.className + ' 班社團選社進度';
+      document.getElementById('hrProgressText').innerText = '已完成 ' + res.enrolledCount + ' / ' + res.total + ' 人 (' + Math.round((res.enrolledCount / res.total)*100) + '%)';
+      appState.currentHomeroomNotice = res.noticeText;
+
+      var unassignedHtml = '';
+      if (res.unassignedList.length === 0) {
+        unassignedHtml = '<span style="font-size:13px; color:var(--emerald); font-weight:700;">🎉 恭喜！本班全體同學均已完成選社！</span>';
+      } else {
+        res.unassignedList.forEach(function(s) {
+          unassignedHtml += '<div class="student-badge-item st-unassigned">' + escapeHtml(s.seat) + '號 ' + escapeHtml(s.name) + '</div>';
+        });
+      }
+      document.getElementById('hrUnassignedBadges').innerHTML = unassignedHtml;
+
+      var enrolledHtml = '';
+      res.enrolledList.forEach(function(s) {
+        enrolledHtml += '<div class="student-badge-item st-enrolled">' + escapeHtml(s.seat) + '號 ' + escapeHtml(s.name) + ' (' + escapeHtml(s.club) + ')</div>';
+      });
+      document.getElementById('hrEnrolledBadges').innerHTML = enrolledHtml;
+
+      document.getElementById('homeroomContent').style.display = 'block';
+    });
+  }
+
+  function copyLineNotice() {
+    if (!appState.currentHomeroomNotice) return;
+    navigator.clipboard.writeText(appState.currentHomeroomNotice).then(function() {
+      showModal('複製成功', '催繳提醒文字已複製到剪貼簿！可直接貼至班級家長 LINE 群組。');
+    });
   }
 
   // ==================== 教師管理後台 ====================
@@ -1125,11 +1472,11 @@
     if (!pwd) return;
 
     setLoading(true, '身分驗證中...');
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
+    callGas('loginAdmin', [pwd], function(res) {
       if (res.status === 'error') {
         document.getElementById('adminLoginError').innerText = res.message;
       } else {
+        appState.adminToken = res.token;
         if (res.isDefault) {
           document.getElementById('oldPwdInput').value = pwd;
           showStep('ChangePwd');
@@ -1137,7 +1484,7 @@
           loadAdminDashboard();
         }
       }
-    }).loginAdmin(pwd);
+    });
   }
 
   function doChangePassword() {
@@ -1151,69 +1498,87 @@
     if (n1 !== n2) { err.innerText = '兩次新密碼輸入不一致！'; return; }
 
     setLoading(true, '更新密碼中...');
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
+    callGas('changeAdminPassword', [appState.adminToken, o, n1], function(res) {
       if (res.status === 'error') {
         err.innerText = res.message;
       } else {
-        alert('密碼修改成功！請妥善保存新密碼。');
+        showModal('成功', '密碼修改成功！請牢記新密碼。');
         loadAdminDashboard();
       }
-    }).changeAdminPassword(o, n1);
+    });
   }
 
   function loadAdminDashboard() {
-    setLoading(true, '載入管理數據中...');
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
-      if (res.status === 'success') {
-        document.getElementById('statEnrolled').innerText = res.stats.enrolledCount + ' / ' + res.stats.totalStudents;
-        document.getElementById('statRate').innerText = res.stats.enrollmentRate + '%';
-        
-        document.getElementById('adminTitleInput').value = res.settings.title || '';
-        document.getElementById('adminOpenTime').value = res.settings.openTime || '';
-        document.getElementById('adminCloseTime').value = res.settings.closeTime || '';
-        appState.settings.spreadsheetUrl = res.settings.spreadsheetUrl;
+    setLoading(true, '載入管理中心數據中...');
+    callGas('getAdminDashboardData', [appState.adminToken], function(res) {
+      document.getElementById('mainContainer').classList.add('admin-expanded');
+      document.getElementById('statEnrolled').innerText = res.stats.enrolledCount + ' / ' + res.stats.totalStudents;
+      document.getElementById('statRate').innerText = res.stats.enrollmentRate + '%';
+      document.getElementById('statUnassigned').innerText = res.stats.unassignedCount + ' 人';
+      
+      document.getElementById('adminTitleInput').value = res.settings.title || '';
+      document.getElementById('adminOpenTime').value = res.settings.openTime || '';
+      document.getElementById('adminCloseTime').value = res.settings.closeTime || '';
+      document.getElementById('adminMaxPerClass').value = res.settings.maxPerClass || 4;
+      appState.settings.spreadsheetUrl = res.settings.spreadsheetUrl;
 
-        showStep('AdminDashboard');
-      }
-    }).getAdminDashboardData();
+      renderClubHeatmap(res.clubs);
+      showStep('AdminDashboard');
+    });
   }
 
-  // 智慧行政按鈕功能
+  function renderClubHeatmap(clubs) {
+    var container = document.getElementById('clubHeatmapList');
+    var html = '';
+    clubs.forEach(function(c) {
+      var pct = Math.round((c.current / c.limit) * 100);
+      html += '<div class="club-heatmap-item">';
+      html += '  <div style="width:160px; font-weight:700;">' + escapeHtml(c.name) + '</div>';
+      html += '  <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:' + pct + '%;"></div></div>';
+      html += '  <div style="width:120px; text-align:right; font-size:12px; font-weight:700;">' + c.current + '/' + c.limit + '人 (' + pct + '%)</div>';
+      html += '</div>';
+    });
+    container.innerHTML = html;
+  }
+
   function triggerSmartAllocation() {
-    if (!confirm('即將執行「AI 多志願序適性公平分發」！\n系統將自動分析並配對志願，確認執行？')) return;
+    if (!confirm('即將執行「AI 多志願序公平適性分發」！\n系統將自動限制各班上限（防抱團），確認執行？')) return;
     setLoading(true, 'AI 演算法運算分發中...');
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
+    callGas('runAiSmartAllocation', [appState.adminToken], function(res) {
       var rep = res.report;
-      alert('🎉 分發完成！\n處理人數：' + rep.totalProcessed + ' 人\n第1志願錄取：' + rep.pref1Count + ' 人\n整體滿意度：' + rep.satisfactionRate + '%\n結果已全數回寫至 Google 試算表！');
+      showModal('🎉 多志願分發完成', 
+        '分發處理人數：' + rep.totalProcessed + ' 人<br>' +
+        '第 1 志願錄取：' + rep.pref1Count + ' 人<br>' +
+        '第 2 志願錄取：' + rep.pref2Count + ' 人<br>' +
+        '第 3 志願錄取：' + rep.pref3Count + ' 人<br>' +
+        '適性分流人數：' + rep.randomAssignedCount + ' 人<br>' +
+        '前三志願整體滿意度：<strong style="color:var(--emerald); font-size:16px;">' + rep.satisfactionRate + '%</strong><br><br>' +
+        '分發數據已批次寫回 Google 試算表！'
+      );
       loadAdminDashboard();
-    }).runAiSmartAllocation();
+    });
+  }
+
+  function triggerBatchSendEmails() {
+    if (!confirm('確認將分發錄取通知函，批次發送至全校已錄取學生的 Email 信箱？')) return;
+    setLoading(true, '正在批次發送錄取通知信件...');
+    callGas('batchSendAllocationEmails', [appState.adminToken], function(res) {
+      showModal('發信完成', res.message);
+    });
   }
 
   function triggerExportAttendance() {
     setLoading(true, '正在產生各社團點名簽到單...');
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
-      alert('✅ ' + res.message);
-    }).exportAttendanceSheets();
+    callGas('exportAttendanceSheets', [appState.adminToken], function(res) {
+      showModal('簽到單匯出成功', res.message);
+    });
   }
 
   function triggerGenerateManual() {
-    setLoading(true, 'Gemini 正在撰寫社團成果報告書並建立 Google Docs...');
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
-      alert('✅ ' + res.message);
-    }).generateClubDocManual();
-  }
-
-  function triggerUnassignedNotice() {
-    setLoading(true, '查詢未選社名單中...');
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
-      alert('尚有 ' + res.count + ' 位同學未完成選社。\n\n【AI 催繳通知草稿】：\n' + res.noticeText);
-    }).getUnassignedStudents();
+    setLoading(true, 'Gemini 正在彙整社團成果報告並建立 Google Docs...');
+    callGas('generateClubDocManual', [appState.adminToken], function(res) {
+      showModal('成果報告產出成功', res.message);
+    });
   }
 
   function saveAdminSettings() {
@@ -1221,23 +1586,29 @@
       title: document.getElementById('adminTitleInput').value,
       openTime: document.getElementById('adminOpenTime').value,
       closeTime: document.getElementById('adminCloseTime').value,
+      maxPerClass: parseInt(document.getElementById('adminMaxPerClass').value, 10) || 4,
       geminiApiKey: document.getElementById('adminGeminiKey').value
     };
 
     setLoading(true, '儲存設定中...');
-    google.script.run.withSuccessHandler(function(res) {
-      setLoading(false);
-      alert('設定已儲存生效！');
+    callGas('saveSystemSettings', [appState.adminToken, newSettings], function(res) {
+      showModal('成功', '系統設定已儲存生效！');
       initApp();
-    }).saveSystemSettings(newSettings);
+    });
   }
 
   function openSpreadsheetDirectly() {
     if (appState.settings.spreadsheetUrl) {
       window.open(appState.settings.spreadsheetUrl, '_blank');
     } else {
-      alert('請先在 Google Apps Script 中執行過一次 ensureSheetExists 建立試算表！');
+      showModal('提示', '試算表網址尚未就緒。');
     }
+  }
+
+  function logoutAdmin() {
+    appState.adminToken = null;
+    document.getElementById('mainContainer').classList.remove('admin-expanded');
+    showStep('Login');
   }
 
   // ==================== 頁面切換與輔助 ====================
@@ -1253,6 +1624,15 @@
     var el = document.getElementById('loadingOverlay');
     if (text) document.getElementById('loadingText').innerText = text;
     el.style.display = show ? 'flex' : 'none';
+  }
+
+  function showModal(title, msg) {
+    document.getElementById('modalTitle').innerText = title;
+    document.getElementById('modalMessage').innerHTML = msg;
+    document.getElementById('customModal').style.display = 'flex';
+  }
+  function closeModal() {
+    document.getElementById('customModal').style.display = 'none';
   }
 </script>
 
