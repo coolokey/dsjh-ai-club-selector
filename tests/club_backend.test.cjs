@@ -197,7 +197,7 @@ test('1. 學生名冊、Email 與班級清單載入', () => {
 
   const students701 = context.getStudentsByClass('701');
   assert.equal(students701.length, 3);
-  assert.equal(students701[0].name, '王＊＊');
+  assert.equal(students701[0].name, '王大明');
 });
 
 test('2. 學生身分驗證與身分保障鎖定', () => {
@@ -287,13 +287,17 @@ test('6. 導師專區與點名冊 (含健康警示)', () => {
   const loginRes = context.loginAdmin('test-password');
   const token = loginRes.token;
 
-  // 導師查詢專區
+  // 導師查詢專區（支援管理員 Token 與專用導師通行碼）
   assert.throws(() => context.getHomeroomClassData('701'), /403/);
   assert.throws(() => context.getHomeroomClassData('701', 'invalid'), /403/);
   const hrData = context.getHomeroomClassData('701', token);
   assert.equal(hrData.status, 'success');
   assert.equal(hrData.className, '701');
   assert.ok(hrData.noticeText.includes('701 班社團選社進度通知'));
+
+  const hrTeacherData = context.getHomeroomClassData('701', 'teacher888');
+  assert.equal(hrTeacherData.status, 'success');
+  assert.equal(hrTeacherData.className, '701');
 
   // 產出點名冊
   const attRes = context.exportAttendanceSheets(token);

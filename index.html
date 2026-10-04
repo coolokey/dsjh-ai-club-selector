@@ -796,6 +796,15 @@
         </select>
       </div>
 
+      <div class="form-group" id="teacherAuthGroup">
+        <label>導師通行驗證碼</label>
+        <div style="display:flex; gap:8px;">
+          <input type="password" id="teacherPassInput" class="form-control" placeholder="預設通行碼為 teacher888" value="teacher888">
+          <button class="nav-btn" style="white-space:nowrap; padding:0 16px;" onclick="loadHomeroomData()">驗證查核</button>
+        </div>
+        <div class="help-text">💡 供各班導師查核本班名冊與催繳，與學務處全校最高管理權限獨立隔離。</div>
+      </div>
+
       <div id="homeroomContent" style="display: none;">
         <div class="homeroom-box">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -848,7 +857,7 @@
         <input type="password" id="oldPwdInput" class="form-control">
       </div>
       <div class="form-group">
-        <label>新密碼 (至少 4 碼)</label>
+        <label>新密碼 (至少 8 碼，不可使用預設密碼)</label>
         <input type="password" id="newPwd1" class="form-control">
       </div>
       <div class="form-group">
@@ -965,7 +974,9 @@
     <div class="modal-box">
       <h3 style="font-size: 18px; font-weight: 900; color: #0f172a; margin-bottom: 12px;" id="modalTitle">系統通知</h3>
       <div style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 20px;" id="modalMessage"></div>
-      <button class="btn btn-primary" onclick="closeModal()">確定</button>
+      <div id="modalButtons" style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-primary" id="modalConfirmBtn" onclick="closeModal()">確定</button>
+      </div>
     </div>
   </div>
 
@@ -1319,7 +1330,8 @@
     document.getElementById('aiSkeleton').style.display = 'block';
     document.getElementById('aiResultPanel').style.display = 'none';
 
-    callGas('aiConsultantRecommend', [interest], function(res) {
+    var grade = appState.currentStudent ? (appState.currentStudent.className.slice(0, 1) + '年級') : '國中生';
+    callGas('aiConsultantRecommend', [interest, grade], function(res) {
       document.getElementById('aiSkeleton').style.display = 'none';
       if (res.status === 'error') {
         showModal('AI 顧問提示', res.message);
@@ -1421,11 +1433,6 @@
 
   // ==================== 導師班級專區 ====================
   function openHomeroomView() {
-    if (!appState.adminToken) {
-      showModal('導師專區需驗證', '為保護學生選社資料，請先以經授權的教師管理帳號登入。');
-      openAdminLogin();
-      return;
-    }
     showStep('Homeroom');
   }
 
@@ -1433,8 +1440,13 @@
     var cls = document.getElementById('teacherClassSelect').value;
     if (!cls) return;
 
+    var teacherPass = (document.getElementById('teacherPassInput') ? document.getElementById('teacherPassInput').value : '') || appState.adminToken;
     setLoading(true, '載入本班選社名單中...');
-    callGas('getHomeroomClassData', [cls, appState.adminToken], function(res) {
+    callGas('getHomeroomClassData', [cls, teacherPass], function(res) {
+      if (res && res.status === 'error') {
+        showModal('驗證失敗', res.message || '導師專區存取未獲授權');
+        return;
+      }
       document.getElementById('hrClassTitle').innerText = res.className + ' 班社團選社進度';
       document.getElementById('hrProgressText').innerText = '已完成 ' + res.enrolledCount + ' / ' + res.total + ' 人 (' + Math.round((res.enrolledCount / res.total)*100) + '%)';
       appState.currentHomeroomNotice = res.noticeText;
@@ -1548,31 +1560,62 @@
   }
 
   function triggerSmartAllocation() {
-    if (!confirm('將依抽籤順序、志願輪次、名額與班級上限產生分發預覽；此時不會寫入資料。是否繼續？')) return;
-    setLoading(true, '正在建立規則式分發預覽...');
-    callGas('runAiSmartAllocation', [appState.adminToken], function(res) {
-      var rep = res.report;
-      if (res.status !== 'preview') { showModal('預覽失敗', res.message || '未取得可確認的分發預覽。'); return; }
-      var prompt = '這是規則式分發預覽，請先人工檢視。\n\n處理人數：' + rep.totalProcessed +
-        '\n第 1／2／3 志願：' + rep.pref1Count + '／' + rep.pref2Count + '／' + rep.pref3Count +
-        '\n其他分流：' + rep.randomAssignedCount +
-        '\n本次前三志願滿足率：' + rep.satisfactionRate + '%\n\n按「確定」才會寫入試算表。';
-      if (!confirm(prompt)) return;
-      setLoading(true, '正在套用已確認的分發結果...');
-      callGas('runAiSmartAllocation', [appState.adminToken, res.previewToken], function(applied) {
-        if (applied.status !== 'success') { showModal('套用失敗', applied.message || '預覽已過期，請重新預覽。'); return; }
-        showModal('分發結果已套用', '已依人工確認的預覽寫入資料。請再檢視未錄取名單與特殊需求。');
-        loadAdminDashboard();
-      });
-    });
+    showConfirmModal(
+      '智能多志願分發確認',
+      '即將依據抽籤順序、志願輪次、社團容量與各班名額上限，進行智慧撮合分發。<br><br><span style="color:#b91c1c; font-weight:700;">第一階段為「分發預覽模式」，不會立即寫入資料庫</span>，讓您可以先行人工審閱分發滿意度與統計數據。是否開始試算？',
+      '開始產生預覽',
+      function() {
+        setLoading(true, '正在建立規則式分發預覽...');
+        callGas('runAiSmartAllocation', [appState.adminToken], function(res) {
+          if (res.status !== 'preview') {
+            showModal('預覽失敗', res.message || '未取得可確認的分發預覽。');
+            return;
+          }
+          var rep = res.report;
+          var previewHtml = '<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; font-size:13px; margin-bottom:12px; line-height:1.8;">' +
+            '<div style="font-weight:700; color:#1e293b; margin-bottom:8px;">📊 分發撮合預覽統計報告：</div>' +
+            '<div>• 參與分發總人數：<strong>' + rep.totalProcessed + '</strong> 人</div>' +
+            '<div>• 第一志願錄取：<strong style="color:var(--emerald);">' + rep.pref1Count + '</strong> 人</div>' +
+            '<div>• 第二志願錄取：<strong>' + rep.pref2Count + '</strong> 人</div>' +
+            '<div>• 第三志願錄取：<strong>' + rep.pref3Count + '</strong> 人</div>' +
+            '<div>• 其他適性分流：<strong>' + rep.randomAssignedCount + '</strong> 人</div>' +
+            '<div style="margin-top:6px; font-size:14px; font-weight:800; color:var(--primary);">🎯 前三志願滿足率：' + rep.satisfactionRate + '%</div>' +
+            '</div>' +
+            '<div style="color:#e11d48; font-size:13px; font-weight:700;">確認滿意預覽結果並立即寫入試算表正式生效？</div>';
+
+          showConfirmModal(
+            '檢視分發預覽結果',
+            previewHtml,
+            '確認套用分發',
+            function() {
+              setLoading(true, '正在套用已確認的分發結果...');
+              callGas('runAiSmartAllocation', [appState.adminToken, res.previewToken], function(applied) {
+                if (applied.status !== 'success') {
+                  showModal('套用失敗', applied.message || '預覽已過期，請重新預覽。');
+                  return;
+                }
+                showModal('分發結果已套用', '已依人工確認的預覽成功寫入試算表資料庫！已更新全校選社錄取狀態。');
+                loadAdminDashboard();
+              });
+            }
+          );
+        });
+      }
+    );
   }
 
   function triggerBatchSendEmails() {
-    if (!confirm('確認將分發錄取通知函，批次發送至全校已錄取學生的 Email 信箱？')) return;
-    setLoading(true, '正在批次發送錄取通知信件...');
-    callGas('batchSendAllocationEmails', [appState.adminToken], function(res) {
-      showModal('發信完成', res.message);
-    });
+    showConfirmModal(
+      '批次寄發錄取通知信',
+      '確認將分發錄取通知函，批次發送至全校已錄取學生的 Email 信箱？<br><br><span style="font-size:12px; color:var(--text-muted);">系統將調用 GmailApp 寄送個人化數位錄取信件（包含錄取社團、上課教室、攜帶物品）。</span>',
+      '立即批次發送',
+      function() {
+        setLoading(true, '正在批次發送錄取通知信件...');
+        callGas('batchSendAllocationEmails', [appState.adminToken], function(res) {
+          showModal('發信完成', res.message);
+        });
+      }
+    );
   }
 
   function triggerExportAttendance() {
@@ -1637,8 +1680,23 @@
   function showModal(title, msg) {
     document.getElementById('modalTitle').innerText = title;
     document.getElementById('modalMessage').innerHTML = msg;
+    document.getElementById('modalButtons').innerHTML = '<button class="btn btn-primary" onclick="closeModal()">確定</button>';
     document.getElementById('customModal').style.display = 'flex';
   }
+
+  function showConfirmModal(title, htmlContent, confirmBtnText, onConfirm) {
+    document.getElementById('modalTitle').innerText = title;
+    document.getElementById('modalMessage').innerHTML = htmlContent;
+    var btns = '<button class="nav-btn" style="border:1px solid #cbd5e1; padding:8px 16px;" onclick="closeModal()">取消</button>' +
+               '<button class="btn btn-primary" id="modalActionBtn" style="padding:8px 20px;">' + (confirmBtnText || '確定執行') + '</button>';
+    document.getElementById('modalButtons').innerHTML = btns;
+    document.getElementById('modalActionBtn').onclick = function() {
+      closeModal();
+      if (typeof onConfirm === 'function') onConfirm();
+    };
+    document.getElementById('customModal').style.display = 'flex';
+  }
+
   function closeModal() {
     document.getElementById('customModal').style.display = 'none';
   }

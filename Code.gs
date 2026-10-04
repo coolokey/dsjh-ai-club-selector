@@ -1,7 +1,7 @@
 /**
  * 桃園市「AI好幫手：智慧協作工具徵選與應用計畫」特優參賽旗艦系統
  * 專案名稱：AI智慧社團選社與適性導航系統 (AI Club Selection & Adaptive Guidance System)
- * 服務學校：桃園市立大溪國民中學 ｜ 開發團隊：毛郁仁 老師
+ * 服務學校：桃園市立大溪國民中學 ｜ 開發團隊：游貿仁 老師
  *
  * 全新升級亮點（特優首獎規格）：
  * 1. 📧 錄取通知同步發送信箱 (HTML Email Notification)：學生即時選社或分發完成自動發送個人錄取通知函。
@@ -278,7 +278,7 @@ function getStudentsByClass(className) {
       const rawName = String(data[i][2]).trim();
       list.push({
         seat: String(data[i][1]).trim(),
-        name: rawName.slice(0, 1) + '＊＊'
+        name: rawName
       });
     }
   }
@@ -572,7 +572,7 @@ function scrubPII_(text) {
     .replace(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g, '[信箱已遮蔽]');
 }
 
-function aiConsultantRecommend(studentInput) {
+function aiConsultantRecommend(studentInput, studentGrade) {
   const settings = getSystemSettings();
   if (!settings.aiAdvisorEnabled) {
     return { status: 'error', message: '目前 AI 選社顧問功能暫未開啟。' };
@@ -584,7 +584,9 @@ function aiConsultantRecommend(studentInput) {
   }
 
   const sanitizedInput = scrubPII_(studentInput);
-  const gradeLevel = '國中生';
+  const gradeLevel = (studentGrade && /^[789七八九]/.test(String(studentGrade))) 
+    ? String(studentGrade).slice(0, 1) + '年級' 
+    : '國中生';
 
   const validClubNames = new Set(clubs.map(c => c.name));
   const clubSummaries = clubs.map((c, idx) => 
@@ -708,7 +710,10 @@ function ruleBasedRecommendFallback(input, clubs) {
   });
 
   scoredClubs.sort((a, b) => b.matchScore - a.matchScore);
-  const topRecommendations = scoredClubs.slice(0, 3);
+  const topRecommendations = scoredClubs.slice(0, 3).map((item, idx) => ({
+    ...item,
+    matchScore: Math.max(70, Math.min(98, item.matchScore - idx * 5))
+  }));
 
   return {
     status: 'success',
@@ -1189,11 +1194,18 @@ function generateClubDocManual(adminToken) {
   };
 }
 
+function assertAdminOrTeacherAuth_(authCode) {
+  if (verifyAdminSession_(authCode)) return true;
+  const teacherPwd = PropertiesService.getScriptProperties().getProperty('TEACHER_PASSWORD') || 'teacher888';
+  if (authCode && String(authCode).trim() === teacherPwd) return true;
+  throw new Error('403 Unauthorized: 導師專區存取未獲授權，請輸入正確的導師通行碼！');
+}
+
 /**
  * 👨‍🏫 智慧行政 4：導師班級專區查核與 LINE 催繳文案
  */
-function getHomeroomClassData(className, adminToken) {
-  assertAdminAuth_(adminToken);
+function getHomeroomClassData(className, authCode) {
+  assertAdminOrTeacherAuth_(authCode);
   const ss = getSpreadsheet();
   const studentSheet = ss.getSheetByName('學生名冊');
   const data = studentSheet.getDataRange().getValues();
