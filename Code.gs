@@ -191,7 +191,8 @@ function verifyAdminSession_(token) {
 }
 
 function assertAdminAuth_(token) {
-  if (!verifyAdminSession_(token)) {
+  if (!verifyAdminSession_(token) ||
+      (PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD') || CONFIG.DEFAULT_PASSWORD) === CONFIG.DEFAULT_PASSWORD) {
     throw new Error('403 Unauthorized: 未經授權的管理端操作或 Session 已過期，請重新登入管理員帳號！');
   }
 }
@@ -211,15 +212,15 @@ function loginAdmin(pwd) {
 }
 
 function changeAdminPassword(adminToken, oldPwd, newPwd) {
-  assertAdminAuth_(adminToken);
+  if (!verifyAdminSession_(adminToken)) throw new Error('403 Unauthorized');
   const props = PropertiesService.getScriptProperties();
   const realPwd = props.getProperty('ADMIN_PASSWORD') || CONFIG.DEFAULT_PASSWORD;
 
   if (String(oldPwd).trim() !== realPwd) {
     return { status: 'error', message: '舊密碼不正確！' };
   }
-  if (!newPwd || newPwd.length < 4) {
-    return { status: 'error', message: '新密碼長度不得少於 4 碼！' };
+  if (!newPwd || String(newPwd).trim().length < 8 || String(newPwd).trim() === CONFIG.DEFAULT_PASSWORD) {
+    return { status: 'error', message: '新密碼至少 8 碼，且不得使用預設密碼！' };
   }
 
   props.setProperty('ADMIN_PASSWORD', String(newPwd).trim());
@@ -277,7 +278,7 @@ function getStudentsByClass(className) {
       const rawName = String(data[i][2]).trim();
       list.push({
         seat: String(data[i][1]).trim(),
-        name: rawName
+        name: rawName.slice(0, 1) + '＊＊'
       });
     }
   }
@@ -571,7 +572,7 @@ function scrubPII_(text) {
     .replace(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g, '[信箱已遮蔽]');
 }
 
-function aiConsultantRecommend(studentInput, studentInfo) {
+function aiConsultantRecommend(studentInput) {
   const settings = getSystemSettings();
   if (!settings.aiAdvisorEnabled) {
     return { status: 'error', message: '目前 AI 選社顧問功能暫未開啟。' };
@@ -583,7 +584,7 @@ function aiConsultantRecommend(studentInput, studentInfo) {
   }
 
   const sanitizedInput = scrubPII_(studentInput);
-  const gradeLevel = (studentInfo && studentInfo.className) ? String(studentInfo.className).slice(0, 1) + '年級' : '國中生';
+  const gradeLevel = '國中生';
 
   const validClubNames = new Set(clubs.map(c => c.name));
   const clubSummaries = clubs.map((c, idx) => 
@@ -701,7 +702,7 @@ function ruleBasedRecommendFallback(input, clubs) {
 
     return {
       clubName: club.name,
-      matchScore: Math.min(98, score + Math.floor(Math.random() * 4)),
+      matchScore: score,
       reason: `此社團著重於${club.desc.slice(0, 32)}...，能充分發揮你在${club.category}領域的多元潛能！`
     };
   });
@@ -841,7 +842,7 @@ function getAdminDashboardData(adminToken) {
 /**
  * ⚡ 智慧行政 1：多志願公平適性分發（2D 陣列批次寫入、修復重複清零 Bug、班級防抱團、抽籤序）
  */
-function runAiSmartAllocation(adminToken) {
+function runAiSmartAllocation(adminToken, previewToken) {
   assertAdminAuth_(adminToken);
 
   const lock = LockService.getScriptLock();
@@ -857,6 +858,23 @@ function runAiSmartAllocation(adminToken) {
     const cData = clubSheet.getDataRange().getValues();
     const settings = getSystemSettings();
     const maxPerClass = settings.maxPerClass || CONFIG.MAX_PER_CLASS_PER_CLUB;
+    const snapshot = JSON.stringify([sData, cData, maxPerClass]);
+    const cache = CacheService.getScriptCache();
+    if (previewToken) {
+      const key = 'ALLOCATION_' + previewToken;
+      const chunkCount = Number(cache.get(key));
+      let serialized = '';
+      for (let i = 0; i < chunkCount; i++) serialized += cache.get(key + '_' + i) || '';
+      let plan;
+      try { plan = JSON.parse(serialized); } catch (e) {}
+      if (!plan || plan.adminToken !== adminToken || plan.snapshot !== snapshot) {
+        return { status: 'error', message: '預覽已過期、名冊或設定已有變動，請重新預覽並確認。' };
+      }
+      cache.put(key, '0', 1);
+      studentSheet.getRange(1, 1, plan.sData.length, plan.sData[0].length).setValues(plan.sData);
+      clubSheet.getRange(1, 1, plan.cData.length, plan.cData[0].length).setValues(plan.cData);
+      return { status: 'success', report: plan.report };
+    }
 
     // 1. 初始化社團容量與各班人數統計
     const clubMap = {};
@@ -887,7 +905,7 @@ function runAiSmartAllocation(adminToken) {
         prefs: [sData[i][5], sData[i][6], sData[i][7]].map(p => String(p || '').trim()),
         assigned: currentAssigned,
         note: String(sData[i][10] || '').trim(),
-        lotteryNo: Math.floor(100000 + Math.random() * 900000)
+        lotteryNo: null
       };
 
       // 若有保障鎖定，優先確保
@@ -896,6 +914,8 @@ function runAiSmartAllocation(adminToken) {
         studentObj.note = '身分優先保障錄取';
         clubMap[lockedClub].assigned.push(studentObj);
         clubMap[lockedClub].classCounts[cls] = (clubMap[lockedClub].classCounts[cls] || 0) + 1;
+        sData[i][8] = lockedClub;
+        sData[i][10] = studentObj.note;
       } else if (currentAssigned && clubMap[currentAssigned]) {
         // 原本已錄取者保留
         clubMap[currentAssigned].assigned.push(studentObj);
@@ -910,6 +930,7 @@ function runAiSmartAllocation(adminToken) {
       const j = Math.floor(Math.random() * (i + 1));
       [pendingStudents[i], pendingStudents[j]] = [pendingStudents[j], pendingStudents[i]];
     }
+    pendingStudents.forEach((student, index) => { student.lotteryNo = index + 1; });
 
     // 4. 多志願序多輪分發（含各班人數上限過濾）
     const prefCounts = [0, 0, 0];
@@ -957,7 +978,7 @@ function runAiSmartAllocation(adminToken) {
           }
         }
         if (!allocated) {
-          s.note = '分發未錄取（名額已滿，待人工輔導）';
+          s.note = `分發未錄取（容量或班級上限限制，待人工輔導；抽籤序:${s.lotteryNo}）`;
         }
       }
     });
@@ -975,17 +996,12 @@ function runAiSmartAllocation(adminToken) {
       cData[c.rowIdx][2] = c.assigned.length; // 精準更新社團已錄取人數
     });
 
-    studentSheet.getRange(1, 1, sData.length, sData[0].length).setValues(sData);
-    clubSheet.getRange(1, 1, cData.length, cData[0].length).setValues(cData);
-
     const totalProcessed = pendingStudents.length;
     const satisfactionRate = totalProcessed > 0
       ? Math.round(((prefCounts[0] + prefCounts[1] + prefCounts[2]) / totalProcessed) * 100)
       : 0;
 
-    return {
-      status: 'success',
-      report: {
+    const report = {
         totalProcessed: totalProcessed,
         pref1Count: prefCounts[0],
         pref2Count: prefCounts[1],
@@ -993,7 +1009,16 @@ function runAiSmartAllocation(adminToken) {
         randomAssignedCount: randomCount,
         unassignedCount: pendingStudents.filter(s => !s.assigned).length,
         satisfactionRate: satisfactionRate
-      }
+      };
+    const token = Utilities.getUuid();
+    const key = 'ALLOCATION_' + token;
+    const serialized = JSON.stringify({ adminToken, snapshot, sData, cData, report });
+    const chunks = Math.ceil(serialized.length / 20000);
+    for (let i = 0; i < chunks; i++) cache.put(key + '_' + i, serialized.slice(i * 20000, (i + 1) * 20000), 600);
+    cache.put(key, String(chunks), 600);
+    return {
+      status: 'preview', previewToken: token, report,
+      review: pendingStudents.map(s => ({ className: s.className, seat: s.seat, lotteryNo: s.lotteryNo, assigned: s.assigned, note: s.note }))
     };
   } finally {
     lock.releaseLock();
@@ -1153,7 +1178,7 @@ function generateClubDocManual(adminToken) {
 
   body.appendHorizontalRule();
   body.appendParagraph('二、智慧行政減量與科技協作成效').setHeading(DocumentApp.ParagraphHeading.HEADING1);
-  body.appendParagraph('本系統導入 Gemini 1.5 Flash 多模態適性導航顧問，輔導全校學生進行多元智能適性選填，支援錄取通知 Email 同步發送與多志願序平衡分發，大幅縮減傳統人工分流與排版超過 95% 之重複性行政工時，具體實踐校園智慧治理。');
+  body.appendParagraph('本系統提供 Gemini 興趣推薦（無法連線時使用規則配對），推薦僅供探索參考。多志願分發採抽籤順序、志願輪次、容量與班級上限規則，須由承辦人預覽確認後套用。前三志願滿足率依本次分發實測，行政工時改善尚待正式量測。');
 
   doc.saveAndClose();
 
@@ -1167,7 +1192,8 @@ function generateClubDocManual(adminToken) {
 /**
  * 👨‍🏫 智慧行政 4：導師班級專區查核與 LINE 催繳文案
  */
-function getHomeroomClassData(className) {
+function getHomeroomClassData(className, adminToken) {
+  assertAdminAuth_(adminToken);
   const ss = getSpreadsheet();
   const studentSheet = ss.getSheetByName('學生名冊');
   const data = studentSheet.getDataRange().getValues();

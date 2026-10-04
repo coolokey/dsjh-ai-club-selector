@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 function createGasMockEnvironment() {
   const scriptProperties = new Map();
-  scriptProperties.set('ADMIN_PASSWORD', 'admin888');
+  scriptProperties.set('ADMIN_PASSWORD', 'test-password');
 
   const cacheStore = new Map();
 
@@ -197,7 +197,7 @@ test('1. 學生名冊、Email 與班級清單載入', () => {
 
   const students701 = context.getStudentsByClass('701');
   assert.equal(students701.length, 3);
-  assert.equal(students701[0].name, '王大明');
+  assert.equal(students701[0].name, '王＊＊');
 });
 
 test('2. 學生身分驗證與身分保障鎖定', () => {
@@ -258,7 +258,7 @@ test('5. 多志願 2D 批次分發與管理 Token 安全驗證', () => {
   }, /403/);
 
   // 正確登入取得 token
-  const loginRes = context.loginAdmin('admin888');
+  const loginRes = context.loginAdmin('test-password');
   assert.equal(loginRes.status, 'success');
   const token = loginRes.token;
   assert.ok(token);
@@ -267,12 +267,15 @@ test('5. 多志願 2D 批次分發與管理 Token 安全驗證', () => {
   context.submitPreferences('701', '01', '6789', 'AI機器人創客社', '熱血籃球戰術社', '數位動漫與繪畫社');
 
   // 執行分發
-  const allocRes = context.runAiSmartAllocation(token);
+  const preview = context.runAiSmartAllocation(token);
+  assert.equal(preview.status, 'preview');
+  assert.equal(context.getClubList()[0].current, 0);
+  const allocRes = context.runAiSmartAllocation(token, preview.previewToken);
   assert.equal(allocRes.status, 'success');
   assert.ok(allocRes.report.totalProcessed > 0);
 
   // 重複執行分發 -> 不得將社團人數歸零
-  const allocRes2 = context.runAiSmartAllocation(token);
+  const allocRes2 = context.runAiSmartAllocation(token, context.runAiSmartAllocation(token).previewToken);
   assert.equal(allocRes2.status, 'success');
   const clubs = context.getClubList();
   const robotClub = clubs.find(c => c.name === 'AI機器人創客社');
@@ -281,11 +284,13 @@ test('5. 多志願 2D 批次分發與管理 Token 安全驗證', () => {
 
 test('6. 導師專區與點名冊 (含健康警示)', () => {
   const { context } = createGasMockEnvironment();
-  const loginRes = context.loginAdmin('admin888');
+  const loginRes = context.loginAdmin('test-password');
   const token = loginRes.token;
 
   // 導師查詢專區
-  const hrData = context.getHomeroomClassData('701');
+  assert.throws(() => context.getHomeroomClassData('701'), /403/);
+  assert.throws(() => context.getHomeroomClassData('701', 'invalid'), /403/);
+  const hrData = context.getHomeroomClassData('701', token);
   assert.equal(hrData.status, 'success');
   assert.equal(hrData.className, '701');
   assert.ok(hrData.noticeText.includes('701 班社團選社進度通知'));
@@ -293,4 +298,33 @@ test('6. 導師專區與點名冊 (含健康警示)', () => {
   // 產出點名冊
   const attRes = context.exportAttendanceSheets(token);
   assert.equal(attRes.status, 'success');
+});
+
+test('Default password grants only password change; preview is bound to unchanged data and session', () => {
+  const { context, scriptProperties, sheets } = createGasMockEnvironment();
+  scriptProperties.set('ADMIN_PASSWORD', 'admin888');
+  const token = context.loginAdmin('admin888').token;
+  assert.throws(() => context.getAdminDashboardData(token), /403/);
+  assert.equal(context.changeAdminPassword(token, 'admin888', 'admin888').status, 'error');
+  assert.equal(context.changeAdminPassword(token, 'admin888', 'new-password').status, 'success');
+  const preview = context.runAiSmartAllocation(token);
+  assert.equal(context.runAiSmartAllocation(context.loginAdmin('new-password').token, preview.previewToken).status, 'error');
+  sheets['學生名冊'].getRange(2, 6).setValue('熱血籃球戰術社');
+  assert.equal(context.runAiSmartAllocation(token, preview.previewToken).status, 'error');
+});
+
+test('Recorded draw order is the allocation order and capacities remain enforced', () => {
+  const { context, sheets } = createGasMockEnvironment();
+  sheets['社團設定'].getRange(1, 1).setValues([
+    ['社團名稱', '人數上限', '已錄取人數'], ['唯一社團', 1, 0]
+  ]);
+  for (let row = 2; row <= 5; row++) sheets['學生名冊'].getRange(row, 6).setValue('唯一社團');
+  const token = context.loginAdmin('test-password').token;
+  const preview = context.runAiSmartAllocation(token);
+  assert.equal(preview.review[0].lotteryNo, 1);
+  assert.equal(preview.review[0].assigned, '唯一社團');
+  const result = context.runAiSmartAllocation(token, preview.previewToken);
+  assert.equal(result.status, 'success');
+  assert.equal(context.getClubList()[0].current, 1);
+  assert.equal(context.runAiSmartAllocation(token, preview.previewToken).status, 'error');
 });

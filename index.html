@@ -1049,7 +1049,7 @@
               });
             }, 300);
           },
-          aiConsultantRecommend: function(input, sInfo) {
+          aiConsultantRecommend: function(input) {
             var self = this;
             setTimeout(function(){
               self._success({
@@ -1091,11 +1091,12 @@
               });
             }, 300);
           },
-          runAiSmartAllocation: function(t) {
+          runAiSmartAllocation: function(t, previewToken) {
             var self = this;
             setTimeout(function(){
               self._success({
-                status: 'success',
+                status: previewToken ? 'success' : 'preview',
+                previewToken: previewToken ? undefined : 'mock-preview-token',
                 report: { totalProcessed: 35, pref1Count: 25, pref2Count: 7, pref3Count: 2, randomAssignedCount: 1, satisfactionRate: 97 }
               });
             }, 800);
@@ -1103,7 +1104,7 @@
           batchSendAllocationEmails: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', sentCount: 115, message: '已成功寄送 115 封錄取通知信至學生信箱！' }); }, 600); },
           exportAttendanceSheets: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: '各社團點名簽到冊（含健康警示標記）已產出！' }); }, 400); },
           generateClubDocManual: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: 'Google Docs 成果手冊已建立！' }); }, 500); },
-          getHomeroomClassData: function(cls) {
+          getHomeroomClassData: function(cls, token) {
             var self = this;
             setTimeout(function(){
               self._success({
@@ -1318,7 +1319,7 @@
     document.getElementById('aiSkeleton').style.display = 'block';
     document.getElementById('aiResultPanel').style.display = 'none';
 
-    callGas('aiConsultantRecommend', [interest, appState.currentStudent], function(res) {
+    callGas('aiConsultantRecommend', [interest], function(res) {
       document.getElementById('aiSkeleton').style.display = 'none';
       if (res.status === 'error') {
         showModal('AI 顧問提示', res.message);
@@ -1420,6 +1421,11 @@
 
   // ==================== 導師班級專區 ====================
   function openHomeroomView() {
+    if (!appState.adminToken) {
+      showModal('導師專區需驗證', '為保護學生選社資料，請先以經授權的教師管理帳號登入。');
+      openAdminLogin();
+      return;
+    }
     showStep('Homeroom');
   }
 
@@ -1428,7 +1434,7 @@
     if (!cls) return;
 
     setLoading(true, '載入本班選社名單中...');
-    callGas('getHomeroomClassData', [cls], function(res) {
+    callGas('getHomeroomClassData', [cls, appState.adminToken], function(res) {
       document.getElementById('hrClassTitle').innerText = res.className + ' 班社團選社進度';
       document.getElementById('hrProgressText').innerText = '已完成 ' + res.enrolledCount + ' / ' + res.total + ' 人 (' + Math.round((res.enrolledCount / res.total)*100) + '%)';
       appState.currentHomeroomNotice = res.noticeText;
@@ -1542,20 +1548,22 @@
   }
 
   function triggerSmartAllocation() {
-    if (!confirm('即將執行「AI 多志願序公平適性分發」！\n系統將自動限制各班上限（防抱團），確認執行？')) return;
-    setLoading(true, 'AI 演算法運算分發中...');
+    if (!confirm('將依抽籤順序、志願輪次、名額與班級上限產生分發預覽；此時不會寫入資料。是否繼續？')) return;
+    setLoading(true, '正在建立規則式分發預覽...');
     callGas('runAiSmartAllocation', [appState.adminToken], function(res) {
       var rep = res.report;
-      showModal('🎉 多志願分發完成', 
-        '分發處理人數：' + rep.totalProcessed + ' 人<br>' +
-        '第 1 志願錄取：' + rep.pref1Count + ' 人<br>' +
-        '第 2 志願錄取：' + rep.pref2Count + ' 人<br>' +
-        '第 3 志願錄取：' + rep.pref3Count + ' 人<br>' +
-        '適性分流人數：' + rep.randomAssignedCount + ' 人<br>' +
-        '前三志願整體滿意度：<strong style="color:var(--emerald); font-size:16px;">' + rep.satisfactionRate + '%</strong><br><br>' +
-        '分發數據已批次寫回 Google 試算表！'
-      );
-      loadAdminDashboard();
+      if (res.status !== 'preview') { showModal('預覽失敗', res.message || '未取得可確認的分發預覽。'); return; }
+      var prompt = '這是規則式分發預覽，請先人工檢視。\n\n處理人數：' + rep.totalProcessed +
+        '\n第 1／2／3 志願：' + rep.pref1Count + '／' + rep.pref2Count + '／' + rep.pref3Count +
+        '\n其他分流：' + rep.randomAssignedCount +
+        '\n本次前三志願滿足率：' + rep.satisfactionRate + '%\n\n按「確定」才會寫入試算表。';
+      if (!confirm(prompt)) return;
+      setLoading(true, '正在套用已確認的分發結果...');
+      callGas('runAiSmartAllocation', [appState.adminToken, res.previewToken], function(applied) {
+        if (applied.status !== 'success') { showModal('套用失敗', applied.message || '預覽已過期，請重新預覽。'); return; }
+        showModal('分發結果已套用', '已依人工確認的預覽寫入資料。請再檢視未錄取名單與特殊需求。');
+        loadAdminDashboard();
+      });
     });
   }
 
