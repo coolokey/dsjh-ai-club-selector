@@ -325,13 +325,27 @@ function verifyAndGetClubs(className, seat, idNum) {
     return { status: 'error', message: '查無此班級座號學生資料！' };
   }
 
-  const clubs = getClubList();
+  const classClubCounts = {};
+  for (let i = 1; i < sData.length; i++) {
+    if (String(sData[i][0]).trim() === String(className).trim()) {
+      const assigned = String(sData[i][8] || '').trim();
+      if (assigned) {
+        classClubCounts[assigned] = (classClubCounts[assigned] || 0) + 1;
+      }
+    }
+  }
+
+  const clubs = getClubList().map(c => ({
+    ...c,
+    classCount: classClubCounts[c.name] || 0
+  }));
   const settings = getSystemSettings();
 
   return {
     status: 'success',
     student: student,
     clubs: clubs,
+    classClubCounts: classClubCounts,
     settings: settings
   };
 }
@@ -559,6 +573,72 @@ function submitPreferences(className, seat, idNum, pref1, pref2, pref3) {
     preferences: [pref1, pref2, pref3],
     timestamp: timestamp
   };
+}
+
+// ==================== 學生開放期間重新改選（安全釋出原社團名額） ====================
+function cancelSelection(className, seat, idNum) {
+  const settings = getSystemSettings();
+  const now = new Date();
+  if (settings.openTime && now < new Date(settings.openTime)) {
+    return { status: 'error', message: '目前非開放選社時段！' };
+  }
+  if (settings.closeTime && now > new Date(settings.closeTime)) {
+    return { status: 'error', message: '選社時段已截止，無法再自行改選！' };
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) {
+      return { status: 'error', message: '伺服器忙碌中，請稍後再試。' };
+    }
+
+    const ss = getSpreadsheet();
+    const studentSheet = ss.getSheetByName('學生名冊');
+    const clubSheet = ss.getSheetByName('社團設定');
+    const sData = studentSheet.getDataRange().getValues();
+    const cData = clubSheet.getDataRange().getValues();
+    const cleanId = String(idNum).trim().toUpperCase();
+
+    let studentRowIndex = -1;
+    let oldClub = '';
+    let lockedClub = '';
+
+    for (let i = 1; i < sData.length; i++) {
+      if (String(sData[i][0]).trim() === String(className).trim() &&
+          String(sData[i][1]).trim() === String(seat).trim()) {
+        const realId = String(sData[i][3]).trim().toUpperCase();
+        if (cleanId === realId || (cleanId.length >= 4 && realId.endsWith(cleanId))) {
+          studentRowIndex = i + 1;
+          oldClub = String(sData[i][8] || '').trim();
+          lockedClub = String(sData[i][11] || '').trim();
+        } else {
+          return { status: 'error', message: '身分證字號驗證失敗！' };
+        }
+        break;
+      }
+    }
+
+    if (studentRowIndex === -1) return { status: 'error', message: '查無此學生資料！' };
+    if (lockedClub) return { status: 'error', message: '您為專案保障錄取身分，無法自行退選！' };
+
+    if (oldClub) {
+      for (let j = 1; j < cData.length; j++) {
+        if (String(cData[j][0]).trim() === oldClub) {
+          const cur = parseInt(cData[j][2], 10) || 0;
+          clubSheet.getRange(j + 1, 3).setValue(Math.max(0, cur - 1));
+          break;
+        }
+      }
+      studentSheet.getRange(studentRowIndex, 9).setValue('');
+      studentSheet.getRange(studentRowIndex, 11).setValue('開放期間重新改選');
+    }
+
+    return verifyAndGetClubs(className, seat, idNum);
+  } catch (err) {
+    return { status: 'error', message: '取消選填時發生異常：' + err.message };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ==================== Gemini 1.5 Flash 智慧適性選社顧問 ====================
@@ -814,13 +894,23 @@ function getAdminDashboardData(adminToken) {
   let enrolledCount = 0;
   let unassignedCount = 0;
   let preferencesFilledCount = 0;
+  const unassignedStudents = [];
 
   for (let i = 1; i < sData.length; i++) {
     const cls = sData[i][0];
     if (cls) {
       totalStudents++;
-      if (sData[i][8]) enrolledCount++;
-      else unassignedCount++;
+      if (sData[i][8] || sData[i][11]) {
+        enrolledCount++;
+      } else {
+        unassignedCount++;
+        unassignedStudents.push({
+          className: String(sData[i][0]).trim(),
+          seat: String(sData[i][1]).trim(),
+          name: String(sData[i][2]).trim(),
+          pref1: String(sData[i][5] || '').trim()
+        });
+      }
 
       if (sData[i][5]) preferencesFilledCount++;
     }
@@ -839,6 +929,7 @@ function getAdminDashboardData(adminToken) {
       preferencesFilledCount: preferencesFilledCount,
       enrollmentRate: totalStudents > 0 ? Math.round((enrolledCount / totalStudents) * 100) : 0
     },
+    unassignedStudents: unassignedStudents,
     clubs: clubs,
     settings: settings
   };

@@ -561,6 +561,201 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .error-msg { color: var(--rose); font-size: 13px; text-align: center; margin-top: 8px; font-weight: 700; }
+
+    /* 雙軌選社模式切換器與志願籃 */
+    .mode-switch-bar {
+      display: flex;
+      background: #f1f5f9;
+      padding: 4px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      gap: 4px;
+    }
+    .mode-tab {
+      flex: 1;
+      text-align: center;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-weight: 800;
+      border-radius: 9px;
+      cursor: pointer;
+      color: #64748b;
+      transition: all 0.2s;
+      border: none;
+      background: transparent;
+    }
+    .mode-tab.active {
+      background: white;
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+    .pref-basket {
+      background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+      border: 1.5px solid #bfdbfe;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .pref-slots-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+    @media (max-width: 560px) {
+      .pref-slots-grid { grid-template-columns: 1fr; }
+    }
+    .pref-slot {
+      background: white;
+      border: 1.5px dashed #93c5fd;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 62px;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .pref-slot.filled {
+      border-style: solid;
+      border-color: var(--primary-light);
+      background: #eff6ff;
+    }
+    .pref-slot-label { font-size: 11px; font-weight: 800; color: #1e40af; margin-bottom: 4px; }
+    .pref-slot-val { font-size: 13px; font-weight: 900; color: #0f172a; }
+    .pref-slot-remove {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: #fee2e2;
+      color: #b91c1c;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+      line-height: 20px;
+      text-align: center;
+      padding: 0;
+    }
+
+    /* 社團篩選與搜尋列 */
+    .filter-toolbar {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+    .cat-pills-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .cat-pill {
+      padding: 5px 11px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      background: white;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .cat-pill.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .class-quota-pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: #f0f9ff;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+      margin-left: 6px;
+    }
+    .class-quota-pill.warn {
+      background: #fef2f2;
+      color: #b91c1c;
+      border-color: #fecaca;
+    }
+
+    /* 發表會互動快速展示導覽列 (Showcase Quick-Jump Dock) */
+    .showcase-dock {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 8px 12px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 950;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      max-width: 96vw;
+      overflow-x: auto;
+    }
+    .showcase-dock-label {
+      color: #38bdf8;
+      font-size: 12px;
+      font-weight: 900;
+      padding: 0 8px;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .showcase-btn {
+      background: rgba(255, 255, 255, 0.12);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .showcase-btn:hover {
+      background: #2563eb;
+      border-color: #60a5fa;
+      transform: translateY(-1px);
+    }
+    .showcase-toggle-fab {
+      position: fixed;
+      bottom: 14px;
+      right: 14px;
+      background: #0f172a;
+      color: #38bdf8;
+      border: 1.5px solid #38bdf8;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      z-index: 951;
+      display: none;
+      box-shadow: var(--shadow-md);
+    }
+    @media print {
+      .showcase-dock, .showcase-toggle-fab, .nav-actions, #mock-banner { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -638,13 +833,19 @@
 
     <!-- 步驟 2: 社團瀏覽、Gemini AI 適性顧問、選填 -->
     <div id="stepSelect" class="step-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
         <div>
           <span style="font-size: 13px; color: var(--text-muted);">登入同學：</span>
           <strong id="displayStudentName" style="color: var(--primary); font-size: 16px;"></strong>
           <span id="displayClassSeat" style="font-size: 13px; color: var(--text-muted); margin-left: 4px;"></span>
         </div>
         <button class="nav-btn" style="padding: 4px 10px; font-size: 12px;" onclick="logoutStudent()">登出</button>
+      </div>
+
+      <!-- 雙軌選社制度切換列 (即時搶額 vs 三志願適性分發) -->
+      <div class="mode-switch-bar" id="studentModeBar">
+        <button type="button" class="mode-tab active" id="tabModeInstant" onclick="switchSelectionMode('instant')">⚡ 即時搶額制 (先選先錄取)</button>
+        <button type="button" class="mode-tab" id="tabModePrefs" onclick="switchSelectionMode('preferences')">📋 三志願分發制 (AI 適性配對)</button>
       </div>
 
       <!-- AI 智慧適性顧問區 -->
@@ -685,12 +886,50 @@
 
         <!-- AI 結果面板 -->
         <div id="aiResultPanel" class="ai-result-panel">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
             <strong style="color: #1e3a8a; font-size: 13px;">🎯 專屬適性推薦結果</strong>
-            <span id="aiSourceBadge" style="font-size: 11px; color: #64748b; font-weight: 700;"></span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span id="aiSourceBadge" style="font-size: 11px; color: #64748b; font-weight: 700;"></span>
+              <button type="button" class="btn-apply-rec" style="background: #7c3aed;" onclick="applyAllAiToPreferences()">✨ 一鍵帶入前三志願</button>
+            </div>
           </div>
           <div id="aiRecList"></div>
           <div id="aiEncouragement" style="font-size: 12px; color: #2563eb; background: #eff6ff; padding: 10px; border-radius: 8px; margin-top: 10px; line-height: 1.45;"></div>
+        </div>
+      </div>
+
+      <!-- 三志願分發模式：視覺化志願籃 -->
+      <div class="pref-basket" id="prefBasketBox">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: 13px; color: var(--primary);">📋 您的適性分發志願序（請依序點選下方社團加入）</strong>
+          <button type="button" class="nav-btn" style="padding: 2px 8px; font-size: 11px;" onclick="clearPreferences()">清空重選</button>
+        </div>
+        <div class="pref-slots-grid">
+          <div class="pref-slot" id="prefSlot1">
+            <div class="pref-slot-label">🥇 第一志願 (必填)</div>
+            <div class="pref-slot-val" id="prefVal1" style="color:#94a3b8;">點擊下方社團加入</div>
+          </div>
+          <div class="pref-slot" id="prefSlot2">
+            <div class="pref-slot-label">🥈 第二志願</div>
+            <div class="pref-slot-val" id="prefVal2" style="color:#94a3b8;">點擊下方社團加入</div>
+          </div>
+          <div class="pref-slot" id="prefSlot3">
+            <div class="pref-slot-label">🥉 第三志願</div>
+            <div class="pref-slot-val" id="prefVal3" style="color:#94a3b8;">點擊下方社團加入</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 社團智慧篩選與搜尋列 -->
+      <div class="filter-toolbar">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <input type="text" id="clubSearchInput" class="form-control" style="flex: 1; min-width: 180px; padding: 8px 12px; font-size: 13px;" placeholder="🔍 搜尋社團名稱、老師、教室或關鍵字..." oninput="filterAndRenderClubs()">
+          <label style="margin: 0; font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap;">
+            <input type="checkbox" id="hideFullToggle" onchange="filterAndRenderClubs()"> 僅顯示尚有名額
+          </label>
+        </div>
+        <div class="cat-pills-row" id="categoryPillsContainer">
+          <!-- 分類膠囊由 JS 動態渲染 -->
         </div>
       </div>
 
@@ -716,15 +955,15 @@
       <div style="background: #fffbeb; border: 2px dashed #f59e0b; border-radius: 14px; padding: 24px; text-align: center; margin-bottom: 20px;">
         <span style="font-size: 36px; display: block; margin-bottom: 8px;">⚠️</span>
         <h3 style="color: #b45309; font-size: 18px; margin-bottom: 8px; font-weight: 900;">請確認您的最終選社志願</h3>
-        <p style="color: #78350f; font-size: 14px;">您即將報名選填的社團為：</p>
+        <p style="color: #78350f; font-size: 14px;" id="confirmModeSubtext">您即將報名選填的社團為：</p>
         
-        <div style="font-size: 24px; font-weight: 900; color: #1e293b; margin: 16px 0; background: white; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; box-shadow: var(--shadow-sm);" id="confirmClubText">
+        <div style="font-size: 22px; font-weight: 900; color: #1e293b; margin: 16px 0; background: white; padding: 14px; border-radius: 10px; border: 1px solid #fde68a; box-shadow: var(--shadow-sm);" id="confirmClubText">
         </div>
 
         <div style="background: #fef2f2; border: 1.5px dashed #ef4444; padding: 12px; border-radius: 8px; margin-top: 16px;">
-          <p style="color: #b91c1c; font-weight: 800; font-size: 13px; line-height: 1.5; margin: 0;">
+          <p style="color: #b91c1c; font-weight: 800; font-size: 13px; line-height: 1.5; margin: 0;" id="confirmNoticeText">
             🛑 送出後即完成選社程序並鎖定名額，系統將同步發送 Email 錄取通知。<br>
-            若需異動請洽學務處訓育組辦理。
+            開放期間內若需異動，可於憑證頁面點擊重新改選。
           </p>
         </div>
       </div>
@@ -743,19 +982,19 @@
     <div id="stepSuccess" class="step-section">
       <div style="text-align: center; margin-bottom: 12px;">
         <div style="font-size: 52px; color: var(--emerald); margin-bottom: 6px;">🎉</div>
-        <h2 style="color: #065f46; font-size: 22px; font-weight: 900;">社團報名錄取成功！</h2>
-        <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">恭喜您獲得開課席次，錄取通知函已同步寄至您的信箱。</p>
+        <h2 style="color: #065f46; font-size: 22px; font-weight: 900;" id="successHeadingTitle">社團報名錄取成功！</h2>
+        <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;" id="successHeadingDesc">恭喜您獲得開課席次，錄取通知函已同步寄至您的信箱。</p>
       </div>
 
       <div class="admission-ticket">
         <div class="ticket-header">
           <div class="ticket-school">TAOYUAN DAXI JUNIOR HIGH SCHOOL</div>
-          <div class="ticket-title">社團適性錄取通知書</div>
+          <div class="ticket-title" id="ticketMainTitle">社團適性錄取通知書</div>
           <div class="ticket-serial" id="ticketSerial">NO. DX-2026-70101-AI</div>
         </div>
         <div class="ticket-body">
           <div class="ticket-club-box">
-            <div class="ticket-club-label">錄取社團 OFFICIAL ADMISSION</div>
+            <div class="ticket-club-label" id="ticketClubLabel">錄取社團 OFFICIAL ADMISSION</div>
             <div class="ticket-club-name" id="receiptClub">社團名稱</div>
           </div>
           <div class="ticket-grid">
@@ -764,18 +1003,22 @@
             <div><span style="color:var(--text-muted);">指導師資：</span><span id="receiptTeacher">專業師資</span></div>
             <div><span style="color:var(--text-muted);">上課教室：</span><span id="receiptLocation">專科教室</span></div>
           </div>
+          <div id="receiptRequirementBox" style="margin-top: 12px; padding: 8px 12px; background: #fffbeb; border: 1px dashed #fcd34d; border-radius: 8px; font-size: 12px; color: #92400e;">
+            📌 <strong>課前準備與說明：</strong><span id="receiptRequirement">請準時前往指定教室上課</span>
+          </div>
         </div>
         <div class="ticket-perforated"></div>
         <div class="ticket-footer">
           <div>
             <span>時間戳記：</span><span id="receiptTimestamp">2026-09-24 10:00:00</span><br>
-            <span style="font-size:11px; color:#10b981;">✓ 錄取信件已同步寄送</span>
+            <span style="font-size:11px; color:#10b981;" id="receiptEmailStatus">✓ 錄取信件已同步寄送</span>
           </div>
           <div class="official-stamp">學務處<br>訓育組</div>
         </div>
       </div>
 
       <button class="btn btn-primary" onclick="window.print()">🖨️ 列印 / 截圖留存憑證</button>
+      <button class="btn btn-secondary" id="btnCancelReselect" onclick="cancelAndReselect()" style="border-color: #cbd5e1; color: #0369a1;">🔄 開放期間重新改選社團</button>
       <button class="btn btn-secondary" onclick="logoutStudent()">返回系統首頁</button>
     </div>
 
@@ -890,10 +1133,19 @@
           <div class="admin-stat-num" id="statRate">0%</div>
           <div class="admin-stat-label">全校選填進度</div>
         </div>
-        <div class="admin-stat-card">
-          <div class="admin-stat-num" id="statUnassigned">0</div>
-          <div class="admin-stat-label">待分發/未選人數</div>
+        <div class="admin-stat-card" style="cursor: pointer; border-color: #cbd5e1;" onclick="toggleUnassignedPanel()" title="點擊展開查看未完成選社名單">
+          <div class="admin-stat-num" id="statUnassigned" style="color: var(--rose);">0</div>
+          <div class="admin-stat-label">待分發/未選人數 🔍 (點擊展開)</div>
         </div>
+      </div>
+
+      <!-- 全校未選社學生展開清單 -->
+      <div id="unassignedDetailBox" style="display: none; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 14px; padding: 16px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <strong style="color: #be123c; font-size: 14px;">📋 全校尚未完成選社／待分發學生明細</strong>
+          <button class="nav-btn" style="padding: 2px 8px; font-size: 11px;" onclick="toggleUnassignedPanel()">收合</button>
+        </div>
+        <div class="student-badge-grid" id="adminUnassignedList"></div>
       </div>
 
       <!-- 社團名額即時熱度監控 -->
@@ -904,7 +1156,7 @@
 
       <!-- 智慧行政一鍵自動化 -->
       <div style="margin-bottom: 22px;">
-        <label style="font-size: 14px;">⚡ 智慧行政自動化工具箱 (參賽殺手級亮點)</label>
+        <label style="font-size: 14px;">⚡ 智慧行政自動化工具箱</label>
         
         <button class="admin-action-btn" onclick="triggerSmartAllocation()">
           <span>🤖 執行 AI 多志願公平適性分發（含防抱團限制）</span>
@@ -931,9 +1183,18 @@
       <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 20px;">
         <label style="margin-bottom: 14px;">系統參數設定</label>
         
-        <div class="form-group">
-          <label style="font-size: 12px;">系統名稱</label>
-          <input type="text" id="adminTitleInput" class="form-control" style="font-size: 13px;">
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label style="font-size: 12px;">系統名稱</label>
+            <input type="text" id="adminTitleInput" class="form-control" style="font-size: 13px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size: 12px;">選社制度模式</label>
+            <select id="adminSelectionMode" class="form-control" style="font-size: 13px;">
+              <option value="instant">⚡ 即時搶額制 (先選先錄取)</option>
+              <option value="preferences">📋 三志願適性分發制</option>
+            </select>
+          </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -987,6 +1248,18 @@
   </div>
 </div>
 
+<!-- 🎬 作品發表會專屬：一鍵快速展示導覽列 (可隨時收合) -->
+<div class="showcase-dock" id="showcaseDock">
+  <span class="showcase-dock-label">🎬 發表展示導覽：</span>
+  <button type="button" class="showcase-btn" onclick="demoQuickStudent()">1️⃣ 學生秒登入</button>
+  <button type="button" class="showcase-btn" onclick="demoQuickAiAdvisor()">2️⃣ AI 適性配對</button>
+  <button type="button" class="showcase-btn" onclick="demoToggleMode()">3️⃣ 切換搶社/三志願</button>
+  <button type="button" class="showcase-btn" onclick="demoQuickHomeroom()">4️⃣ 導師專區查核</button>
+  <button type="button" class="showcase-btn" onclick="demoQuickAdmin()">5️⃣ 學務處智慧後台</button>
+  <button type="button" class="showcase-btn" style="background: rgba(244,63,94,0.25); border-color: rgba(244,63,94,0.4);" onclick="toggleShowcaseDock(false)" title="隱藏導覽列">✕</button>
+</div>
+<button type="button" class="showcase-toggle-fab" id="showcaseFab" onclick="toggleShowcaseDock(true)">🎬 展開發表導覽</button>
+
 <script>
   // ==================== 安全防 XSS 工具函式 ====================
   function escapeHtml(str) {
@@ -1005,12 +1278,13 @@
     document.getElementById('mock-banner').style.display = 'block';
 
     var mockClubs = [
-      { name: 'AI機器人創客社', limit: 15, current: 8, teacher: '李組長', location: '科技創客教室', desc: '學習 Arduino 感測器、Micro:bit 與程式創作', requirement: '材料費 200 元', category: '科技創客' },
-      { name: '熱血籃球戰術社', limit: 25, current: 21, teacher: '陳教練', location: '風雨球場A', desc: '基礎運球、團隊防守與分組對抗', requirement: '自備籃球鞋', category: '體育競技' },
-      { name: '數位動漫與繪畫社', limit: 20, current: 14, teacher: '王老師', location: '電腦教室二', desc: '電繪板基礎教學、角色骨架設計', requirement: '無基礎可', category: '視覺藝術' },
-      { name: '烏克麗麗與吉他彈唱社', limit: 18, current: 11, teacher: '林老師', location: '音樂教室B', desc: '和弦彈奏、流行曲目彈唱', requirement: '歡迎自備樂器', category: '音樂表演' },
-      { name: '桌遊與邏輯推理社', limit: 24, current: 16, teacher: '張老師', location: '多功能教室', desc: '精選德式策略桌遊、邏輯解謎', requirement: '無須自備道具', category: '策略邏輯' },
-      { name: '趣味生活科學實驗社', limit: 16, current: 9, teacher: '黃老師', location: '理化實驗室三', desc: '化學變色、大氣壓力水火箭', requirement: '材料費 150 元', category: '自然實驗' }
+      { name: 'AI機器人創客社', limit: 15, current: 8, classCount: 1, teacher: '李組長', location: '科技創客教室', desc: '學習 Arduino 感測器、Micro:bit 與程式創作，實作智能小車與物聯網。', requirement: '自備筆電或平板佳，材料費 200 元', category: '科技創客' },
+      { name: '熱血籃球戰術社', limit: 25, current: 21, classCount: 3, teacher: '陳教練', location: '風雨球場A', desc: '基礎運球、團隊防守跑位、半場戰術演練與分組對抗，鍛鍊體能與團隊精神。', requirement: '請穿著運動服裝與自備籃球鞋', category: '體育競技' },
+      { name: '數位動漫與繪畫社', limit: 20, current: 14, classCount: 2, teacher: '王老師', location: '電腦教室二', desc: '電繪板基礎教學、角色骨架設計、分鏡繪製與 AI 輔助著色探索。', requirement: '無基礎可，提供教室電繪板', category: '視覺藝術' },
+      { name: '烏克麗麗與吉他彈唱社', limit: 18, current: 11, classCount: 1, teacher: '林老師', location: '音樂教室B', desc: '由淺入深學習和弦彈奏、節奏刷法與流行曲目彈唱，培養音樂美感與表演自信。', requirement: '歡迎自備樂器，備有部分公用琴', category: '音樂表演' },
+      { name: '桌遊與邏輯推理社', limit: 24, current: 16, classCount: 2, teacher: '張老師', location: '七年級多功能教室', desc: '精選德式策略桌遊、邏輯解謎密室與溝通推理遊戲，培養批判性思維與協作。', requirement: '無須自備道具，愛好思考者佳', category: '策略邏輯' },
+      { name: '趣味生活科學實驗社', limit: 16, current: 9, classCount: 1, teacher: '黃老師', location: '理化實驗室三', desc: '生活中的化學變色、大氣壓力水火箭、分子料理與電磁魔法，探索科學奧秘。', requirement: '材料費 150 元，需穿著實驗圍裙', category: '自然實驗' },
+      { name: '校園新聞播報與攝影社', limit: 15, current: 10, classCount: 0, teacher: '趙老師', location: '視聽研討室', desc: '採訪技巧、單眼與手機攝影構圖、剪輯軟體操作與重大活動實地報導實習。', requirement: '無經驗可，適合喜愛表達與拍攝者', category: '語文傳播' }
     ];
 
     var mockSettings = {
@@ -1035,8 +1309,8 @@
             this._failure = fb;
             return this;
           },
-          getSystemSettings: function() { var self = this; setTimeout(function(){ self._success(mockSettings); }, 250); },
-          getClassList: function() { var self = this; setTimeout(function(){ self._success(['701', '702', '703', '801', '802']); }, 200); },
+          getSystemSettings: function() { var self = this; setTimeout(function(){ self._success(mockSettings); }, 200); },
+          getClassList: function() { var self = this; setTimeout(function(){ self._success(['701', '702', '703', '801', '802']); }, 180); },
           getStudentsByClass: function(cls) {
             var self = this;
             setTimeout(function(){
@@ -1046,7 +1320,7 @@
                 { seat: '03', name: '張志豪' },
                 { seat: '04', name: '林佩君' }
               ]);
-            }, 200);
+            }, 180);
           },
           verifyAndGetClubs: function(c, s, id) {
             var self = this;
@@ -1054,11 +1328,11 @@
               if (id.length < 4) self._success({ status: 'error', message: '身分證字號驗證長度不足！' });
               else self._success({
                 status: 'success',
-                student: { className: c, seat: s, name: '王大明', email: 'student@daxi.tyc.edu.tw', assignedClub: '' },
+                student: { className: c, seat: s, name: (s === '02' ? '李小美' : (s === '03' ? '張志豪' : '王大明')), email: 'student@daxi.tyc.edu.tw', assignedClub: '', pref1: '', pref2: '', pref3: '' },
                 clubs: mockClubs,
                 settings: mockSettings
               });
-            }, 300);
+            }, 250);
           },
           aiConsultantRecommend: function(input) {
             var self = this;
@@ -1068,25 +1342,45 @@
                 source: 'gemini',
                 data: {
                   recommendations: [
-                    { clubName: 'AI機器人創客社', matchScore: 96, reason: '深度契合你對動手做與程式的探索渴望，能學習感測器與智能小車！' },
-                    { clubName: '數位動漫與繪畫社', matchScore: 88, reason: '電繪板結合 AI 著色輔助，能激發出無限創意靈感！' }
+                    { clubName: 'AI機器人創客社', matchScore: 96, reason: '深度契合你對動手實作與程式的探索渴望，能學習感測器與智能小車（108課綱：科技資訊與媒體素養）！' },
+                    { clubName: '數位動漫與繪畫社', matchScore: 90, reason: '電繪板結合 AI 著色輔助，能激發出無限視覺創意靈感（108課綱：藝術涵養與美感素養）！' },
+                    { clubName: '趣味生活科學實驗社', matchScore: 85, reason: '透過動手做化學與水火箭實驗，滿足好奇心並培養科學探究力（108課綱：系統思考與解決問題）！' }
                   ],
                   encouragement: '國中階段是發掘自我天賦的最佳起點！勇敢嘗試不同領域，社團生活將讓你收穫滿滿的成就感！'
                 }
               });
-            }, 700);
+            }, 600);
           },
           submitSelection: function(cls, seat, id, club) {
             var self = this;
             setTimeout(function(){
-              self._success({ status: 'success', clubName: club, timestamp: '2026-09-27 10:00:00', emailSent: true });
-            }, 500);
+              var nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
+              self._success({ status: 'success', clubName: club, timestamp: nowStr, emailSent: true });
+            }, 400);
+          },
+          submitPreferences: function(cls, seat, id, p1, p2, p3) {
+            var self = this;
+            setTimeout(function(){
+              var nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
+              self._success({ status: 'success', preferences: [p1, p2, p3], timestamp: nowStr });
+            }, 400);
+          },
+          cancelSelection: function(cls, seat, id) {
+            var self = this;
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                student: { className: cls, seat: seat, name: '王大明', email: 'student@daxi.tyc.edu.tw', assignedClub: '' },
+                clubs: mockClubs,
+                settings: mockSettings
+              });
+            }, 300);
           },
           loginAdmin: function(pwd) {
             var self = this;
             setTimeout(function(){
               if (pwd === 'admin888') self._success({ status: 'success', token: 'mock-token-xyz', isDefault: true });
-              else if (pwd === 'admin') self._success({ status: 'success', token: 'mock-token-xyz', isDefault: false });
+              else if (pwd === 'admin' || pwd.length >= 8) self._success({ status: 'success', token: 'mock-token-xyz', isDefault: false });
               else self._success({ status: 'error', message: '管理密碼錯誤！' });
             }, 250);
           },
@@ -1096,7 +1390,17 @@
             setTimeout(function(){
               self._success({
                 status: 'success',
-                stats: { totalStudents: 150, enrolledCount: 115, unassignedCount: 35, enrollmentRate: 77 },
+                stats: { totalStudents: 150, enrolledCount: 142, unassignedCount: 8, enrollmentRate: 95 },
+                unassignedStudents: [
+                  { className: '701', seat: '05', name: '陳建宏', pref1: 'AI機器人創客社' },
+                  { className: '701', seat: '08', name: '林雅婷', pref1: '' },
+                  { className: '701', seat: '12', name: '張家豪', pref1: '熱血籃球戰術社' },
+                  { className: '702', seat: '04', name: '蔡依林', pref1: '烏克麗麗與吉他彈唱社' },
+                  { className: '702', seat: '11', name: '周杰倫', pref1: '' },
+                  { className: '703', seat: '06', name: '許光漢', pref1: '桌遊與邏輯推理社' },
+                  { className: '801', seat: '09', name: '王淨', pref1: '數位動漫與繪畫社' },
+                  { className: '802', seat: '15', name: '林柏宏', pref1: '' }
+                ],
                 clubs: mockClubs,
                 settings: mockSettings
               });
@@ -1108,29 +1412,44 @@
               self._success({
                 status: previewToken ? 'success' : 'preview',
                 previewToken: previewToken ? undefined : 'mock-preview-token',
-                report: { totalProcessed: 35, pref1Count: 25, pref2Count: 7, pref3Count: 2, randomAssignedCount: 1, satisfactionRate: 97 }
+                report: { totalProcessed: 35, pref1Count: 26, pref2Count: 6, pref3Count: 2, randomAssignedCount: 1, satisfactionRate: 97 }
               });
-            }, 800);
+            }, 600);
           },
-          batchSendAllocationEmails: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', sentCount: 115, message: '已成功寄送 115 封錄取通知信至學生信箱！' }); }, 600); },
-          exportAttendanceSheets: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: '各社團點名簽到冊（含健康警示標記）已產出！' }); }, 400); },
-          generateClubDocManual: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: 'Google Docs 成果手冊已建立！' }); }, 500); },
+          batchSendAllocationEmails: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', sentCount: 142, message: '已成功寄送 142 封個人化 HTML 錄取通知信至學生信箱！' }); }, 500); },
+          exportAttendanceSheets: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: '各社團點名簽到冊（含特殊病史健康警示標記與緊急分機）已成功建立分頁！' }); }, 400); },
+          generateClubDocManual: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: 'Google Docs 社團成果報告書與選社手冊已自動排版產出！' }); }, 500); },
           getHomeroomClassData: function(cls, token) {
             var self = this;
             setTimeout(function(){
               self._success({
                 status: 'success',
-                className: cls,
+                className: cls || '701',
                 total: 30,
                 enrolledCount: 27,
                 unassignedCount: 3,
-                enrolledList: [{ seat: '01', name: '王大明', club: 'AI機器人創客社' }, { seat: '02', name: '李小美', club: '數位動漫與繪畫社' }],
-                unassignedList: [{ seat: '05', name: '陳建宏', club: '' }, { seat: '08', name: '林雅婷', club: '' }, { seat: '12', name: '張家豪', club: '' }],
-                noticeText: '【701班社團選社通知】尚有 3 位同學未完成選社，請家長提醒把握權益！'
+                enrolledList: [
+                  { seat: '01', name: '王大明', club: 'AI機器人創客社' },
+                  { seat: '02', name: '李小美', club: '數位動漫與繪畫社' },
+                  { seat: '03', name: '張志豪', club: '校隊保障(籃球)' },
+                  { seat: '04', name: '林佩君', club: '烏克麗麗與吉他彈唱社' }
+                ],
+                unassignedList: [
+                  { seat: '05', name: '陳建宏', club: '' },
+                  { seat: '08', name: '林雅婷', club: '' },
+                  { seat: '12', name: '張家豪', club: '' }
+                ],
+                noticeText: '📢【' + (cls || '701') + ' 班社團選社進度通知】\n各位家長與同學好，本班目前已完成 27/30 人。\n⚠️ 尚未完成選社同學：05號 陳建宏、08號 林雅婷、12號 張家豪。\n請儘速使用手機登入學校 AI 選社系統完成志願選填，以保障自身權益！'
               });
             }, 300);
           },
-          saveSystemSettings: function(t, s) { var self = this; setTimeout(function(){ self._success({ status: 'success' }); }, 300); }
+          saveSystemSettings: function(t, s) {
+            var self = this;
+            if (s.mode) mockSettings.mode = s.mode;
+            if (s.title) mockSettings.title = s.title;
+            if (s.maxPerClass) mockSettings.maxPerClass = s.maxPerClass;
+            setTimeout(function(){ self._success({ status: 'success' }); }, 250);
+          }
         }
       }
     };
@@ -1142,6 +1461,9 @@
     currentStudent: null,
     clubs: [],
     selectedClub: '',
+    preferences: [],
+    lastAiRecommendations: [],
+    activeCategory: '全部',
     adminToken: null,
     currentHomeroomNotice: ''
   };
@@ -1254,8 +1576,9 @@
         errEl.innerText = res.message;
       } else {
         appState.currentStudent = res.student;
-        appState.clubs = res.clubs;
-        
+        appState.clubs = res.clubs || [];
+        if (res.settings) appState.settings = res.settings;
+
         // 若學生已保障錄取或早已有錄取社團
         if (res.student.lockedClub) {
           showReceiptView(res.student.name, res.student.lockedClub, res.student.selectedTime, true);
@@ -1268,29 +1591,120 @@
 
         document.getElementById('displayStudentName').innerText = res.student.name;
         document.getElementById('displayClassSeat').innerText = '(' + res.student.className + '班 ' + res.student.seat + '號)';
-        renderClubCards(res.clubs);
+
+        // 初始化選社模式與既存志願
+        var mode = (appState.settings && appState.settings.mode) ? appState.settings.mode : 'instant';
+        appState.preferences = [];
+        if (res.student.pref1) appState.preferences.push(res.student.pref1);
+        if (res.student.pref2) appState.preferences.push(res.student.pref2);
+        if (res.student.pref3) appState.preferences.push(res.student.pref3);
+
+        renderCategoryPills(appState.clubs);
+        switchSelectionMode(mode);
         showStep('Select');
       }
     });
   }
 
+  function switchSelectionMode(mode) {
+    appState.settings.mode = mode;
+    var tabInstant = document.getElementById('tabModeInstant');
+    var tabPrefs = document.getElementById('tabModePrefs');
+    var basket = document.getElementById('prefBasketBox');
+
+    if (mode === 'preferences') {
+      tabInstant.classList.remove('active');
+      tabPrefs.classList.add('active');
+      basket.style.display = 'block';
+      renderPreferenceBasket();
+    } else {
+      tabPrefs.classList.remove('active');
+      tabInstant.classList.add('active');
+      basket.style.display = 'none';
+      updateConfirmButtonState();
+    }
+    filterAndRenderClubs();
+  }
+
+  function renderCategoryPills(clubs) {
+    var cats = ['全部'];
+    clubs.forEach(function(c) {
+      if (c.category && cats.indexOf(c.category) === -1) cats.push(c.category);
+    });
+    var html = '';
+    cats.forEach(function(cat) {
+      var activeCls = (appState.activeCategory === cat) ? 'cat-pill active' : 'cat-pill';
+      html += '<button type="button" class="' + activeCls + '" onclick="setCategoryFilter(\'' + escapeHtml(cat) + '\')">' + escapeHtml(cat) + '</button>';
+    });
+    document.getElementById('categoryPillsContainer').innerHTML = html;
+  }
+
+  function setCategoryFilter(cat) {
+    appState.activeCategory = cat;
+    renderCategoryPills(appState.clubs);
+    filterAndRenderClubs();
+  }
+
+  function filterAndRenderClubs() {
+    var kw = (document.getElementById('clubSearchInput') ? document.getElementById('clubSearchInput').value : '').trim().toLowerCase();
+    var hideFull = document.getElementById('hideFullToggle') ? document.getElementById('hideFullToggle').checked : false;
+    var cat = appState.activeCategory || '全部';
+
+    var filtered = appState.clubs.filter(function(c) {
+      if (cat !== '全部' && c.category !== cat) return false;
+      if (hideFull && (c.limit - c.current) <= 0) return false;
+      if (kw) {
+        var text = (c.name + ' ' + c.teacher + ' ' + c.location + ' ' + c.desc + ' ' + c.category).toLowerCase();
+        if (text.indexOf(kw) === -1) return false;
+      }
+      return true;
+    });
+
+    renderClubCards(filtered);
+  }
+
   function renderClubCards(clubs) {
     var container = document.getElementById('clubCardContainer');
-    document.getElementById('clubCountInfo').innerText = '共 ' + clubs.length + ' 個社團';
+    var mode = (appState.settings && appState.settings.mode) || 'instant';
+    var maxPerClass = (appState.settings && appState.settings.maxPerClass) || 4;
+    document.getElementById('clubCountInfo').innerText = '顯示 ' + clubs.length + ' / 共 ' + appState.clubs.length + ' 個社團';
     var html = '';
+
+    if (clubs.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding:28px; color:var(--text-muted); font-size:13px;">查無符合篩選條件的社團，請調整搜尋關鍵字或分類。</div>';
+      return;
+    }
 
     clubs.forEach(function(club) {
       var avail = club.limit - club.current;
-      var isFull = avail <= 0;
-      var cardClass = isFull ? 'club-card full' : 'club-card';
-      var badgeClass = isFull ? 'badge-quota badge-full' : 'badge-quota badge-avail';
-      var badgeText = isFull ? '額滿' : '餘 ' + avail + ' 席';
+      var clsCount = club.classCount || 0;
+      var isClassFull = (mode === 'instant') && (clsCount >= maxPerClass);
+      var isFull = (mode === 'instant') ? (avail <= 0 || isClassFull) : false;
+
+      var isSelected = false;
+      var prefBadgeHtml = '';
+      if (mode === 'preferences') {
+        var pIdx = appState.preferences.indexOf(club.name);
+        if (pIdx !== -1) {
+          isSelected = true;
+          prefBadgeHtml = '<span class="badge-quota" style="background:#dbeafe; color:#1e40af; margin-right:6px;">第 ' + (pIdx + 1) + ' 志願</span>';
+        }
+      } else {
+        isSelected = (appState.selectedClub === club.name);
+      }
+
+      var cardClass = 'club-card' + (isFull ? ' full' : '') + (isSelected ? ' selected' : '');
+      var badgeClass = (avail <= 0) ? 'badge-quota badge-full' : 'badge-quota badge-avail';
+      var badgeText = (avail <= 0) ? '額滿' : '餘 ' + avail + ' 席';
       var clickAttr = isFull ? '' : 'onclick="onSelectClubCard(this, \'' + escapeHtml(club.name) + '\')"';
+
+      var clsQuotaClass = (clsCount >= maxPerClass) ? 'class-quota-pill warn' : 'class-quota-pill';
+      var clsQuotaText = '👥 本班已選 ' + clsCount + '/' + maxPerClass + ' 人' + (clsCount >= maxPerClass ? ' (本班上限)' : '');
 
       html += '<div class="' + cardClass + '" id="club-card-' + escapeHtml(club.name) + '" ' + clickAttr + '>';
       html += '  <div class="club-card-top">';
-      html += '    <div><span class="club-name">' + escapeHtml(club.name) + '</span><span class="club-category-tag">' + escapeHtml(club.category) + '</span></div>';
-      html += '    <span class="' + badgeClass + '">' + badgeText + '</span>';
+      html += '    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;"><span class="club-name">' + escapeHtml(club.name) + '</span><span class="club-category-tag">' + escapeHtml(club.category) + '</span><span class="' + clsQuotaClass + '">' + clsQuotaText + '</span></div>';
+      html += '    <div>' + prefBadgeHtml + '<span class="' + badgeClass + '">' + badgeText + '</span></div>';
       html += '  </div>';
       html += '  <div class="club-meta">📍 地點：' + escapeHtml(club.location || '校內教室') + ' ｜ 👨‍🏫 老師：' + escapeHtml(club.teacher || '專業指導') + '</div>';
       html += '  <div class="club-desc">' + escapeHtml(club.desc) + '</div>';
@@ -1304,14 +1718,88 @@
   }
 
   function onSelectClubCard(el, clubName) {
-    document.querySelectorAll('.club-card').forEach(function(c) { c.classList.remove('selected'); });
-    el.classList.add('selected');
-    appState.selectedClub = clubName;
-
-    var btn = document.getElementById('btnGoConfirm');
-    btn.disabled = false;
-    btn.innerHTML = '已選定：【' + escapeHtml(clubName) + '】 → 前往確認';
+    var mode = (appState.settings && appState.settings.mode) || 'instant';
     document.getElementById('selectionError').innerText = '';
+
+    if (mode === 'preferences') {
+      var idx = appState.preferences.indexOf(clubName);
+      if (idx !== -1) {
+        appState.preferences.splice(idx, 1);
+      } else {
+        if (appState.preferences.length >= 3) {
+          showModal('志願已滿', '最多可選擇 3 個志願！若要更換，請先點擊上方志願籃的「✕」移除或是再次點擊已選社團取消。');
+          return;
+        }
+        appState.preferences.push(clubName);
+      }
+      renderPreferenceBasket();
+      filterAndRenderClubs();
+    } else {
+      appState.selectedClub = clubName;
+      updateConfirmButtonState();
+      filterAndRenderClubs();
+    }
+  }
+
+  function renderPreferenceBasket() {
+    for (var i = 1; i <= 3; i++) {
+      var slotEl = document.getElementById('prefSlot' + i);
+      var valEl = document.getElementById('prefVal' + i);
+      var cName = appState.preferences[i - 1];
+      var oldBtn = slotEl.querySelector('.pref-slot-remove');
+      if (oldBtn) oldBtn.remove();
+
+      if (cName) {
+        slotEl.classList.add('filled');
+        valEl.style.color = '#0f172a';
+        valEl.innerText = cName;
+        var rmBtn = document.createElement('button');
+        rmBtn.type = 'button';
+        rmBtn.className = 'pref-slot-remove';
+        rmBtn.innerText = '✕';
+        rmBtn.setAttribute('onclick', 'removePreferenceAt(' + (i - 1) + ')');
+        slotEl.appendChild(rmBtn);
+      } else {
+        slotEl.classList.remove('filled');
+        valEl.style.color = '#94a3b8';
+        valEl.innerText = '點擊下方社團加入';
+      }
+    }
+    updateConfirmButtonState();
+  }
+
+  function removePreferenceAt(idx) {
+    appState.preferences.splice(idx, 1);
+    renderPreferenceBasket();
+    filterAndRenderClubs();
+  }
+
+  function clearPreferences() {
+    appState.preferences = [];
+    renderPreferenceBasket();
+    filterAndRenderClubs();
+  }
+
+  function updateConfirmButtonState() {
+    var btn = document.getElementById('btnGoConfirm');
+    var mode = (appState.settings && appState.settings.mode) || 'instant';
+    if (mode === 'preferences') {
+      if (appState.preferences.length > 0) {
+        btn.disabled = false;
+        btn.innerHTML = '已選填 ' + appState.preferences.length + ' 個志願 → 前往確認送出';
+      } else {
+        btn.disabled = true;
+        btn.innerHTML = '請至少選擇「第一志願」社團';
+      }
+    } else {
+      if (appState.selectedClub) {
+        btn.disabled = false;
+        btn.innerHTML = '已選定：【' + escapeHtml(appState.selectedClub) + '】 → 前往確認';
+      } else {
+        btn.disabled = true;
+        btn.innerHTML = '請先點擊上方社團進行選擇';
+      }
+    }
   }
 
   function addInterestTag(tagText) {
@@ -1338,6 +1826,7 @@
         return;
       }
 
+      appState.lastAiRecommendations = (res.data && res.data.recommendations) ? res.data.recommendations : [];
       var panel = document.getElementById('aiResultPanel');
       var listEl = document.getElementById('aiRecList');
       var badge = document.getElementById('aiSourceBadge');
@@ -1347,13 +1836,13 @@
       encEl.innerText = '💡 顧問導航小語：' + res.data.encouragement;
 
       var recHtml = '';
-      res.data.recommendations.forEach(function(rec) {
+      appState.lastAiRecommendations.forEach(function(rec, idx) {
         recHtml += '<div class="ai-rec-card">';
         recHtml += '  <div>';
-        recHtml += '    <div class="ai-rec-title">🏅 ' + escapeHtml(rec.clubName) + ' <span style="font-size:11px; color:#2563eb; font-weight:800;">(適配度 ' + (rec.matchScore || 95) + '%)</span></div>';
+        recHtml += '    <div class="ai-rec-title">🏅 推薦 ' + (idx + 1) + '：' + escapeHtml(rec.clubName) + ' <span style="font-size:11px; color:#2563eb; font-weight:800;">(適配度 ' + (rec.matchScore || 95) + '%)</span></div>';
         recHtml += '    <div class="ai-rec-reason">' + escapeHtml(rec.reason) + '</div>';
         recHtml += '  </div>';
-        recHtml += '  <button class="btn-apply-rec" onclick="applyAiRecommendation(\'' + escapeHtml(rec.clubName) + '\')">一鍵填選</button>';
+        recHtml += '  <button class="btn-apply-rec" onclick="applyAiRecommendation(\'' + escapeHtml(rec.clubName) + '\')">選取社團</button>';
         recHtml += '</div>';
       });
 
@@ -1363,6 +1852,12 @@
   }
 
   function applyAiRecommendation(clubName) {
+    // 確保篩選器顯示全部以免卡片被隱藏
+    appState.activeCategory = '全部';
+    if (document.getElementById('clubSearchInput')) document.getElementById('clubSearchInput').value = '';
+    renderCategoryPills(appState.clubs);
+    filterAndRenderClubs();
+
     var targetCard = document.getElementById('club-card-' + clubName);
     if (targetCard) {
       targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1372,10 +1867,40 @@
     }
   }
 
+  function applyAllAiToPreferences() {
+    if (!appState.lastAiRecommendations || appState.lastAiRecommendations.length === 0) return;
+    switchSelectionMode('preferences');
+    appState.preferences = [];
+    appState.lastAiRecommendations.slice(0, 3).forEach(function(r) {
+      if (appState.preferences.indexOf(r.clubName) === -1) {
+        appState.preferences.push(r.clubName);
+      }
+    });
+    renderPreferenceBasket();
+    filterAndRenderClubs();
+    document.getElementById('prefBasketBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   function goToConfirm() {
-    if (!appState.selectedClub) return;
-    document.getElementById('confirmClubText').innerText = appState.selectedClub;
+    var mode = (appState.settings && appState.settings.mode) || 'instant';
     document.getElementById('submitError').innerText = '';
+
+    if (mode === 'preferences') {
+      if (appState.preferences.length === 0) return;
+      document.getElementById('confirmModeSubtext').innerText = '您即將登記的適性分發志願序為：';
+      var prefHtml = '<div style="text-align:left; font-size:16px; line-height:1.9;">';
+      prefHtml += '<div>🥇 第一志願：<strong>' + escapeHtml(appState.preferences[0] || '未填') + '</strong></div>';
+      prefHtml += '<div>🥈 第二志願：<strong>' + escapeHtml(appState.preferences[1] || '（未選填）') + '</strong></div>';
+      prefHtml += '<div>🥉 第三志願：<strong>' + escapeHtml(appState.preferences[2] || '（未選填）') + '</strong></div>';
+      prefHtml += '</div>';
+      document.getElementById('confirmClubText').innerHTML = prefHtml;
+      document.getElementById('confirmNoticeText').innerHTML = '📌 送出後系統將儲存您的前三志願，學務處將於選填截止後執行「AI 公平適性分發」並寄發 Email 通知！';
+    } else {
+      if (!appState.selectedClub) return;
+      document.getElementById('confirmModeSubtext').innerText = '您即將報名選填的社團為：';
+      document.getElementById('confirmClubText').innerText = appState.selectedClub;
+      document.getElementById('confirmNoticeText').innerHTML = '🛑 送出後即完成選社程序並鎖定名額，系統將同步發送 Email 錄取通知。<br>開放期間內若需異動，可於憑證頁面點擊重新改選。';
+    }
     showStep('Confirm');
   }
 
@@ -1384,31 +1909,121 @@
   }
 
   function doFinalSubmit() {
-    setLoading(true, '正在寫入資料庫並鎖定名額...');
     var st = appState.currentStudent;
     var idNum = document.getElementById('idInput').value;
+    var mode = (appState.settings && appState.settings.mode) || 'instant';
 
-    callGas('submitSelection', [st.className, st.seat, idNum, appState.selectedClub], function(res) {
-      if (res.status === 'error') {
-        document.getElementById('submitError').innerText = res.message;
-      } else {
-        showReceiptView(st.name, res.clubName, res.timestamp, false);
-        // 觸發全螢幕慶祝彩帶！
-        triggerConfettiAnimation();
-      }
-    });
+    if (mode === 'preferences') {
+      setLoading(true, '正在寫入您的三志願序...');
+      var p1 = appState.preferences[0] || '';
+      var p2 = appState.preferences[1] || '';
+      var p3 = appState.preferences[2] || '';
+      callGas('submitPreferences', [st.className, st.seat, idNum, p1, p2, p3], function(res) {
+        if (res.status === 'error') {
+          document.getElementById('submitError').innerText = res.message;
+        } else {
+          showPreferenceReceiptView(st.name, [p1, p2, p3], res.timestamp);
+          triggerConfettiAnimation();
+        }
+      });
+    } else {
+      setLoading(true, '正在寫入資料庫並鎖定名額...');
+      callGas('submitSelection', [st.className, st.seat, idNum, appState.selectedClub], function(res) {
+        if (res.status === 'error') {
+          document.getElementById('submitError').innerText = res.message;
+        } else {
+          showReceiptView(st.name, res.clubName, res.timestamp, false);
+          triggerConfettiAnimation();
+        }
+      });
+    }
+  }
+
+  function findClubDetail(clubName) {
+    if (!appState.clubs) return null;
+    for (var i = 0; i < appState.clubs.length; i++) {
+      if (appState.clubs[i].name === clubName) return appState.clubs[i];
+    }
+    return null;
   }
 
   function showReceiptView(studentName, clubName, timestamp, isLocked) {
     var st = appState.currentStudent;
+    var clubObj = findClubDetail(clubName);
+
+    document.getElementById('successHeadingTitle').innerText = '社團報名錄取成功！';
+    document.getElementById('successHeadingDesc').innerText = '恭喜您獲得開課席次，錄取通知函已同步寄至您的信箱。';
+    document.getElementById('ticketMainTitle').innerText = '社團適性錄取通知書';
+    document.getElementById('ticketClubLabel').innerText = isLocked ? '專案保障錄取 GUARANTEED ADMISSION' : '錄取社團 OFFICIAL ADMISSION';
+
     document.getElementById('receiptStudent').innerText = studentName;
     document.getElementById('receiptClub').innerText = clubName;
     document.getElementById('receiptClass').innerText = st.className + '班 ' + st.seat + '號';
     document.getElementById('ticketSerial').innerText = 'NO. DX-2026-' + st.className + st.seat + '-VERIFIED';
-    document.getElementById('receiptTeacher').innerText = isLocked ? '校隊專任教練' : '校內專長師資';
-    document.getElementById('receiptLocation').innerText = '依教務處開課教室為準';
-    document.getElementById('receiptTimestamp').innerText = timestamp || new Date().toLocaleString();
+    document.getElementById('receiptTeacher').innerText = (clubObj && clubObj.teacher) ? clubObj.teacher : (isLocked ? '校隊專任教練' : '校內專長師資');
+    document.getElementById('receiptLocation').innerText = (clubObj && clubObj.location) ? clubObj.location : '依學務處公告教室為準';
+    document.getElementById('receiptRequirement').innerText = (clubObj && clubObj.requirement) ? clubObj.requirement : '請準時前往指定教室參與課程';
+    document.getElementById('receiptTimestamp').innerText = timestamp || new Date().toLocaleString('zh-TW', { hour12: false });
+    document.getElementById('receiptEmailStatus').innerText = '✓ 錄取信件已同步寄送';
+
+    var cancelBtn = document.getElementById('btnCancelReselect');
+    if (cancelBtn) cancelBtn.style.display = isLocked ? 'none' : 'block';
+
     showStep('Success');
+  }
+
+  function showPreferenceReceiptView(studentName, prefs, timestamp) {
+    var st = appState.currentStudent;
+    document.getElementById('successHeadingTitle').innerText = '三志願序登記完成！';
+    document.getElementById('successHeadingDesc').innerText = '系統已妥善保存您的適性志願序，截止後將由 AI 進行公平適性分發。';
+    document.getElementById('ticketMainTitle').innerText = '社團志願序登記憑證';
+    document.getElementById('ticketClubLabel').innerText = '已登記志願序 REGISTERED PREFERENCES';
+
+    var prefSummary = '① ' + (prefs[0] || '無') + (prefs[1] ? ' ／ ② ' + prefs[1] : '') + (prefs[2] ? ' ／ ③ ' + prefs[2] : '');
+    document.getElementById('receiptStudent').innerText = studentName;
+    document.getElementById('receiptClub').innerHTML = '<span style="font-size:16px;">' + escapeHtml(prefSummary) + '</span>';
+    document.getElementById('receiptClass').innerText = st.className + '班 ' + st.seat + '號';
+    document.getElementById('ticketSerial').innerText = 'NO. DX-2026-' + st.className + st.seat + '-PREF';
+    document.getElementById('receiptTeacher').innerText = '依最終分發社團而定';
+    document.getElementById('receiptLocation').innerText = '分發後寄發 Email 通知';
+    document.getElementById('receiptRequirement').innerText = '開放期間內您隨時可重新登入調整志願順序。';
+    document.getElementById('receiptTimestamp').innerText = timestamp || new Date().toLocaleString('zh-TW', { hour12: false });
+    document.getElementById('receiptEmailStatus').innerText = '✓ 志願已加密寫入雲端資料庫';
+
+    var cancelBtn = document.getElementById('btnCancelReselect');
+    if (cancelBtn) cancelBtn.style.display = 'block';
+
+    showStep('Success');
+  }
+
+  function cancelAndReselect() {
+    var st = appState.currentStudent;
+    if (!st) return;
+    var idNum = document.getElementById('idInput').value || '6789';
+
+    showConfirmModal(
+      '重新改選社團確認',
+      '確定要在開放期間內釋出原選社團名額，並返回清單重新選擇嗎？',
+      '確定重新改選',
+      function() {
+        setLoading(true, '正在釋出原社團名額並載入最新清單...');
+        callGas('cancelSelection', [st.className, st.seat, idNum], function(res) {
+          if (res.status === 'error') {
+            showModal('無法改選', res.message);
+            return;
+          }
+          appState.currentStudent = res.student;
+          appState.clubs = res.clubs || appState.clubs;
+          appState.selectedClub = '';
+          document.getElementById('displayStudentName').innerText = res.student.name;
+          document.getElementById('displayClassSeat').innerText = '(' + res.student.className + '班 ' + res.student.seat + '號)';
+          renderCategoryPills(appState.clubs);
+          filterAndRenderClubs();
+          updateConfirmButtonState();
+          showStep('Select');
+        });
+      }
+    );
   }
 
   function triggerConfettiAnimation() {
@@ -1424,6 +2039,7 @@
   function logoutStudent() {
     appState.currentStudent = null;
     appState.selectedClub = '';
+    appState.preferences = [];
     document.getElementById('idInput').value = '';
     document.getElementById('seatSelect').innerHTML = '<option value="">請先選擇班級</option>';
     document.getElementById('seatSelect').disabled = true;
@@ -1433,6 +2049,7 @@
 
   // ==================== 導師班級專區 ====================
   function openHomeroomView() {
+    document.getElementById('mainContainer').classList.remove('admin-expanded');
     showStep('Homeroom');
   }
 
@@ -1512,7 +2129,7 @@
     var err = document.getElementById('changePwdError');
     err.innerText = '';
 
-    if (n1.length < 4) { err.innerText = '新密碼長度不得少於 4 碼！'; return; }
+    if (n1.length < 8) { err.innerText = '新密碼長度不得少於 8 碼！'; return; }
     if (n1 !== n2) { err.innerText = '兩次新密碼輸入不一致！'; return; }
 
     setLoading(true, '更新密碼中...');
@@ -1535,14 +2152,39 @@
       document.getElementById('statUnassigned').innerText = res.stats.unassignedCount + ' 人';
       
       document.getElementById('adminTitleInput').value = res.settings.title || '';
+      if (document.getElementById('adminSelectionMode')) {
+        document.getElementById('adminSelectionMode').value = res.settings.mode || 'instant';
+      }
       document.getElementById('adminOpenTime').value = res.settings.openTime || '';
       document.getElementById('adminCloseTime').value = res.settings.closeTime || '';
       document.getElementById('adminMaxPerClass').value = res.settings.maxPerClass || 4;
       appState.settings.spreadsheetUrl = res.settings.spreadsheetUrl;
 
+      renderAdminUnassignedList(res.unassignedStudents || []);
       renderClubHeatmap(res.clubs);
       showStep('AdminDashboard');
     });
+  }
+
+  function toggleUnassignedPanel() {
+    var box = document.getElementById('unassignedDetailBox');
+    if (!box) return;
+    box.style.display = (box.style.display === 'none') ? 'block' : 'none';
+  }
+
+  function renderAdminUnassignedList(list) {
+    var container = document.getElementById('adminUnassignedList');
+    if (!container) return;
+    if (!list || list.length === 0) {
+      container.innerHTML = '<span style="font-size:13px; color:var(--emerald); font-weight:700;">🎉 全校學生均已完成社團錄取！</span>';
+      return;
+    }
+    var html = '';
+    list.forEach(function(s) {
+      var prefTag = s.pref1 ? (' (第一志願: ' + escapeHtml(s.pref1) + ')') : ' (尚未填志願)';
+      html += '<div class="student-badge-item st-unassigned">' + escapeHtml(s.className) + '班 ' + escapeHtml(s.seat) + '號 ' + escapeHtml(s.name) + prefTag + '</div>';
+    });
+    container.innerHTML = html;
   }
 
   function renderClubHeatmap(clubs) {
@@ -1635,6 +2277,7 @@
   function saveAdminSettings() {
     var newSettings = {
       title: document.getElementById('adminTitleInput').value,
+      mode: document.getElementById('adminSelectionMode') ? document.getElementById('adminSelectionMode').value : 'instant',
       openTime: document.getElementById('adminOpenTime').value,
       closeTime: document.getElementById('adminCloseTime').value,
       maxPerClass: parseInt(document.getElementById('adminMaxPerClass').value, 10) || 4,
@@ -1660,6 +2303,75 @@
     appState.adminToken = null;
     document.getElementById('mainContainer').classList.remove('admin-expanded');
     showStep('Login');
+  }
+
+  // ==================== 🎬 作品發表會一鍵展示導覽 (Showcase Quick-Jump) ====================
+  function toggleShowcaseDock(show) {
+    document.getElementById('showcaseDock').style.display = show ? 'flex' : 'none';
+    document.getElementById('showcaseFab').style.display = show ? 'none' : 'block';
+  }
+
+  function demoQuickStudent() {
+    document.getElementById('mainContainer').classList.remove('admin-expanded');
+    document.getElementById('classSelect').value = '701';
+    document.getElementById('idInput').value = '6789';
+    callGas('getStudentsByClass', ['701'], function(students) {
+      var html = '<option value="">請選擇座號與姓名</option>';
+      students.forEach(function(s) {
+        html += '<option value="' + escapeHtml(s.seat) + '">' + escapeHtml(s.seat) + ' 號 - ' + escapeHtml(s.name) + '</option>';
+      });
+      var seatSel = document.getElementById('seatSelect');
+      seatSel.innerHTML = html;
+      seatSel.disabled = false;
+      seatSel.value = '01';
+      doStudentLogin();
+    });
+  }
+
+  function demoQuickAiAdvisor() {
+    if (!appState.currentStudent) {
+      demoQuickStudent();
+      setTimeout(function() {
+        document.getElementById('aiInterestInput').value = '我喜歡動手組裝模型與寫簡單程式，也對畫動漫角色很有興趣，不想在太陽下跑步';
+        triggerAiAdvisor();
+      }, 650);
+    } else {
+      showStep('Select');
+      document.getElementById('aiInterestInput').value = '我喜歡動手組裝模型與寫簡單程式，也對畫動漫角色很有興趣，不想在太陽下跑步';
+      triggerAiAdvisor();
+    }
+  }
+
+  function demoToggleMode() {
+    if (!appState.currentStudent) {
+      demoQuickStudent();
+      setTimeout(function() {
+        var nextMode = (appState.settings.mode === 'preferences') ? 'instant' : 'preferences';
+        switchSelectionMode(nextMode);
+      }, 600);
+    } else {
+      showStep('Select');
+      var nextMode = (appState.settings.mode === 'preferences') ? 'instant' : 'preferences';
+      switchSelectionMode(nextMode);
+    }
+  }
+
+  function demoQuickHomeroom() {
+    openHomeroomView();
+    var sel = document.getElementById('teacherClassSelect');
+    if (sel) {
+      sel.value = '701';
+      loadHomeroomData();
+    }
+  }
+
+  function demoQuickAdmin() {
+    if (isMock) {
+      appState.adminToken = 'mock-token-xyz';
+      loadAdminDashboard();
+    } else {
+      openAdminLogin();
+    }
   }
 
   // ==================== 頁面切換與輔助 ====================

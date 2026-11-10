@@ -332,3 +332,38 @@ test('Recorded draw order is the allocation order and capacities remain enforced
   assert.equal(context.getClubList()[0].current, 1);
   assert.equal(context.runAiSmartAllocation(token, preview.previewToken).status, 'error');
 });
+
+test('9. 開放期間重新改選釋出名額、班級已選統計與後台未選名單', () => {
+  const { context } = createGasMockEnvironment();
+
+  // 701班01號選取 AI機器人創客社
+  const sel1 = context.submitSelection('701', '01', '6789', 'AI機器人創客社');
+  assert.equal(sel1.status, 'success');
+
+  // 701班02號登入時，可看到該社團本班已選 1 人
+  const verify2 = context.verifyAndGetClubs('701', '02', '6789');
+  const robotClub = verify2.clubs.find(c => c.name === 'AI機器人創客社');
+  assert.equal(robotClub.classCount, 1);
+  assert.equal(robotClub.current, 1);
+
+  // 保障生 (701班03號) 不可自行退選
+  const cancelLocked = context.cancelSelection('701', '03', '6789');
+  assert.equal(cancelLocked.status, 'error');
+
+  // 701班01號執行開放期間重新改選 -> 釋出名額並可改選其他社團
+  const cancelRes = context.cancelSelection('701', '01', '6789');
+  assert.equal(cancelRes.status, 'success');
+  assert.equal(cancelRes.student.assignedClub, '');
+  const robotAfterCancel = cancelRes.clubs.find(c => c.name === 'AI機器人創客社');
+  assert.equal(robotAfterCancel.current, 0);
+
+  // 重新改選「數位動漫與繪畫社」成功
+  const selNew = context.submitSelection('701', '01', '6789', '數位動漫與繪畫社');
+  assert.equal(selNew.status, 'success');
+
+  // 後台可取得未選社學生明細
+  const token = context.loginAdmin('test-password').token;
+  const dash = context.getAdminDashboardData(token);
+  assert.ok(Array.isArray(dash.unassignedStudents));
+  assert.ok(dash.unassignedStudents.length > 0);
+});
