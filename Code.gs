@@ -11,6 +11,7 @@
  * 5. ⚡ 2D 陣列批次分發演算法：徹底排除 GAS 30 秒超時，修復重複分發人數歸零 Bug，支援抽籤序號追蹤。
  * 6. 👨‍🏫 導師即時查核專區：班級名單視覺化＋一鍵複製 LINE 催繳文案。
  * 7. 📑 點名簽到單含健康警示：保留 GID 連結，標註重大病史與校園緊急聯絡分機。
+ * 8. 🌐 前後端分離 API：doPost 白名單閘道，GitHub Pages 前端可直接讀寫 Google 試算表；後台可管理社團資料。
  */
 
 // ==================== 系統設定與常數 ====================
@@ -21,7 +22,11 @@ const CONFIG = {
   LOCK_TIMEOUT_MS: 30000,
   MAX_PER_CLASS_PER_CLUB: 4, // 單一社團各班人數上限（防抱團）
   DEFAULT_SALT: 'DSJH_SECURE_SALT_2026',
-  SESSION_EXPIRE_SEC: 7200 // 管理員 Token 效期 2 小時
+  SESSION_EXPIRE_SEC: 7200, // 管理員 Token 效期 2 小時
+  // 預設綁定的 Google 試算表資料庫（獨立指令碼無「目前綁定試算表」時使用；他校複製請改成自己的 ID，或在指令碼屬性設定 SPREADSHEET_ID）
+  DEFAULT_SPREADSHEET_ID: '186jh-V-z7reYO9Y2ybJJhugITiz2pqqmH9pLheDayJ4',
+  API_VERSION: '2026.11-pages-api',
+  DEFAULT_TEACHER_PASSWORD: 'teacher888'
 };
 
 // 全域執行週期單例快取，避免重複 openById
@@ -35,6 +40,65 @@ function doGet() {
     .setTitle(getSystemSettings().title || CONFIG.DEFAULT_TITLE)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ==================== 前後端分離 API 閘道（GitHub Pages ⇄ Google 試算表） ====================
+/**
+ * 前端（GitHub Pages）以 fetch POST (text/plain，避免 CORS 預檢) 呼叫：{ fn: '函式名稱', args: [...] }
+ * 僅開放下列白名單函式；後台類函式仍由各自的 Session Token／導師通行碼把關。
+ */
+const API_ROUTES_ = {
+  getServerStatus: getServerStatus,
+  getSystemSettings: getSystemSettings,
+  getClassList: getClassList,
+  getStudentsByClass: getStudentsByClass,
+  verifyAndGetClubs: verifyAndGetClubs,
+  submitSelection: submitSelection,
+  submitPreferences: submitPreferences,
+  cancelSelection: cancelSelection,
+  aiConsultantRecommend: aiConsultantRecommend,
+  getHomeroomClassData: getHomeroomClassData,
+  loginAdmin: loginAdmin,
+  changeAdminPassword: changeAdminPassword,
+  getAdminDashboardData: getAdminDashboardData,
+  saveSystemSettings: saveSystemSettings,
+  saveClub: saveClub,
+  deleteClub: deleteClub,
+  runAiSmartAllocation: runAiSmartAllocation,
+  batchSendAllocationEmails: batchSendAllocationEmails,
+  exportAttendanceSheets: exportAttendanceSheets,
+  generateClubDocManual: generateClubDocManual
+};
+
+function doPost(e) {
+  let payload;
+  try {
+    const raw = (e && e.postData && e.postData.contents) || '{}';
+    const req = JSON.parse(raw);
+    const fn = String(req.fn || '');
+    if (!Object.prototype.hasOwnProperty.call(API_ROUTES_, fn)) {
+      throw new Error('404 Unknown API: ' + fn.slice(0, 40));
+    }
+    const args = Array.isArray(req.args) ? req.args : [];
+    if (args.length > 8) throw new Error('400 Too many arguments');
+    payload = { ok: true, result: API_ROUTES_[fn].apply(null, args) };
+  } catch (err) {
+    payload = { ok: false, error: String((err && err.message) || err) };
+  }
+  return ContentService.createTextOutput(JSON.stringify(payload))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/** 連線健康檢查：同時驗證資料庫（試算表）可正常開啟 */
+function getServerStatus() {
+  const settings = getSystemSettings(); // 內含 ensureSheetExists，會實際開啟試算表
+  return {
+    status: 'success',
+    dbConnected: true,
+    version: CONFIG.API_VERSION,
+    mode: settings.mode,
+    title: settings.title
+  };
 }
 
 // ==================== 試算表初始化與資料庫結構 ====================
@@ -60,6 +124,16 @@ function getSpreadsheet() {
       return _cachedSpreadsheet;
     }
   } catch (e) {}
+
+  if (CONFIG.DEFAULT_SPREADSHEET_ID) {
+    try {
+      _cachedSpreadsheet = SpreadsheetApp.openById(CONFIG.DEFAULT_SPREADSHEET_ID);
+      props.setProperty('SPREADSHEET_ID', CONFIG.DEFAULT_SPREADSHEET_ID);
+      return _cachedSpreadsheet;
+    } catch (e) {
+      console.warn('無法開啟預設試算表，將建立新的資料庫：' + e.message);
+    }
+  }
 
   const newSheet = SpreadsheetApp.create('大溪國中AI社團選社資料庫');
   props.setProperty('SPREADSHEET_ID', newSheet.getId());
@@ -229,6 +303,17 @@ function changeAdminPassword(adminToken, oldPwd, newPwd) {
 
 function saveSystemSettings(adminToken, newSettings) {
   assertAdminAuth_(adminToken);
+  newSettings = newSettings || {};
+
+  // 導師通行碼：與管理員密碼分離，至少 6 碼且不可沿用預設值
+  if (newSettings.teacherPassword) {
+    const tp = String(newSettings.teacherPassword).trim();
+    if (tp.length < 6 || tp === CONFIG.DEFAULT_TEACHER_PASSWORD) {
+      return { status: 'error', message: '導師通行碼至少 6 碼，且不可使用預設值！' };
+    }
+    PropertiesService.getScriptProperties().setProperty('TEACHER_PASSWORD', tp);
+  }
+
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName('系統設定');
   const data = sheet.getDataRange().getValues();
@@ -252,6 +337,102 @@ function saveSystemSettings(adminToken, newSettings) {
 }
 
 // ==================== 學生端 API ====================
+
+// ==================== 後台社團資料管理（直接寫回試算表「社團設定」） ====================
+/** 避免試算表公式注入：開頭為 = + - @ 的文字前置單引號 */
+function sanitizeCell_(value, maxLen) {
+  const s = String(value === undefined || value === null ? '' : value).trim().slice(0, maxLen || 200);
+  return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+function saveClub(adminToken, club) {
+  assertAdminAuth_(adminToken);
+  if (!club || typeof club !== 'object') return { status: 'error', message: '社團資料格式錯誤！' };
+
+  const name = String(club.name || '').trim().slice(0, 40);
+  const limit = parseInt(club.limit, 10);
+  if (!name) return { status: 'error', message: '社團名稱為必填！' };
+  // 社團名稱會被學生名冊引用，必須與儲存值完全一致，因此直接拒絕可能被當成公式的開頭
+  if (/^[=+\-@]/.test(name)) return { status: 'error', message: '社團名稱不可以 = + - @ 開頭！' };
+  if (!(limit > 0) || limit > 500) return { status: 'error', message: '人數上限需為 1～500 的整數！' };
+  const original = String(club.originalName || '').trim();
+
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) return { status: 'error', message: '伺服器忙碌中，請稍後再試。' };
+
+    const sheet = getSpreadsheet().getSheetByName('社團設定');
+    const data = sheet.getDataRange().getValues();
+    let originalRow = -1;
+    let nameRow = -1;
+    for (let i = 1; i < data.length; i++) {
+      const n = String(data[i][0]).trim();
+      if (original && n === original) originalRow = i + 1;
+      if (n === name) nameRow = i + 1;
+    }
+
+    const fields = [
+      sanitizeCell_(club.teacher, 40),
+      sanitizeCell_(club.location, 60),
+      sanitizeCell_(club.desc, 300),
+      sanitizeCell_(club.requirement, 120),
+      sanitizeCell_(club.category || '綜合興趣', 20)
+    ];
+
+    if (original) {
+      if (originalRow === -1) return { status: 'error', message: '找不到要修改的原社團，請重新整理後再試。' };
+      const current = parseInt(data[originalRow - 1][2], 10) || 0;
+      if (name !== original && nameRow !== -1) return { status: 'error', message: '已有同名社團，請改用其他名稱！' };
+      if (name !== original && current > 0) {
+        return { status: 'error', message: '此社團已有學生錄取，為避免名冊對應錯誤，不可更名！' };
+      }
+      if (limit < current) {
+        return { status: 'error', message: '人數上限不可低於目前已錄取人數（' + current + ' 人）！' };
+      }
+      sheet.getRange(originalRow, 1, 1, 8).setValues([[name, limit, current].concat(fields)]);
+      return { status: 'success', message: '社團【' + name + '】已更新並寫入試算表。', clubs: getClubList() };
+    }
+
+    if (nameRow !== -1) return { status: 'error', message: '已有同名社團，請改用其他名稱！' };
+    sheet.appendRow([name, limit, 0].concat(fields));
+    return { status: 'success', message: '社團【' + name + '】已新增並寫入試算表。', clubs: getClubList() };
+  } catch (err) {
+    console.error('saveClub error: ' + err.message);
+    return { status: 'error', message: '儲存社團時發生異常，請稍後再試。' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteClub(adminToken, clubName) {
+  assertAdminAuth_(adminToken);
+  const target = String(clubName || '').trim();
+  if (!target) return { status: 'error', message: '請指定要刪除的社團！' };
+
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) return { status: 'error', message: '伺服器忙碌中，請稍後再試。' };
+
+    const sheet = getSpreadsheet().getSheetByName('社團設定');
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim() === target) {
+        const current = parseInt(data[i][2], 10) || 0;
+        if (current > 0) {
+          return { status: 'error', message: '此社團已有 ' + current + ' 位學生錄取，無法刪除！' };
+        }
+        sheet.deleteRow(i + 1);
+        return { status: 'success', message: '社團【' + target + '】已從試算表刪除。', clubs: getClubList() };
+      }
+    }
+    return { status: 'error', message: '找不到該社團，請重新整理後再試。' };
+  } catch (err) {
+    console.error('deleteClub error: ' + err.message);
+    return { status: 'error', message: '刪除社團時發生異常，請稍後再試。' };
+  } finally {
+    lock.releaseLock();
+  }
+}
 
 function getClassList() {
   const ss = getSpreadsheet();
@@ -919,6 +1100,9 @@ function getAdminDashboardData(adminToken) {
   const clubs = getClubList();
   const settings = getSystemSettings();
   settings.spreadsheetUrl = ss.getUrl(); // 🛡️ 僅在管理者驗證後回傳
+  // 🛡️ 提醒管理者：導師通行碼仍為預設值（僅管理端可見）
+  settings.teacherPasswordIsDefault =
+    (PropertiesService.getScriptProperties().getProperty('TEACHER_PASSWORD') || CONFIG.DEFAULT_TEACHER_PASSWORD) === CONFIG.DEFAULT_TEACHER_PASSWORD;
 
   return {
     status: 'success',
@@ -1287,7 +1471,7 @@ function generateClubDocManual(adminToken) {
 
 function assertAdminOrTeacherAuth_(authCode) {
   if (verifyAdminSession_(authCode)) return true;
-  const teacherPwd = PropertiesService.getScriptProperties().getProperty('TEACHER_PASSWORD') || 'teacher888';
+  const teacherPwd = PropertiesService.getScriptProperties().getProperty('TEACHER_PASSWORD') || CONFIG.DEFAULT_TEACHER_PASSWORD;
   if (authCode && String(authCode).trim() === teacherPwd) return true;
   throw new Error('403 Unauthorized: 導師專區存取未獲授權，請輸入正確的導師通行碼！');
 }

@@ -70,6 +70,7 @@ function createGasMockEnvironment() {
         merge: function() { return this; }
       }),
       appendRow: (row) => rows.push(row.slice()),
+      deleteRow: (n) => { rows.splice(n - 1, 1); },
       clear: () => { rows.length = 0; },
       getSheetId: () => 101
     };
@@ -146,6 +147,14 @@ function createGasMockEnvironment() {
           addMetaTag: function() { return this; },
           setXFrameOptionsMode: function() { return this; }
         })
+      })
+    },
+    ContentService: {
+      MimeType: { JSON: 'JSON' },
+      createTextOutput: (text) => ({
+        _text: text,
+        setMimeType: function() { return this; },
+        getContent: function() { return this._text; }
       })
     },
     DocumentApp: {
@@ -366,4 +375,94 @@ test('9. 開放期間重新改選釋出名額、班級已選統計與後台未�
   const dash = context.getAdminDashboardData(token);
   assert.ok(Array.isArray(dash.unassignedStudents));
   assert.ok(dash.unassignedStudents.length > 0);
+});
+
+function callApi(context, fn, args) {
+  const out = context.doPost({ postData: { contents: JSON.stringify({ fn, args }) } });
+  return JSON.parse(out.getContent());
+}
+
+test('10. doPost API 閘道：白名單路由、健康檢查與錯誤封裝', () => {
+  const { context } = createGasMockEnvironment();
+
+  // 健康檢查（驗證資料庫可開啟）
+  const ping = callApi(context, 'getServerStatus', []);
+  assert.equal(ping.ok, true);
+  assert.equal(ping.result.dbConnected, true);
+
+  // 公開 API 可由 Pages 前端呼叫
+  const classes = callApi(context, 'getClassList', []);
+  assert.deepEqual(classes.result, ['701', '702']);
+
+  // 非白名單函式（含內部／危險函式）一律拒絕
+  const bad = callApi(context, 'ensureSheetExists', []);
+  assert.equal(bad.ok, false);
+  assert.match(bad.error, /404/);
+  assert.equal(callApi(context, 'constructor', []).ok, false);
+  assert.equal(callApi(context, '__proto__', []).ok, false);
+
+  // 後台函式沒有 Token 時，錯誤被封裝為 { ok:false }
+  const noAuth = callApi(context, 'getAdminDashboardData', ['bad-token']);
+  assert.equal(noAuth.ok, false);
+  assert.match(noAuth.error, /403/);
+
+  // 非 JSON 內容不會拋出例外
+  const garbage = JSON.parse(context.doPost({ postData: { contents: 'not-json' } }).getContent());
+  assert.equal(garbage.ok, false);
+});
+
+test('11. 後台社團管理：新增／修改／刪除與保護規則', () => {
+  const { context } = createGasMockEnvironment();
+  const token = context.loginAdmin('test-password').token;
+
+  // 未授權不可寫入
+  assert.throws(() => context.saveClub('bad', { name: 'X', limit: 5 }), /403/);
+
+  // 新增（簡介欄位開頭為 = 時需被中和，防公式注入）
+  const created = context.saveClub(token, { name: '周末探索社', limit: 10, teacher: '周老師', location: '活動中心', desc: '=HYPERLINK("http://x","y")', requirement: '', category: '綜合興趣' });
+  assert.equal(created.status, 'success');
+  const added = created.clubs.find(c => c.name === '周末探索社');
+  assert.ok(added.desc.startsWith("'"), '開頭為 = 的內容必須被中和以防公式注入');
+
+  // 社團名稱會被名冊引用，危險開頭直接拒絕
+  assert.equal(context.saveClub(token, { name: '=攻擊社', limit: 5 }).status, 'error');
+
+  // 欄位驗證與重名
+  assert.equal(context.saveClub(token, { name: '', limit: 5 }).status, 'error');
+  assert.equal(context.saveClub(token, { name: '新社', limit: 0 }).status, 'error');
+  assert.equal(context.saveClub(token, { name: 'AI機器人創客社', limit: 5 }).status, 'error');
+
+  // 修改人數上限
+  const updated = context.saveClub(token, { originalName: 'AI機器人創客社', name: 'AI機器人創客社', limit: 30, teacher: '李組長', location: '科技創客教室', desc: '更新簡介', requirement: '', category: '科技創客' });
+  assert.equal(updated.status, 'success');
+  assert.equal(updated.clubs.find(c => c.name === 'AI機器人創客社').limit, 30);
+
+  // 已有學生錄取：不可更名、不可刪除、上限不可低於已錄取人數
+  assert.equal(context.submitSelection('701', '01', '6789', 'AI機器人創客社').status, 'success');
+  assert.equal(context.saveClub(token, { originalName: 'AI機器人創客社', name: '改名社', limit: 30 }).status, 'error');
+  assert.equal(context.saveClub(token, { originalName: 'AI機器人創客社', name: 'AI機器人創客社', limit: 0 }).status, 'error');
+  assert.equal(context.deleteClub(token, 'AI機器人創客社').status, 'error');
+
+  // 無人錄取的社團可刪除
+  const removed = context.deleteClub(token, '數位動漫與繪畫社');
+  assert.equal(removed.status, 'success');
+  assert.ok(!removed.clubs.some(c => c.name === '數位動漫與繪畫社'));
+  assert.equal(context.deleteClub(token, '不存在的社團').status, 'error');
+});
+
+test('12. 導師通行碼可由後台更換，且儀表板提示是否仍為預設值', () => {
+  const { context } = createGasMockEnvironment();
+  const token = context.loginAdmin('test-password').token;
+
+  assert.equal(context.getAdminDashboardData(token).settings.teacherPasswordIsDefault, true);
+
+  // 過短或沿用預設值被拒
+  assert.equal(context.saveSystemSettings(token, { teacherPassword: '123' }).status, 'error');
+  assert.equal(context.saveSystemSettings(token, { teacherPassword: 'teacher888' }).status, 'error');
+
+  // 設定新通行碼後，舊預設碼失效、新碼可用
+  assert.equal(context.saveSystemSettings(token, { teacherPassword: 'Daxi-Hr-2026' }).status, 'success');
+  assert.throws(() => context.getHomeroomClassData('701', 'teacher888'), /403/);
+  assert.equal(context.getHomeroomClassData('701', 'Daxi-Hr-2026').status, 'success');
+  assert.equal(context.getAdminDashboardData(token).settings.teacherPasswordIsDefault, false);
 });

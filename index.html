@@ -43,11 +43,153 @@
         radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.05) 0px, transparent 50%);
       color: var(--text-main);
       min-height: 100vh;
-      padding: 24px 16px 48px;
+      padding: 0;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       transition: all 0.3s ease;
     }
+
+    .page-shell {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px 16px 84px;
+    }
+
+    /* ===== 校務級頂部橫幅（對齊大溪國中成績系統風格） ===== */
+    .school-masthead {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      background: #0F2537;
+      color: #fff;
+      border-bottom: 4px solid #0D7A5F;
+      box-shadow: 0 4px 16px rgba(15, 37, 55, 0.25);
+    }
+    .masthead-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 12px 16px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px 24px;
+      flex-wrap: wrap;
+    }
+    .masthead-brand { display: flex; align-items: center; gap: 12px; }
+    .masthead-crest {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0D7A5F 0%, #0284c7 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    .masthead-school { font-size: 12px; letter-spacing: 2px; color: #7dd3fc; font-weight: 700; }
+    .masthead-system { font-size: 18px; font-weight: 900; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .masthead-system .brand-badge { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); color: #bae6fd; }
+    .role-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+    .role-tab {
+      background: rgba(255,255,255,0.08);
+      color: #cbd5e1;
+      border: 1px solid rgba(255,255,255,0.14);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .role-tab:hover { background: rgba(255,255,255,0.18); color: #fff; }
+    .role-tab.active { background: #fff; color: #0F2537; border-color: #fff; }
+    .masthead-status {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 16px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px 14px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+    .masthead-status .status-dot { width: 8px; height: 8px; }
+    .conn-pill {
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.08);
+      color: #e2e8f0;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .conn-pill:hover { background: rgba(255,255,255,0.2); }
+    .conn-pill.live { background: rgba(16,185,129,0.22); border-color: rgba(52,211,153,0.6); color: #a7f3d0; }
+    .conn-pill.demo { background: rgba(245,158,11,0.2); border-color: rgba(251,191,36,0.6); color: #fde68a; }
+
+    /* ===== 重要公告列 ===== */
+    .system-notice {
+      background: linear-gradient(90deg, #eff6ff 0%, #f0fdf4 100%);
+      border-bottom: 1px solid #bfdbfe;
+    }
+    .system-notice-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 10px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: #334155;
+    }
+    .notice-label {
+      flex-shrink: 0;
+      background: #0F2537;
+      color: #fff;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 11.5px;
+      margin-top: 1px;
+    }
+    .notice-tag { padding: 0 4px; border-radius: 4px; font-weight: 800; }
+    .notice-tag.t1 { background: #dbeafe; color: #1e40af; }
+    .notice-tag.t2 { background: #fef3c7; color: #92400e; }
+    .notice-tag.t3 { background: #dcfce7; color: #166534; }
+
+    .school-footer {
+      text-align: center;
+      font-size: 12px;
+      color: #94a3b8;
+      padding: 18px 16px 90px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    /* ===== 後台社團資料管理表 ===== */
+    .club-admin-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px; }
+    .club-admin-table th {
+      text-align: left; padding: 8px 10px; background: #f1f5f9; color: #475569;
+      font-size: 12px; font-weight: 800; border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .club-admin-table td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    .club-admin-table tr:hover td { background: #f8fafc; }
+    .tbl-btn {
+      border: 1px solid #cbd5e1; background: #fff; color: #334155;
+      padding: 3px 9px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; margin-right: 4px;
+    }
+    .tbl-btn:hover { background: #eff6ff; border-color: #93c5fd; color: var(--primary); }
+    .tbl-btn.danger:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+    .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; text-align: left; }
+    .editor-grid .full { grid-column: 1 / -1; }
+    .editor-grid label { font-size: 12px; margin-bottom: 4px; }
+    .editor-grid .form-control { padding: 8px 10px; font-size: 13px; }
+    @media (max-width: 560px) { .editor-grid { grid-template-columns: 1fr; } }
 
     .app-container {
       width: 100%;
@@ -754,34 +896,50 @@
       box-shadow: var(--shadow-md);
     }
     @media print {
-      .showcase-dock, .showcase-toggle-fab, .nav-actions, #mock-banner { display: none !important; }
+      .showcase-dock, .showcase-toggle-fab, .school-masthead, .system-notice, .school-footer, #mock-banner { display: none !important; }
     }
   </style>
 </head>
 <body>
 
+<!-- 🏫 校務級頂部橫幅 -->
+<header class="school-masthead" id="schoolMasthead">
+  <div class="masthead-inner">
+    <div class="masthead-brand">
+      <div class="masthead-crest">🏫</div>
+      <div>
+        <div class="masthead-school">桃園市立大溪國民中學</div>
+        <div class="masthead-system">
+          <span id="titleText">AI 智慧社團選社與適性導航系統</span>
+          <span class="brand-badge">AI 旗艦版</span>
+        </div>
+      </div>
+    </div>
+    <nav class="role-nav" aria-label="使用者角色">
+      <button type="button" class="role-tab active" id="roleTabStudent" onclick="goStudentHome()">👨‍🎓 學生選社</button>
+      <button type="button" class="role-tab" id="roleTabHomeroom" onclick="openHomeroomView()">👨‍🏫 導師專區</button>
+      <button type="button" class="role-tab" id="roleTabAdmin" onclick="openAdminEntry()">⚙️ 訓育組管理</button>
+    </nav>
+  </div>
+  <div class="masthead-status">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="timeStatusText">載入系統狀態中...</span>
+    <button type="button" class="conn-pill demo" id="connPill" onclick="openConnectionModal()">⏳ 連線檢查中...</button>
+  </div>
+</header>
+
+<section class="system-notice" aria-label="系統公告">
+  <div class="system-notice-inner">
+    <span class="notice-label">📢 系統公告</span>
+    <p>本系統由本校<strong class="notice-tag t1">學務處訓育組</strong>協同開發，結合 <strong class="notice-tag t3">Gemini AI 適性建議</strong>與 Google 試算表資料庫。AI 推薦<strong class="notice-tag t2">僅供參考</strong>，最終錄取結果以學校公告為準；您的個人資料僅在伺服端驗證，不會傳送給 AI。</p>
+  </div>
+</section>
+
+<div class="page-shell">
 <div class="app-container" id="mainContainer">
   <div class="top-aurora"></div>
   
-  <div id="mock-banner">⚠️ 離線預覽展示模式：本地全功能模擬（含 Email 通知、AI 顧問與導師專區）</div>
-
-  <!-- Header -->
-  <div class="header">
-    <div>
-      <div class="brand-title">
-        <span id="titleText">大溪國中社團選社</span>
-        <span class="brand-badge">AI 旗艦版</span>
-      </div>
-      <div class="status-badge">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="timeStatusText">載入系統狀態中...</span>
-      </div>
-    </div>
-    <div class="nav-actions">
-      <button class="nav-btn" onclick="openHomeroomView()">👨‍🏫 導師專區</button>
-      <button class="nav-btn" onclick="openAdminLogin()">⚙️ 教師管理</button>
-    </div>
-  </div>
+  <div id="mock-banner">🧪 展示資料庫模式：目前使用內建模擬資料（尚未連線 Google 試算表）</div>
 
   <div class="content-body">
 
@@ -1042,7 +1200,7 @@
       <div class="form-group" id="teacherAuthGroup">
         <label>導師通行驗證碼</label>
         <div style="display:flex; gap:8px;">
-          <input type="password" id="teacherPassInput" class="form-control" placeholder="預設通行碼為 teacher888" value="teacher888">
+          <input type="password" id="teacherPassInput" class="form-control" placeholder="請輸入導師通行碼（由訓育組提供）" autocomplete="off">
           <button class="nav-btn" style="white-space:nowrap; padding:0 16px;" onclick="loadHomeroomData()">驗證查核</button>
         </div>
         <div class="help-text">💡 供各班導師查核本班名冊與催繳，與學務處全校最高管理權限獨立隔離。</div>
@@ -1079,7 +1237,7 @@
 
       <div class="form-group">
         <label>管理密碼</label>
-        <input type="password" id="adminPwdInput" class="form-control" placeholder="預設密碼為 admin888">
+        <input type="password" id="adminPwdInput" class="form-control" placeholder="請輸入管理密碼">
       </div>
 
       <div id="adminLoginError" class="error-msg"></div>
@@ -1154,6 +1312,23 @@
         <div id="clubHeatmapList"></div>
       </div>
 
+      <!-- 社團資料管理（直接寫回 Google 試算表「社團設定」） -->
+      <div style="background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 22px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+          <label style="margin: 0; font-size: 14px;">🗂️ 社團資料管理 <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">（修改後即時寫入試算表）</span></label>
+          <button type="button" class="nav-btn" onclick="openClubEditor(-1)">＋ 新增社團</button>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="club-admin-table">
+            <thead>
+              <tr><th>社團名稱</th><th>類別</th><th>指導老師</th><th>地點</th><th>名額</th><th>操作</th></tr>
+            </thead>
+            <tbody id="clubAdminTbody"></tbody>
+          </table>
+        </div>
+        <div class="help-text">💡 已有學生錄取的社團不可刪除或更名，人數上限也不可低於已錄取人數。</div>
+      </div>
+
       <!-- 智慧行政一鍵自動化 -->
       <div style="margin-bottom: 22px;">
         <label style="font-size: 14px;">⚡ 智慧行政自動化工具箱</label>
@@ -1215,8 +1390,14 @@
           </div>
           <div class="form-group">
             <label style="font-size: 12px;">Gemini API Key</label>
-            <input type="password" id="adminGeminiKey" class="form-control" style="font-size: 13px;" placeholder="自訂 Google AI Studio Key">
+            <input type="password" id="adminGeminiKey" class="form-control" style="font-size: 13px;" placeholder="留空＝不變更">
           </div>
+        </div>
+
+        <div class="form-group">
+          <label style="font-size: 12px;">導師專區通行碼（至少 6 碼）</label>
+          <input type="password" id="adminTeacherPass" class="form-control" style="font-size: 13px;" placeholder="留空＝不變更" autocomplete="new-password">
+          <div id="teacherPassWarn" style="display: none; margin-top: 6px; font-size: 12px; font-weight: 700; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; padding: 6px 10px; border-radius: 8px;">⚠️ 導師通行碼仍是系統預設值，正式上線前請立即更換！</div>
         </div>
 
         <button class="btn btn-primary" style="font-size: 13px; padding: 11px;" onclick="saveAdminSettings()">儲存系統設定</button>
@@ -1247,6 +1428,12 @@
     <div style="font-weight: 800; color: #1e293b;" id="loadingText">系統處理中...</div>
   </div>
 </div>
+</div><!-- /page-shell -->
+
+<footer class="school-footer">
+  <span>桃園市立大溪國民中學<span style="margin: 0 6px;">／</span>學務處訓育組</span>
+  <span>使用完畢請登出，並妥善保管您的身分資料與通行碼。</span>
+</footer>
 
 <!-- 🎬 作品發表會專屬：一鍵快速展示導覽列 (可隨時收合) -->
 <div class="showcase-dock" id="showcaseDock">
@@ -1273,10 +1460,11 @@
   }
 
   // ==================== 本地 Mock 模擬環境 (供離線預覽與展示) ====================
-  var isMock = (typeof google === 'undefined');
+  // transport：'gas-native' (Apps Script 內嵌) ／ 'remote' (GitHub Pages 以 fetch 直連試算表 API) ／ 'mock' (展示資料庫)
+  var nativeGas = (typeof google !== 'undefined' && google.script && google.script.run);
+  var transport = nativeGas ? 'gas-native' : 'mock';
+  var isMock = !nativeGas;
   if (isMock) {
-    document.getElementById('mock-banner').style.display = 'block';
-
     var mockClubs = [
       { name: 'AI機器人創客社', limit: 15, current: 8, classCount: 1, teacher: '李組長', location: '科技創客教室', desc: '學習 Arduino 感測器、Micro:bit 與程式創作，實作智能小車與物聯網。', requirement: '自備筆電或平板佳，材料費 200 元', category: '科技創客' },
       { name: '熱血籃球戰術社', limit: 25, current: 21, classCount: 3, teacher: '陳教練', location: '風雨球場A', desc: '基礎運球、團隊防守跑位、半場戰術演練與分組對抗，鍛鍊體能與團隊精神。', requirement: '請穿著運動服裝與自備籃球鞋', category: '體育競技' },
@@ -1298,17 +1486,10 @@
       spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/186jh-V-z7reYO9Y2ybJJhugITiz2pqqmH9pLheDayJ4/edit'
     };
 
-    var google = {
+    var mockGoogle = {
       script: {
         run: {
-          withSuccessHandler: function(cb) {
-            this._success = cb;
-            return this;
-          },
-          withFailureHandler: function(fb) {
-            this._failure = fb;
-            return this;
-          },
+          getServerStatus: function() { var self = this; setTimeout(function(){ self._success({ status: 'success', dbConnected: true, version: 'demo-mock', mode: mockSettings.mode, title: mockSettings.title }); }, 100); },
           getSystemSettings: function() { var self = this; setTimeout(function(){ self._success(mockSettings); }, 200); },
           getClassList: function() { var self = this; setTimeout(function(){ self._success(['701', '702', '703', '801', '802']); }, 180); },
           getStudentsByClass: function(cls) {
@@ -1402,8 +1583,41 @@
                   { className: '802', seat: '15', name: '林柏宏', pref1: '' }
                 ],
                 clubs: mockClubs,
-                settings: mockSettings
+                settings: Object.assign({}, mockSettings, { teacherPasswordIsDefault: false })
               });
+            }, 300);
+          },
+          saveClub: function(t, club) {
+            var self = this;
+            setTimeout(function(){
+              var name = String(club.name || '').trim();
+              var limit = parseInt(club.limit, 10);
+              if (!name) { self._success({ status: 'error', message: '社團名稱為必填！' }); return; }
+              if (!(limit > 0)) { self._success({ status: 'error', message: '人數上限需為 1～500 的整數！' }); return; }
+              var idx = -1, dup = -1;
+              mockClubs.forEach(function(c, i) { if (c.name === club.originalName) idx = i; if (c.name === name) dup = i; });
+              if (club.originalName) {
+                if (idx === -1) { self._success({ status: 'error', message: '找不到要修改的原社團！' }); return; }
+                if (name !== club.originalName && dup !== -1) { self._success({ status: 'error', message: '已有同名社團，請改用其他名稱！' }); return; }
+                if (limit < mockClubs[idx].current) { self._success({ status: 'error', message: '人數上限不可低於目前已錄取人數（' + mockClubs[idx].current + ' 人）！' }); return; }
+                mockClubs[idx] = Object.assign({}, mockClubs[idx], { name: name, limit: limit, teacher: club.teacher, location: club.location, desc: club.desc, requirement: club.requirement, category: club.category || '綜合興趣' });
+                self._success({ status: 'success', message: '社團【' + name + '】已更新（展示資料庫）。', clubs: mockClubs.slice() });
+              } else {
+                if (dup !== -1) { self._success({ status: 'error', message: '已有同名社團，請改用其他名稱！' }); return; }
+                mockClubs.push({ name: name, limit: limit, current: 0, classCount: 0, teacher: club.teacher, location: club.location, desc: club.desc, requirement: club.requirement, category: club.category || '綜合興趣' });
+                self._success({ status: 'success', message: '社團【' + name + '】已新增（展示資料庫）。', clubs: mockClubs.slice() });
+              }
+            }, 300);
+          },
+          deleteClub: function(t, clubName) {
+            var self = this;
+            setTimeout(function(){
+              var idx = -1;
+              mockClubs.forEach(function(c, i) { if (c.name === clubName) idx = i; });
+              if (idx === -1) { self._success({ status: 'error', message: '找不到該社團！' }); return; }
+              if (mockClubs[idx].current > 0) { self._success({ status: 'error', message: '此社團已有 ' + mockClubs[idx].current + ' 位學生錄取，無法刪除！' }); return; }
+              mockClubs.splice(idx, 1);
+              self._success({ status: 'success', message: '社團【' + clubName + '】已刪除（展示資料庫）。', clubs: mockClubs.slice() });
             }, 300);
           },
           runAiSmartAllocation: function(t, previewToken) {
@@ -1422,6 +1636,10 @@
           getHomeroomClassData: function(cls, token) {
             var self = this;
             setTimeout(function(){
+              if (token !== 'teacher888' && token !== 'mock-token-xyz') {
+                self._failure({ message: '403 Unauthorized: 導師專區存取未獲授權，請輸入正確的導師通行碼！' });
+                return;
+              }
               self._success({
                 status: 'success',
                 className: cls || '701',
@@ -1445,6 +1663,10 @@
           },
           saveSystemSettings: function(t, s) {
             var self = this;
+            if (s.teacherPassword && (String(s.teacherPassword).length < 6 || s.teacherPassword === 'teacher888')) {
+              setTimeout(function(){ self._success({ status: 'error', message: '導師通行碼至少 6 碼，且不可使用預設值！' }); }, 200);
+              return;
+            }
             if (s.mode) mockSettings.mode = s.mode;
             if (s.title) mockSettings.title = s.title;
             if (s.maxPerClass) mockSettings.maxPerClass = s.maxPerClass;
@@ -1465,25 +1687,195 @@
     lastAiRecommendations: [],
     activeCategory: '全部',
     adminToken: null,
+    adminClubs: [],
+    isClosed: false,
+    serverVersion: '',
+    connectError: '',
     currentHomeroomNotice: ''
   };
 
   function callGas(fnName, args, onSuccess, customErrMsg) {
-    var runner = google.script.run
-      .withSuccessHandler(function(res) {
-        setLoading(false);
-        onSuccess(res);
-      })
-      .withFailureHandler(function(err) {
-        setLoading(false);
-        console.error('GAS Error in ' + fnName + ':', err);
-        showModal('連線異常', customErrMsg || ('系統處理連線逾時（' + (err.message || '網路波動') + '），請檢查網路或稍候再試。'));
-      });
-    runner[fnName].apply(runner, args);
+    var onOk = function(res) {
+      setLoading(false);
+      onSuccess(res);
+    };
+    var onFail = function(err) {
+      setLoading(false);
+      console.error('API Error in ' + fnName + ':', err);
+      var raw = String((err && err.message) || '網路波動').replace(/^(Error:\s*)+/, '');
+      if (/403/.test(raw)) {
+        var friendly = escapeHtml(raw.replace(/^403 Unauthorized:\s*/, ''));
+        // 管理員 Session 逾時：清除 Token 並回到登入
+        if (appState.adminToken && fnName !== 'getHomeroomClassData') {
+          appState.adminToken = null;
+          showModal('登入已逾時', friendly);
+          openAdminLogin();
+          return;
+        }
+        showModal('權限驗證失敗', friendly);
+        return;
+      }
+      showModal('連線異常', customErrMsg || ('系統處理連線逾時（' + escapeHtml(raw) + '），請檢查網路或稍候再試。'));
+    };
+
+    if (transport === 'gas-native') {
+      var runner = google.script.run.withSuccessHandler(onOk).withFailureHandler(onFail);
+      runner[fnName].apply(runner, args);
+    } else if (transport === 'remote') {
+      remoteCall(fnName, args, onOk, onFail, 180000);
+    } else {
+      // 展示資料庫：每次呼叫使用獨立物件，避免並行呼叫互相覆蓋回呼
+      var mockRunner = Object.create(mockGoogle.script.run);
+      mockRunner._success = onOk;
+      mockRunner._failure = onFail;
+      mockRunner[fnName].apply(mockRunner, args);
+    }
+  }
+
+  // ==================== GitHub Pages ⇄ Google 試算表：遠端 API 傳輸層 ====================
+  var LS_GAS_URL = 'daxi_club_gas_url';
+  var DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxAylRjBIVCbLKen2ZP8u-1byWOolZTO5fn9dow530T_k3rH9RGpJr2SRB5M9WihjZB/exec';
+  var GAS_URL_RE = /^https:\/\/script\.google\.com\/(a\/[A-Za-z0-9.\-_]+\/)?macros\/s\/[A-Za-z0-9_\-]+\/exec$/;
+
+  function isForcedMock() {
+    try { return localStorage.getItem(LS_GAS_URL) === 'mock'; } catch (e) { return false; }
+  }
+
+  function getGasUrl() {
+    try {
+      var saved = localStorage.getItem(LS_GAS_URL);
+      if (saved === 'mock') return '';
+      if (saved && GAS_URL_RE.test(saved)) return saved;
+    } catch (e) {}
+    return DEFAULT_GAS_URL;
+  }
+
+  // 以 text/plain 送出 JSON（簡單請求，避開 CORS 預檢）；後端 doPost 回傳 { ok, result | error }
+  function remoteCall(fnName, args, onOk, onFail, timeoutMs) {
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = setTimeout(function() { if (ctrl) ctrl.abort(); }, timeoutMs || 60000);
+
+    fetch(getGasUrl(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ fn: fnName, args: args || [] }),
+      redirect: 'follow',
+      signal: ctrl ? ctrl.signal : undefined
+    })
+    .then(function(resp) { return resp.text(); })
+    .then(function(text) {
+      var data;
+      try { data = JSON.parse(text); } catch (e) {
+        throw new Error('後端回應格式不符（尚未部署含 doPost 的新版 Code.gs？）');
+      }
+      if (!data || data.ok !== true) throw new Error((data && data.error) || '後端回傳錯誤');
+      return data.result;
+    })
+    .then(function(result) {
+      clearTimeout(timer);
+      onOk(result);
+    }, function(err) {
+      clearTimeout(timer);
+      onFail(err && err.name === 'AbortError' ? new Error('連線逾時') : err);
+    });
+  }
+
+  // 啟動時偵測：Apps Script 內嵌 → 直接使用；GitHub Pages → 探測遠端 API；失敗 → 展示資料庫
+  function detectTransport(done) {
+    if (nativeGas) { transport = 'gas-native'; applyTransportUi(); done(); return; }
+    if (!getGasUrl()) { transport = 'mock'; applyTransportUi(); done(); return; }
+
+    setLoading(true, '連線 Google 試算表資料庫中...');
+    remoteCall('getServerStatus', [], function(res) {
+      transport = (res && res.dbConnected) ? 'remote' : 'mock';
+      appState.serverVersion = res && res.version;
+      applyTransportUi();
+      done();
+    }, function(err) {
+      transport = 'mock';
+      appState.connectError = (err && err.message) || '';
+      applyTransportUi();
+      done();
+    }, 15000);
+  }
+
+  function applyTransportUi() {
+    isMock = (transport === 'mock');
+    var pill = document.getElementById('connPill');
+    var banner = document.getElementById('mock-banner');
+
+    if (transport === 'remote') { pill.className = 'conn-pill live'; pill.innerText = '☁️ 已連線 Google 試算表'; }
+    else if (transport === 'gas-native') { pill.className = 'conn-pill live'; pill.innerText = '☁️ 試算表直連'; }
+    else { pill.className = 'conn-pill demo'; pill.innerText = '🧪 展示資料庫・點此設定連線'; }
+
+    banner.style.display = isMock ? 'block' : 'none';
+    if (isMock) {
+      banner.innerText = isForcedMock()
+        ? '🧪 展示資料庫模式（已手動切換）：目前使用內建模擬資料，不會讀寫 Google 試算表。'
+        : '🧪 展示資料庫模式：尚未偵測到 Google 試算表 API（後端需部署含 doPost 的新版 Code.gs），目前使用內建模擬資料。';
+    }
+
+    // 發表會導覽列只在展示模式出現，正式資料庫不顯示任何假登入入口
+    document.getElementById('showcaseDock').style.display = isMock ? 'flex' : 'none';
+    document.getElementById('showcaseFab').style.display = 'none';
+
+    // 預設帳密提示只在展示模式顯示，避免在正式環境洩漏
+    document.getElementById('teacherPassInput').placeholder = isMock ? '展示通行碼：teacher888' : '請輸入導師通行碼（由訓育組提供）';
+    document.getElementById('adminPwdInput').placeholder = isMock ? '展示密碼：admin' : '請輸入管理密碼';
+  }
+
+  function openConnectionModal() {
+    var modeText = {
+      'remote': '☁️ 已連線 Google 試算表（GitHub Pages ⇄ Apps Script API）',
+      'gas-native': '☁️ 由 Apps Script 網頁直連試算表',
+      'mock': '🧪 展示資料庫（內建模擬資料）'
+    }[transport];
+    var info = '<div style="font-size:13px; line-height:1.7;">' +
+      '<div style="margin-bottom:10px;">目前模式：<strong>' + modeText + '</strong>' +
+      (appState.serverVersion ? '<br>後端版本：<code>' + escapeHtml(appState.serverVersion) + '</code>' : '') +
+      ((transport === 'mock' && appState.connectError) ? '<br><span style="color:#b45309;">偵測訊息：' + escapeHtml(appState.connectError) + '</span>' : '') +
+      '</div>';
+
+    if (transport === 'gas-native') {
+      showModal('資料庫連線狀態', info + '</div>');
+      return;
+    }
+
+    var saved = '';
+    try { saved = localStorage.getItem(LS_GAS_URL) || ''; } catch (e) {}
+    info += '<label style="font-size:12px;">Apps Script 網頁應用程式網址（/exec）</label>' +
+      '<input type="url" id="gasUrlInput" class="form-control" style="font-size:12px;" value="' + escapeHtml(saved === 'mock' ? '' : saved) + '" placeholder="留空＝使用預設網址；輸入 mock＝強制展示資料庫">' +
+      '<div class="help-text">部署含 doPost 的新版 Code.gs（存取權：任何人）後，貼上網址即可讓此頁面直接讀寫您的 Google 試算表。現場沒有網路時，輸入 <code>mock</code> 可立即切換展示資料庫。</div></div>';
+
+    showConfirmModal('資料庫連線設定', info, '儲存並重新連線', function() {
+      var v = (document.getElementById('gasUrlInput').value || '').trim();
+      if (v && v !== 'mock' && !GAS_URL_RE.test(v)) {
+        showModal('網址格式不正確', '請貼上以 <code>https://script.google.com/macros/s/</code> 開頭、以 <code>/exec</code> 結尾的網址。');
+        return;
+      }
+      try {
+        if (v) localStorage.setItem(LS_GAS_URL, v); else localStorage.removeItem(LS_GAS_URL);
+      } catch (e) {}
+      location.reload();
+    });
+  }
+
+  // 角色導覽
+  function goStudentHome() {
+    var st = appState.currentStudent;
+    if (st && (st.lockedClub || st.assignedClub)) showStep('Success');
+    else if (st) showStep('Select');
+    else if (appState.isClosed) showStep('Closed');
+    else showStep('Login');
+  }
+
+  function openAdminEntry() {
+    if (appState.adminToken) loadAdminDashboard();
+    else openAdminLogin();
   }
 
   // 初始化
-  window.onload = initApp;
+  window.onload = function() { detectTransport(initApp); };
 
   function initApp() {
     setLoading(true, '載入系統設定中...');
@@ -1505,23 +1897,26 @@
     });
   }
 
-  function checkTimeStatus(settings) {
+  function checkTimeStatus(settings, silent) {
     var now = new Date();
     var open = settings.openTime ? new Date(settings.openTime) : null;
     var close = settings.closeTime ? new Date(settings.closeTime) : null;
     var statusText = document.getElementById('timeStatusText');
     var dot = document.getElementById('statusDot');
+    appState.isClosed = false;
 
     if (open && now < open) {
       statusText.innerText = '系統尚未開放 (開放時間: ' + settings.openTime.replace('T', ' ') + ')';
       dot.style.backgroundColor = 'var(--gold)';
-      showClosedView('⏳', '系統尚未開放選社', '開放時間為：' + settings.openTime.replace('T', ' '));
+      appState.isClosed = true;
+      if (!silent) showClosedView('⏳', '系統尚未開放選社', '開放時間為：' + settings.openTime.replace('T', ' '));
       return false;
     }
     if (close && now > close) {
       statusText.innerText = '選社已截止 (截止時間: ' + settings.closeTime.replace('T', ' ') + ')';
       dot.style.backgroundColor = 'var(--rose)';
-      showClosedView('🛑', '選社已截止', '截止時間為：' + settings.closeTime.replace('T', ' '));
+      appState.isClosed = true;
+      if (!silent) showClosedView('🛑', '選社已截止', '截止時間為：' + settings.closeTime.replace('T', ' '));
       return false;
     }
 
@@ -1933,6 +2328,7 @@
           document.getElementById('submitError').innerText = res.message;
         } else {
           showReceiptView(st.name, res.clubName, res.timestamp, false);
+          st.assignedClub = res.clubName;
           triggerConfettiAnimation();
         }
       });
@@ -2057,7 +2453,11 @@
     var cls = document.getElementById('teacherClassSelect').value;
     if (!cls) return;
 
-    var teacherPass = (document.getElementById('teacherPassInput') ? document.getElementById('teacherPassInput').value : '') || appState.adminToken;
+    var teacherPass = (document.getElementById('teacherPassInput').value || '').trim() || appState.adminToken;
+    if (!teacherPass) {
+      showModal('請輸入通行碼', '請先輸入導師通行碼（由訓育組提供），再選擇班級查核。');
+      return;
+    }
     setLoading(true, '載入本班選社名單中...');
     callGas('getHomeroomClassData', [cls, teacherPass], function(res) {
       if (res && res.status === 'error') {
@@ -2161,8 +2561,88 @@
       appState.settings.spreadsheetUrl = res.settings.spreadsheetUrl;
 
       renderAdminUnassignedList(res.unassignedStudents || []);
-      renderClubHeatmap(res.clubs);
+      appState.adminClubs = res.clubs || [];
+      renderClubAdminTable(appState.adminClubs);
+      renderClubHeatmap(appState.adminClubs);
+      document.getElementById('teacherPassWarn').style.display = res.settings.teacherPasswordIsDefault ? 'block' : 'none';
       showStep('AdminDashboard');
+    });
+  }
+
+  // ==================== 後台：社團資料管理（寫回試算表） ====================
+  function renderClubAdminTable(clubs) {
+    var tbody = document.getElementById('clubAdminTbody');
+    if (!clubs || clubs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">尚未建立任何社團，請點選「＋ 新增社團」。</td></tr>';
+      return;
+    }
+    var html = '';
+    clubs.forEach(function(c, idx) {
+      html += '<tr>';
+      html += '<td style="font-weight:800;">' + escapeHtml(c.name) + '</td>';
+      html += '<td>' + escapeHtml(c.category) + '</td>';
+      html += '<td>' + escapeHtml(c.teacher) + '</td>';
+      html += '<td>' + escapeHtml(c.location) + '</td>';
+      html += '<td style="white-space:nowrap;">' + c.current + ' / ' + c.limit + '</td>';
+      html += '<td style="white-space:nowrap;"><button type="button" class="tbl-btn" onclick="openClubEditor(' + idx + ')">編輯</button>' +
+              '<button type="button" class="tbl-btn danger" onclick="confirmDeleteClub(' + idx + ')">刪除</button></td>';
+      html += '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  function openClubEditor(idx) {
+    var isNew = (idx < 0);
+    var c = isNew ? { name: '', limit: 20, teacher: '', location: '', desc: '', requirement: '', category: '' } : appState.adminClubs[idx];
+    if (!c) return;
+
+    var form = '<div class="editor-grid">' +
+      '<div class="full"><label>社團名稱 *</label><input type="text" id="ce_name" class="form-control" maxlength="40" value="' + escapeHtml(c.name) + '"></div>' +
+      '<div><label>人數上限 *</label><input type="number" id="ce_limit" class="form-control" min="1" max="500" value="' + escapeHtml(c.limit) + '"></div>' +
+      '<div><label>社團類別</label><input type="text" id="ce_category" class="form-control" maxlength="20" placeholder="如：科技創客" value="' + escapeHtml(c.category) + '"></div>' +
+      '<div><label>指導老師</label><input type="text" id="ce_teacher" class="form-control" maxlength="40" value="' + escapeHtml(c.teacher) + '"></div>' +
+      '<div><label>活動地點</label><input type="text" id="ce_location" class="form-control" maxlength="60" value="' + escapeHtml(c.location) + '"></div>' +
+      '<div class="full"><label>社團簡介</label><textarea id="ce_desc" class="form-control" rows="2" maxlength="300">' + escapeHtml(c.desc) + '</textarea></div>' +
+      '<div class="full"><label>先備要求／材料費</label><input type="text" id="ce_req" class="form-control" maxlength="120" value="' + escapeHtml(c.requirement) + '"></div>' +
+      '</div>';
+
+    showConfirmModal(isNew ? '新增社團' : '編輯社團：' + escapeHtml(c.name), form, '儲存至試算表', function() {
+      var payload = {
+        originalName: isNew ? '' : c.name,
+        name: document.getElementById('ce_name').value.trim(),
+        limit: parseInt(document.getElementById('ce_limit').value, 10),
+        category: document.getElementById('ce_category').value.trim(),
+        teacher: document.getElementById('ce_teacher').value.trim(),
+        location: document.getElementById('ce_location').value.trim(),
+        desc: document.getElementById('ce_desc').value.trim(),
+        requirement: document.getElementById('ce_req').value.trim()
+      };
+      if (!payload.name) { showModal('資料不完整', '請輸入社團名稱！'); return; }
+      if (!(payload.limit > 0)) { showModal('資料不完整', '人數上限需為大於 0 的整數！'); return; }
+
+      setLoading(true, '正在寫入 Google 試算表...');
+      callGas('saveClub', [appState.adminToken, payload], function(res) {
+        if (res.status === 'error') { showModal('儲存失敗', escapeHtml(res.message)); return; }
+        appState.adminClubs = res.clubs || [];
+        renderClubAdminTable(appState.adminClubs);
+        renderClubHeatmap(appState.adminClubs);
+        showModal('已儲存', escapeHtml(res.message));
+      });
+    });
+  }
+
+  function confirmDeleteClub(idx) {
+    var c = appState.adminClubs[idx];
+    if (!c) return;
+    showConfirmModal('刪除社團', '確定要刪除社團「<strong>' + escapeHtml(c.name) + '</strong>」嗎？<br><span style="font-size:12px; color:var(--text-muted);">此動作會從試算表移除該列，無法復原。</span>', '確定刪除', function() {
+      setLoading(true, '正在從試算表刪除...');
+      callGas('deleteClub', [appState.adminToken, c.name], function(res) {
+        if (res.status === 'error') { showModal('無法刪除', escapeHtml(res.message)); return; }
+        appState.adminClubs = res.clubs || [];
+        renderClubAdminTable(appState.adminClubs);
+        renderClubHeatmap(appState.adminClubs);
+        showModal('已刪除', escapeHtml(res.message));
+      });
     });
   }
 
@@ -2281,13 +2761,26 @@
       openTime: document.getElementById('adminOpenTime').value,
       closeTime: document.getElementById('adminCloseTime').value,
       maxPerClass: parseInt(document.getElementById('adminMaxPerClass').value, 10) || 4,
-      geminiApiKey: document.getElementById('adminGeminiKey').value
+      geminiApiKey: document.getElementById('adminGeminiKey').value,
+      teacherPassword: document.getElementById('adminTeacherPass').value
     };
 
     setLoading(true, '儲存設定中...');
     callGas('saveSystemSettings', [appState.adminToken, newSettings], function(res) {
+      if (res && res.status === 'error') {
+        showModal('儲存失敗', escapeHtml(res.message));
+        return;
+      }
+      document.getElementById('adminGeminiKey').value = '';
+      document.getElementById('adminTeacherPass').value = '';
+      if (newSettings.teacherPassword) document.getElementById('teacherPassWarn').style.display = 'none';
       showModal('成功', '系統設定已儲存生效！');
-      initApp();
+      // 重新讀取公開設定，但不要把管理員導向「已截止」畫面
+      callGas('getSystemSettings', [], function(s) {
+        appState.settings = Object.assign({}, appState.settings, s);
+        document.getElementById('titleText').innerText = s.title || 'AI 智慧社團選社與適性導航系統';
+        checkTimeStatus(s, true);
+      });
     });
   }
 
@@ -2305,8 +2798,9 @@
     showStep('Login');
   }
 
-  // ==================== 🎬 作品發表會一鍵展示導覽 (Showcase Quick-Jump) ====================
+  // ==================== 🎬 作品發表會一鍵展示導覽 (Showcase Quick-Jump，僅展示資料庫模式) ====================
   function toggleShowcaseDock(show) {
+    if (!isMock) return;
     document.getElementById('showcaseDock').style.display = show ? 'flex' : 'none';
     document.getElementById('showcaseFab').style.display = show ? 'none' : 'block';
   }
@@ -2358,6 +2852,7 @@
 
   function demoQuickHomeroom() {
     openHomeroomView();
+    document.getElementById('teacherPassInput').value = 'teacher888';
     var sel = document.getElementById('teacherClassSelect');
     if (sel) {
       sel.value = '701';
@@ -2375,12 +2870,25 @@
   }
 
   // ==================== 頁面切換與輔助 ====================
+  var STEP_ROLE = { Login: 'Student', Select: 'Student', Confirm: 'Student', Success: 'Student', Closed: 'Student',
+                    Homeroom: 'Homeroom', AdminLogin: 'Admin', ChangePwd: 'Admin', AdminDashboard: 'Admin' };
+
   function showStep(stepName) {
     document.querySelectorAll('.step-section').forEach(function(el) {
       el.classList.remove('active');
     });
     var target = document.getElementById('step' + stepName);
     if (target) target.classList.add('active');
+
+    var role = STEP_ROLE[stepName] || 'Student';
+    ['Student', 'Homeroom', 'Admin'].forEach(function(r) {
+      var tab = document.getElementById('roleTab' + r);
+      if (tab) tab.classList.toggle('active', r === role);
+    });
+    if (stepName !== 'AdminDashboard') {
+      document.getElementById('mainContainer').classList.remove('admin-expanded');
+    }
+    window.scrollTo(0, 0);
   }
 
   function setLoading(show, text) {
