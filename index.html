@@ -1403,9 +1403,10 @@
         <button class="btn btn-primary" style="font-size: 13px; padding: 11px;" onclick="saveAdminSettings()">儲存系統設定</button>
       </div>
 
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-secondary" style="font-size: 13px;" onclick="openSpreadsheetDirectly()">🔗 開啟 Google 試算表資料庫</button>
-        <button class="btn btn-secondary" style="font-size: 13px;" onclick="showStep('ChangePwd')">🔑 修改密碼</button>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 170px;" onclick="openSpreadsheetDirectly()">🔗 開啟 Google 試算表資料庫</button>
+        <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 180px; color: #b91c1c; border: 1px solid #fecaca; background: #fff5f5;" onclick="openSheetAuditModal()">🧹 清理試算表多餘分頁</button>
+        <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 130px;" onclick="showStep('ChangePwd')">🔑 修改密碼</button>
       </div>
     </div>
 
@@ -1464,6 +1465,7 @@
   var nativeGas = (typeof google !== 'undefined' && google.script && google.script.run);
   var transport = nativeGas ? 'gas-native' : 'mock';
   var isMock = !nativeGas;
+  var mockGoogle, mockSheets;
   if (isMock) {
     var mockClubs = [
       { name: 'AI機器人創客社', limit: 15, current: 8, classCount: 1, teacher: '李組長', location: '科技創客教室', desc: '學習 Arduino 感測器、Micro:bit 與程式創作，實作智能小車與物聯網。', requirement: '自備筆電或平板佳，材料費 200 元', category: '科技創客' },
@@ -1671,6 +1673,39 @@
             if (s.title) mockSettings.title = s.title;
             if (s.maxPerClass) mockSettings.maxPerClass = s.maxPerClass;
             setTimeout(function(){ self._success({ status: 'success' }); }, 250);
+          },
+          getSpreadsheetAudit: function(t) {
+            var self = this;
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                sheets: (mockSheets = mockSheets || [
+                  { name: 'Students', usedByApp: false, dataRows: 0, headers: [] },
+                  { name: '社團設定', usedByApp: true, dataRows: mockClubs.length, headers: ['社團名稱', '人數上限', '已錄取人數'] },
+                  { name: '學生名冊', usedByApp: true, dataRows: 8, headers: ['班級', '座號', '姓名', '身分證字號'] },
+                  { name: '系統設定', usedByApp: true, dataRows: 8, headers: ['設定項目', '設定值', '說明'] },
+                  { name: 'Settings', usedByApp: false, dataRows: 0, headers: [] },
+                  { name: 'Clubs', usedByApp: false, dataRows: 0, headers: [] },
+                  { name: 'Registrations', usedByApp: false, dataRows: 0, headers: [] }
+                ]).slice()
+              });
+            }, 250);
+          },
+          cleanupUnusedSheets: function(t, names) {
+            var self = this;
+            setTimeout(function(){
+              var del = [];
+              mockSheets = (mockSheets || []).filter(function(s) {
+                if (!s.usedByApp && names.indexOf(s.name) !== -1) { del.push(s.name); return false; }
+                return true;
+              });
+              self._success({
+                status: 'success',
+                deleted: del,
+                remaining: mockSheets.map(function(s){ return s.name; }),
+                message: del.length ? ('已成功刪除 ' + del.length + ' 個未使用分頁：' + del.join('、')) : '沒有符合刪除條件的分頁。'
+              });
+            }, 300);
           }
         }
       }
@@ -1885,14 +1920,20 @@
       checkTimeStatus(settings);
 
       callGas('getClassList', [], function(classes) {
+        var classSel = document.getElementById('classSelect');
+        var hrSel = document.getElementById('teacherClassSelect');
+        var prevCls = classSel.value;
+        var prevHrCls = hrSel.value;
         var html = '<option value="">請選擇班級</option>';
         var hrHtml = '<option value="">請選擇班級</option>';
         classes.forEach(function(c) {
           html += '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + ' 班</option>';
           hrHtml += '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + ' 班</option>';
         });
-        document.getElementById('classSelect').innerHTML = html;
-        document.getElementById('teacherClassSelect').innerHTML = hrHtml;
+        classSel.innerHTML = html;
+        hrSel.innerHTML = hrHtml;
+        if (prevCls && classes.indexOf(prevCls) !== -1) classSel.value = prevCls;
+        if (prevHrCls && classes.indexOf(prevHrCls) !== -1) hrSel.value = prevHrCls;
       });
     });
   }
@@ -2792,6 +2833,63 @@
     }
   }
 
+  function openSheetAuditModal() {
+    setLoading(true, '掃描 Google 試算表所有分頁中...');
+    callGas('getSpreadsheetAudit', [appState.adminToken], function(res) {
+      if (!res || res.status !== 'success') {
+        showModal('讀取失敗', escapeHtml((res && res.message) || '無法讀取試算表分頁清單'));
+        return;
+      }
+      var sheets = res.sheets || [];
+      var unused = sheets.filter(function(s) { return !s.usedByApp; });
+      var used = sheets.filter(function(s) { return s.usedByApp; });
+
+      var html = '<div style="font-size:13px; line-height:1.6;">';
+      html += '<div style="margin-bottom:10px; font-weight:800; color:#15803d;">✅ 網站程式使用中（保護保留）：</div>';
+      html += '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">';
+      used.forEach(function(s) {
+        html += '<span class="student-badge-item st-enrolled">' + escapeHtml(s.name) + ' (' + s.dataRows + ' 筆)</span>';
+      });
+      html += '</div>';
+
+      if (unused.length === 0) {
+        html += '<div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:10px; color:#166534; font-weight:700;">🎉 太棒了！試算表非常乾淨，沒有任何網站用不到的多餘分頁。</div></div>';
+        showModal('試算表分頁檢查結果', html);
+        return;
+      }
+
+      html += '<div style="margin-bottom:8px; font-weight:800; color:#b91c1c;">❌ 網站程式沒用到（勾選立即從試算表刪除）：</div>';
+      html += '<div style="display:flex; flex-direction:column; gap:8px; max-height:240px; overflow-y:auto;">';
+      unused.forEach(function(s, i) {
+        var hdr = (s.headers && s.headers.length) ? ('｜欄位: ' + escapeHtml(s.headers.join(', '))) : '｜空白分頁';
+        var rowWarn = s.dataRows > 0 ? ('<strong style="color:#b91c1c;">含 ' + s.dataRows + ' 列資料</strong>') : '0 列資料';
+        html += '<label style="display:flex; align-items:flex-start; gap:8px; margin:0; background:#fff5f5; border:1px solid #fecaca; border-radius:8px; padding:8px 10px; cursor:pointer;">';
+        html += '<input type="checkbox" class="audit-del-cb" value="' + escapeHtml(s.name) + '" checked style="margin-top:3px;">';
+        html += '<div><div style="font-weight:800; color:#0f172a;">' + escapeHtml(s.name) + '</div><div style="font-size:11.5px; color:#64748b;">' + rowWarn + hdr + '</div></div>';
+        html += '</label>';
+      });
+      html += '</div>';
+      html += '<div class="help-text" style="margin-top:8px;">⚠️ 若舊英文分頁仍有資料，請先確認已搬移至中文分頁再刪除（刪除無法復原）。</div></div>';
+
+      showConfirmModal('檢查並清理試算表多餘分頁', html, '確認刪除勾選分頁', function() {
+        var chosen = [];
+        document.querySelectorAll('.audit-del-cb:checked').forEach(function(cb) { chosen.push(cb.value); });
+        if (chosen.length === 0) {
+          showModal('未執行刪除', '您沒有勾選任何要刪除的分頁。');
+          return;
+        }
+        setLoading(true, '正在安全刪除用不到的試算表分頁...');
+        callGas('cleanupUnusedSheets', [appState.adminToken, chosen], function(delRes) {
+          if (!delRes || delRes.status === 'error') {
+            showModal('刪除失敗', escapeHtml((delRes && delRes.message) || '操作失敗'));
+            return;
+          }
+          showModal('清理完成', escapeHtml(delRes.message) + '<br><br><span style="font-size:12px; color:#64748b;">目前試算表剩餘分頁：' + escapeHtml((delRes.remaining || []).join('、')) + '</span>');
+        });
+      });
+    });
+  }
+
   function logoutAdmin() {
     appState.adminToken = null;
     document.getElementById('mainContainer').classList.remove('admin-expanded');
@@ -2805,9 +2903,20 @@
     document.getElementById('showcaseFab').style.display = show ? 'none' : 'block';
   }
 
+  function ensureClassOption(sel, cls) {
+    if (!sel) return;
+    if (!sel.querySelector('option[value="' + cls + '"]')) {
+      var opt = document.createElement('option');
+      opt.value = cls;
+      opt.textContent = cls + ' 班';
+      sel.appendChild(opt);
+    }
+    sel.value = cls;
+  }
+
   function demoQuickStudent() {
     document.getElementById('mainContainer').classList.remove('admin-expanded');
-    document.getElementById('classSelect').value = '701';
+    ensureClassOption(document.getElementById('classSelect'), '701');
     document.getElementById('idInput').value = '6789';
     callGas('getStudentsByClass', ['701'], function(students) {
       var html = '<option value="">請選擇座號與姓名</option>';
@@ -2818,6 +2927,7 @@
       seatSel.innerHTML = html;
       seatSel.disabled = false;
       seatSel.value = '01';
+      ensureClassOption(document.getElementById('classSelect'), '701');
       doStudentLogin();
     });
   }
@@ -2855,7 +2965,7 @@
     document.getElementById('teacherPassInput').value = 'teacher888';
     var sel = document.getElementById('teacherClassSelect');
     if (sel) {
-      sel.value = '701';
+      ensureClassOption(sel, '701');
       loadHomeroomData();
     }
   }

@@ -466,3 +466,37 @@ test('12. 導師通行碼可由後台更換，且儀表板提示是否仍為預�
   assert.equal(context.getHomeroomClassData('701', 'Daxi-Hr-2026').status, 'success');
   assert.equal(context.getAdminDashboardData(token).settings.teacherPasswordIsDefault, false);
 });
+
+test('13. 試算表分頁健檢與多餘分頁清理（保護必要分頁，僅刪未使用分頁）', () => {
+  const { context } = createGasMockEnvironment();
+  const token = context.loginAdmin('test-password').token;
+
+  // 未授權禁止查詢與刪除
+  assert.throws(() => context.getSpreadsheetAudit('invalid'), /403/);
+  assert.throws(() => context.cleanupUnusedSheets('invalid', ['Students']), /403/);
+
+  // 模擬舊版遺留分頁
+  const ss = context.getSpreadsheet();
+  ss.insertSheet('Students');
+  ss.insertSheet('Settings');
+  ss.insertSheet('Clubs');
+  ss.insertSheet('Registrations');
+
+  const audit = context.getSpreadsheetAudit(token);
+  assert.equal(audit.status, 'success');
+  assert.equal(audit.sheets.length, 7);
+  assert.equal(audit.sheets.find(s => s.name === '學生名冊').usedByApp, true);
+  assert.equal(audit.sheets.find(s => s.name === '社團設定').usedByApp, true);
+  assert.equal(audit.sheets.find(s => s.name === '系統設定').usedByApp, true);
+  assert.equal(audit.sheets.find(s => s.name === 'Students').usedByApp, false);
+
+  // 空陣列被拒絕
+  assert.equal(context.cleanupUnusedSheets(token, []).status, 'error');
+
+  // 即使傳入系統必要分頁也必須受保護，只刪除未使用的英文分頁
+  const res = context.cleanupUnusedSheets(token, ['Students', 'Settings', 'Clubs', 'Registrations', '學生名冊', '社團設定']);
+  assert.equal(res.status, 'success');
+  assert.deepEqual(Array.from(res.deleted).sort(), ['Clubs', 'Registrations', 'Settings', 'Students'].sort());
+  assert.deepEqual(Array.from(res.skippedProtected).sort(), ['社團設定', '學生名冊'].sort());
+  assert.deepEqual(Array.from(res.remaining).sort(), ['社團設定', '學生名冊', '系統設定'].sort());
+});

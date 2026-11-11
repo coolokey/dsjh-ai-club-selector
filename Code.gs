@@ -26,7 +26,8 @@ const CONFIG = {
   // 預設綁定的 Google 試算表資料庫（獨立指令碼無「目前綁定試算表」時使用；他校複製請改成自己的 ID，或在指令碼屬性設定 SPREADSHEET_ID）
   DEFAULT_SPREADSHEET_ID: '186jh-V-z7reYO9Y2ybJJhugITiz2pqqmH9pLheDayJ4',
   API_VERSION: '2026.11-pages-api',
-  DEFAULT_TEACHER_PASSWORD: 'teacher888'
+  DEFAULT_TEACHER_PASSWORD: 'teacher888',
+  REQUIRED_SHEETS: ['社團設定', '學生名冊', '系統設定', '社團點名簽到冊']
 };
 
 // 全域執行週期單例快取，避免重複 openById
@@ -67,7 +68,9 @@ const API_ROUTES_ = {
   runAiSmartAllocation: runAiSmartAllocation,
   batchSendAllocationEmails: batchSendAllocationEmails,
   exportAttendanceSheets: exportAttendanceSheets,
-  generateClubDocManual: generateClubDocManual
+  generateClubDocManual: generateClubDocManual,
+  getSpreadsheetAudit: getSpreadsheetAudit,
+  cleanupUnusedSheets: cleanupUnusedSheets
 };
 
 function doPost(e) {
@@ -1517,4 +1520,85 @@ function getHomeroomClassData(className, authCode) {
     unassignedList: unassigned,
     noticeText: lineNotice
   };
+}
+
+// ==================== 🧹 試算表分頁健檢與清理（保留系統必要分頁，安全刪除多餘分頁） ====================
+function getSpreadsheetAudit(adminToken) {
+  assertAdminAuth_(adminToken);
+  const ss = getSpreadsheet();
+  const requiredSet = {};
+  CONFIG.REQUIRED_SHEETS.forEach(n => { requiredSet[n] = true; });
+
+  const sheets = ss.getSheets().map(sheet => {
+    const name = sheet.getName();
+    const values = sheet.getDataRange().getValues();
+    const nonEmpty = values.filter(r => r.some(c => String(c).trim() !== ''));
+    const headers = nonEmpty.length > 0
+      ? nonEmpty[0].map(c => String(c).trim()).filter(Boolean).slice(0, 8)
+      : [];
+    const dataRows = Math.max(0, nonEmpty.length - 1);
+    return {
+      name: name,
+      usedByApp: !!requiredSet[name],
+      dataRows: dataRows,
+      headers: headers
+    };
+  });
+
+  return { status: 'success', sheets: sheets };
+}
+
+function cleanupUnusedSheets(adminToken, targetNames) {
+  assertAdminAuth_(adminToken);
+  if (!Array.isArray(targetNames) || targetNames.length === 0) {
+    return { status: 'error', message: '請先勾選要刪除的未使用分頁！' };
+  }
+
+  const requiredSet = {};
+  CONFIG.REQUIRED_SHEETS.forEach(n => { requiredSet[n] = true; });
+
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) {
+      return { status: 'error', message: '伺服器忙碌中，請稍後再試。' };
+    }
+
+    const ss = getSpreadsheet();
+    const wantDelete = {};
+    targetNames.forEach(n => {
+      const s = String(n || '').trim();
+      if (s) wantDelete[s] = true;
+    });
+
+    const deleted = [];
+    const skippedProtected = [];
+
+    ss.getSheets().forEach(sheet => {
+      const name = sheet.getName();
+      if (!wantDelete[name]) return;
+      if (requiredSet[name]) {
+        skippedProtected.push(name);
+        return;
+      }
+      if (ss.getSheets().length <= 1) return;
+      ss.deleteSheet(sheet);
+      deleted.push(name);
+    });
+
+    const remaining = ss.getSheets().map(s => s.getName());
+    return {
+      status: 'success',
+      deleted: deleted,
+      skippedProtected: skippedProtected,
+      remaining: remaining,
+      message: deleted.length > 0
+        ? `已成功刪除 ${deleted.length} 個未使用分頁：${deleted.join('、')}`
+        : '沒有符合刪除條件的未使用分頁（系統必要分頁已受保護）。'
+    };
+  } catch (err) {
+    console.error('cleanupUnusedSheets error: ' + err.message);
+    return { status: 'error', message: '清理分頁時發生異常：' + err.message };
+  } finally {
+    lock.releaseLock();
+  }
 }
