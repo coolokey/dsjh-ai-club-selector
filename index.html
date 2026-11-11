@@ -1273,12 +1273,16 @@
 
     <!-- 教師行政智慧治理中心 (寬螢幕儀表板) -->
     <div id="stepAdminDashboard" class="step-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
         <div>
           <h2 style="font-size: 20px; font-weight: 900;">⚙️ 智慧行政管理中心</h2>
           <span style="font-size: 12px; color: var(--text-muted);">大溪國中 學務處訓育組 ｜ 特優旗艦版</span>
         </div>
-        <button class="nav-btn" onclick="logoutAdmin()">登出管理</button>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <a id="topSpreadsheetLink" href="#" target="_blank" rel="noopener noreferrer" onclick="return openSpreadsheetDirectly(event)" style="display: inline-flex; align-items: center; gap: 5px; background: #ecfdf5; border: 1.5px solid #6ee7b7; color: #047857; padding: 7px 14px; border-radius: 9px; font-size: 13px; font-weight: 800; text-decoration: none; transition: all 0.2s;">📊 一鍵開啟試算表資料庫 ↗</a>
+          <button type="button" class="nav-btn" style="color: #b91c1c; border-color: #fecaca; background: #fff5f5;" onclick="openSheetAuditModal()">🧹 清理多餘分頁</button>
+          <button type="button" class="nav-btn" onclick="logoutAdmin()">登出管理</button>
+        </div>
       </div>
 
       <!-- 統計數據 -->
@@ -1404,7 +1408,7 @@
       </div>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 170px;" onclick="openSpreadsheetDirectly()">🔗 開啟 Google 試算表資料庫</button>
+        <a id="bottomSpreadsheetLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 170px; text-decoration: none;" onclick="return openSpreadsheetDirectly(event)">🔗 開啟 Google 試算表資料庫 ↗</a>
         <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 180px; color: #b91c1c; border: 1px solid #fecaca; background: #fff5f5;" onclick="openSheetAuditModal()">🧹 清理試算表多餘分頁</button>
         <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 130px;" onclick="showStep('ChangePwd')">🔑 修改密碼</button>
       </div>
@@ -2599,7 +2603,8 @@
       document.getElementById('adminOpenTime').value = res.settings.openTime || '';
       document.getElementById('adminCloseTime').value = res.settings.closeTime || '';
       document.getElementById('adminMaxPerClass').value = res.settings.maxPerClass || 4;
-      appState.settings.spreadsheetUrl = res.settings.spreadsheetUrl;
+      appState.settings.spreadsheetUrl = res.settings.spreadsheetUrl || '';
+      syncSpreadsheetLinks(appState.settings.spreadsheetUrl);
 
       renderAdminUnassignedList(res.unassignedStudents || []);
       appState.adminClubs = res.clubs || [];
@@ -2825,12 +2830,22 @@
     });
   }
 
-  function openSpreadsheetDirectly() {
-    if (appState.settings.spreadsheetUrl) {
-      window.open(appState.settings.spreadsheetUrl, '_blank');
-    } else {
-      showModal('提示', '試算表網址尚未就緒。');
+  function syncSpreadsheetLinks(url) {
+    var safeUrl = /^https:\/\/docs\.google\.com\/spreadsheets\//i.test(url || '') ? url : '';
+    ['topSpreadsheetLink', 'bottomSpreadsheetLink'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.setAttribute('href', safeUrl || '#');
+    });
+  }
+
+  function openSpreadsheetDirectly(ev) {
+    var url = appState.settings.spreadsheetUrl || '';
+    if (!/^https:\/\/docs\.google\.com\/spreadsheets\//i.test(url)) {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      showModal('提示', '試算表網址尚未就緒，請先儲存設定或重新整理後台。');
+      return false;
     }
+    return true;
   }
 
   function openSheetAuditModal() {
@@ -2892,6 +2907,8 @@
 
   function logoutAdmin() {
     appState.adminToken = null;
+    appState.settings.spreadsheetUrl = '';
+    syncSpreadsheetLinks('');
     document.getElementById('mainContainer').classList.remove('admin-expanded');
     showStep('Login');
   }
