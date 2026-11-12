@@ -1,12 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function createGasMockEnvironment() {
+function createGasMockEnvironment(options) {
+  const opts = options || {};
   const scriptProperties = new Map();
   scriptProperties.set('ADMIN_PASSWORD', 'test-password');
+  scriptProperties.set('SCORE_SYNC_V', '1');
 
   const cacheStore = new Map();
 
@@ -18,13 +21,24 @@ function createGasMockEnvironment() {
     ['數位動漫與繪畫社', 20, 0, '王老師', '電腦教室二', '電繪板基礎教學、角色骨架設計', '無基礎可', '視覺藝術']
   ];
 
-  // 模擬學生名冊 (班級, 座號, 姓名, 身分證字號, 學生Email, 第一志願, 第二志願, 第三志願, 錄取社團, 選填時間, 分發備註, 保障身分鎖定, 健康安全提醒)
+  // 模擬學生名冊 (含 學號 / 出生月日 / 登入密碼)
   const studentRows = [
-    ['班級', '座號', '姓名', '身分證字號', '學生Email', '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間', '分發備註', '保障身分鎖定', '健康安全提醒'],
-    ['701', '01', '王大明', 'A123456789', 'daxi_70101@example.com', '', '', '', '', '', '', '', ''],
-    ['701', '02', '李小美', 'B223456789', 'daxi_70102@example.com', '', '', '', '', '', '', '', ''],
-    ['701', '03', '張志豪', 'C123456789', 'daxi_70103@example.com', '', '', '', '', '', '', '校隊保障(籃球)', ''],
-    ['702', '01', '陳建宏', 'D123456789', 'daxi_70201@example.com', '', '', '', '', '', '', '', '氣喘，劇烈運動注意']
+    [
+      '班級', '座號', '姓名', '身分證字號', '學生Email',
+      '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間',
+      '分發備註', '保障身分鎖定', '健康安全提醒', '學號', '出生月日', '登入密碼'
+    ],
+    ['701', '01', '王大明', '6789', 'daxi_70101@example.com', '', '', '', '', '', '', '', '', '11470101', '0101', '67890101'],
+    ['701', '02', '李小美', '6789', 'daxi_70102@example.com', '', '', '', '', '', '', '', '', '11470102', '0202', '67890202'],
+    ['701', '03', '張志豪', '6789', 'daxi_70103@example.com', '', '', '', '', '', '', '校隊保障(籃球)', '', '11470103', '0303', '67890303'],
+    ['702', '01', '陳建宏', '6789', 'daxi_70201@example.com', '', '', '', '', '', '', '', '氣喘，劇烈運動注意', '11470201', '0404', '67890404']
+  ];
+
+  // 模擬導師名單 (比照成績查詢系統)
+  const teacherRows = [
+    ['教師帳號', '教師姓名', '負責班級', '密碼', '首次登入標記', '公務信箱'],
+    ['tf51056', '張雅琪 導師', '7年1班', '701701', true, 'tf51056@dsjh.tyc.edu.tw'],
+    ['tf51032', '李俊毅 導師', '7年2班', '702702', false, 'tf51032@dsjh.tyc.edu.tw']
   ];
 
   // 模擬系統設定
@@ -40,13 +54,16 @@ function createGasMockEnvironment() {
     ['EMAIL_NOTIFICATION_ENABLED', 'true', '郵件通知開關']
   ];
 
-  function createMockSheet(name, rows) {
+  function createMockSheet(name, rows, readOnlyGuard) {
     const layoutState = {
       colWidths: {},
       wrapCalls: [],
       verticalAlignments: [],
       frozenRows: 0,
       autoResized: false
+    };
+    const assertWritable = () => {
+      if (readOnlyGuard) throw new Error('FORBIDDEN WRITE ON READ-ONLY SOURCE SPREADSHEET');
     };
     const getLastColCount = () => rows.reduce((m, r) => Math.max(m, r.length), 0);
     return {
@@ -55,9 +72,10 @@ function createGasMockEnvironment() {
       getLastRow: () => rows.length,
       getLastColumn: () => getLastColCount(),
       getMaxRows: () => Math.max(rows.length + 10, 50),
-      getMaxColumns: () => Math.max(getLastColCount() + 2, 15),
+      getMaxColumns: () => Math.max(getLastColCount() + 2, 16),
       getDataRange: () => ({
-        getValues: () => rows.map(r => r.slice())
+        getValues: () => rows.map(r => r.slice()),
+        getDisplayValues: () => rows.map(r => r.map(c => (c === undefined || c === null ? '' : String(c))))
       }),
       getRange: (row, col, numRows, numCols) => ({
         getValues: () => {
@@ -75,12 +93,14 @@ function createGasMockEnvironment() {
           return out;
         },
         setValue: (val) => {
+          assertWritable();
           const rowIndex = row - 1;
           const colIndex = col - 1;
           if (!rows[rowIndex]) rows[rowIndex] = [];
           rows[rowIndex][colIndex] = val;
         },
         setValues: (vals) => {
+          assertWritable();
           for (let r = 0; r < vals.length; r++) {
             const rowIndex = row - 1 + r;
             if (!rows[rowIndex]) rows[rowIndex] = [];
@@ -89,30 +109,35 @@ function createGasMockEnvironment() {
             }
           }
         },
+        setNumberFormat: function() { assertWritable(); return this; },
         setWrap: function(flag) {
+          assertWritable();
           layoutState.wrapCalls.push({ row, col, numRows: numRows || 1, numCols: numCols || 1, wrap: !!flag });
           return this;
         },
         setVerticalAlignment: function(align) {
+          assertWritable();
           layoutState.verticalAlignments.push(align);
           return this;
         },
-        setBackground: function() { return this; },
-        setFontColor: function() { return this; },
-        setFontWeight: function() { return this; },
-        setFontSize: function() { return this; },
-        setHorizontalAlignment: function() { return this; },
-        merge: function() { return this; }
+        setBackground: function() { assertWritable(); return this; },
+        setFontColor: function() { assertWritable(); return this; },
+        setFontWeight: function() { assertWritable(); return this; },
+        setFontSize: function() { assertWritable(); return this; },
+        setHorizontalAlignment: function() { assertWritable(); return this; },
+        merge: function() { assertWritable(); return this; }
       }),
-      setColumnWidth: (colIdx, width) => { layoutState.colWidths[colIdx] = width; },
+      setColumnWidth: (colIdx, width) => { assertWritable(); layoutState.colWidths[colIdx] = width; },
       setColumnWidths: (startCol, count, width) => {
+        assertWritable();
         for (let i = 0; i < count; i++) layoutState.colWidths[startCol + i] = width;
       },
-      setFrozenRows: (n) => { layoutState.frozenRows = n; },
-      autoResizeRows: () => { layoutState.autoResized = true; },
-      appendRow: (row) => rows.push(row.slice()),
-      deleteRow: (n) => { rows.splice(n - 1, 1); },
-      clear: () => { rows.length = 0; },
+      setFrozenRows: (n) => { assertWritable(); layoutState.frozenRows = n; },
+      autoResizeRows: () => { assertWritable(); layoutState.autoResized = true; },
+      appendRow: (row) => { assertWritable(); rows.push(row.slice()); },
+      deleteRow: (n) => { assertWritable(); rows.splice(n - 1, 1); },
+      clearContents: () => { assertWritable(); rows.length = 0; },
+      clear: () => { assertWritable(); rows.length = 0; },
       getSheetId: () => 101
     };
   }
@@ -120,6 +145,7 @@ function createGasMockEnvironment() {
   const sheets = {
     '社團設定': createMockSheet('社團設定', clubRows),
     '學生名冊': createMockSheet('學生名冊', studentRows),
+    '導師名單': createMockSheet('導師名單', teacherRows),
     '系統設定': createMockSheet('系統設定', configRows)
   };
 
@@ -139,6 +165,18 @@ function createGasMockEnvironment() {
     rename: (newName) => { mockSpreadsheet._name = String(newName); }
   };
 
+  let mockScoreSpreadsheet = null;
+  if (opts.scoreSource) {
+    const roSheets = {};
+    Object.keys(opts.scoreSource).forEach(sName => {
+      roSheets[sName] = createMockSheet(sName, opts.scoreSource[sName], true);
+    });
+    mockScoreSpreadsheet = {
+      getId: () => '1cLrFMTA-gXTDQFKzW2E1C186_WJ0SuwMhky1_RL2Q3U',
+      getSheetByName: (name) => roSheets[name] || null
+    };
+  }
+
   const sentEmails = [];
 
   const context = {
@@ -151,7 +189,9 @@ function createGasMockEnvironment() {
     Array,
     Object,
     SpreadsheetApp: {
-      openById: () => mockSpreadsheet,
+      openById: (id) => (mockScoreSpreadsheet && id === '1cLrFMTA-gXTDQFKzW2E1C186_WJ0SuwMhky1_RL2Q3U')
+        ? mockScoreSpreadsheet
+        : mockSpreadsheet,
       getActiveSpreadsheet: () => mockSpreadsheet,
       create: () => mockSpreadsheet
     },
@@ -164,7 +204,8 @@ function createGasMockEnvironment() {
     CacheService: {
       getScriptCache: () => ({
         get: (k) => cacheStore.get(k) || null,
-        put: (k, v) => cacheStore.set(k, String(v))
+        put: (k, v) => cacheStore.set(k, String(v)),
+        remove: (k) => cacheStore.delete(k)
       })
     },
     LockService: {
@@ -175,7 +216,10 @@ function createGasMockEnvironment() {
     },
     Utilities: {
       formatDate: (d, tz, fmt) => '2026-09-27 10:00:00',
-      getUuid: () => 'mock-uuid-' + Math.random().toString(36).substring(2, 9)
+      getUuid: () => 'mock-uuid-' + Math.random().toString(36).substring(2, 9),
+      DigestAlgorithm: { SHA_256: 'SHA_256' },
+      Charset: { UTF_8: 'UTF_8' },
+      computeDigest: (alg, text) => Array.from(crypto.createHash('sha256').update(String(text), 'utf8').digest())
     },
     MailApp: {
       sendEmail: (opts) => {
@@ -243,54 +287,79 @@ function createGasMockEnvironment() {
   return { context, sheets, scriptProperties, cacheStore, sentEmails, mockSpreadsheet };
 }
 
-test('1. 學生名冊、Email 與班級清單載入', () => {
+test('1. 班級清單載入與未登入不可列舉班級學生名單', () => {
   const { context } = createGasMockEnvironment();
   const classes = context.getClassList();
   assert.deepEqual(classes, ['701', '702']);
 
-  const students701 = context.getStudentsByClass('701');
-  assert.equal(students701.length, 3);
-  assert.equal(students701[0].name, '王大明');
+  // 已移除未授權的班級座號姓名列舉 API（防學生姓名資訊外洩）
+  const enumRes = callApi(context, 'getStudentsByClass', ['701']);
+  assert.equal(enumRes.ok, false);
+  assert.match(enumRes.error, /404/);
 });
 
-test('2. 學生身分驗證與身分保障鎖定', () => {
-  const { context } = createGasMockEnvironment();
-  
-  // 普通學生
-  const res1 = context.verifyAndGetClubs('701', '01', '6789');
+test('2. 學生學號密碼驗證、自我變更密碼 (SHA-256) 與連續錯誤鎖定', () => {
+  const { context, sheets } = createGasMockEnvironment();
+
+  // 正確學號與預設密碼（支援身分證末4碼+出生月日，取得 studentToken）
+  const res1 = context.verifyAndGetClubs('11470101', '67890101');
   assert.equal(res1.status, 'success');
+  assert.ok(res1.token);
   assert.equal(res1.student.name, '王大明');
   assert.equal(res1.student.email, 'daxi_70101@example.com');
+  assert.equal(res1.student.className, '701');
+  assert.equal(res1.student.seat, '01');
 
-  // 身分保障學生 (701班03號)
-  const resLocked = context.verifyAndGetClubs('701', '03', '6789');
+  // 學生變更密碼 -> 寫入 sha256$ 雜湊，舊密碼失效、新密碼生效
+  assert.equal(context.changeStudentPassword(res1.token, 'wrong', 'newPass99').status, 'error');
+  assert.equal(context.changeStudentPassword(res1.token, '67890101', '123').status, 'error');
+  const chg = context.changeStudentPassword(res1.token, '67890101', 'DaxiStu!99');
+  assert.equal(chg.status, 'success');
+  const storedHash = sheets['學生名冊'].getDataRange().getValues()[1][15];
+  assert.ok(String(storedHash).startsWith('sha256$'), '學生新密碼應以 sha256$ 格式儲存');
+  assert.equal(context.verifyAndGetClubs('11470101', '67890101').status, 'error');
+  assert.equal(context.verifyAndGetClubs('11470101', 'DaxiStu!99').status, 'success');
+
+  // 身分保障學生 (701班03號 11470103)
+  const resLocked = context.verifyAndGetClubs('11470103', '67890303');
   assert.equal(resLocked.status, 'success');
   assert.equal(resLocked.student.lockedClub, '校隊保障(籃球)');
+
+  // 連續錯誤 5 次後帳號鎖定 15 分鐘（第 6 次即使輸入正確密碼仍被鎖定阻擋）
+  for (let i = 0; i < 5; i++) {
+    const bad = context.verifyAndGetClubs('11470102', 'wrong-pwd');
+    assert.equal(bad.status, 'error');
+  }
+  const lockedOut = context.verifyAndGetClubs('11470102', '67890202');
+  assert.equal(lockedOut.status, 'error');
+  assert.match(lockedOut.message, /鎖定/);
 });
 
 test('3. 即時選填、Email 錄取通知發送與班級防抱團限制', () => {
   const { context, sentEmails } = createGasMockEnvironment();
 
+  const stu1Token = context.verifyAndGetClubs('11470101', '67890101').token;
+  const stu2Token = context.verifyAndGetClubs('11470102', '67890202').token;
+
   // 學生 1 (701班) 報名籃球社
-  const res1 = context.submitSelection('701', '01', '6789', '熱血籃球戰術社');
+  const res1 = context.submitSelection(stu1Token, '熱血籃球戰術社');
   assert.equal(res1.status, 'success');
   assert.equal(res1.emailSent, true);
   assert.equal(sentEmails.length, 1);
   assert.match(sentEmails[0].subject, /錄取通知函/);
 
   // 學生 1 再次送出相同社團 -> 等冪性回傳成功
-  const resDupSame = context.submitSelection('701', '01', '6789', '熱血籃球戰術社');
+  const resDupSame = context.submitSelection(stu1Token, '熱血籃球戰術社');
   assert.equal(resDupSame.status, 'success');
   assert.equal(resDupSame.isDuplicateConfirm, true);
 
-  // 學生 2 (701班) 報名籃球社 (目前已有 701班 2 人，達到 MAX_PER_CLASS_PER_CLUB=2 的限制)
-  const res2 = context.submitSelection('701', '02', '6789', '熱血籃球戰術社');
+  // 學生 2 (701班) 報名籃球社 (達到 MAX_PER_CLASS_PER_CLUB=2 的限制)
+  const res2 = context.submitSelection(stu2Token, '熱血籃球戰術社');
   assert.equal(res2.status, 'success');
 
-  // 假設再有一位 701 學生嘗試搶籃球社 -> 觸發班級上限阻擋
-  // 先將一位 702 學生修改為 701 進行測試
-  const resBlock = context.submitSelection('701', '01', '6789', 'AI機器人創客社');
-  assert.equal(resBlock.status, 'error'); // 已錄取過其他社團
+  // 學生 1 嘗試改報他社 -> 已錄取不可重複選填
+  const resBlock = context.submitSelection(stu1Token, 'AI機器人創客社');
+  assert.equal(resBlock.status, 'error');
 });
 
 test('4. Gemini AI 顧問與 PII 個資遮蔽', () => {
@@ -316,8 +385,10 @@ test('5. 多志願 2D 批次分發與管理 Token 安全驗證', () => {
   const token = loginRes.token;
   assert.ok(token);
 
-  // 學生填寫志願
-  context.submitPreferences('701', '01', '6789', 'AI機器人創客社', '熱血籃球戰術社', '數位動漫與繪畫社');
+  // 學生以 Token 填寫志願
+  const stuToken = context.verifyAndGetClubs('11470101', '67890101').token;
+  const prefRes = context.submitPreferences(stuToken, 'AI機器人創客社', '熱血籃球戰術社', '數位動漫與繪畫社');
+  assert.equal(prefRes.status, 'success');
 
   // 執行分發
   const preview = context.runAiSmartAllocation(token);
@@ -335,25 +406,50 @@ test('5. 多志願 2D 批次分發與管理 Token 安全驗證', () => {
   assert.ok(robotClub.current >= 1); // 人數未被歸零
 });
 
-test('6. 導師專區與點名冊 (含健康警示)', () => {
-  const { context } = createGasMockEnvironment();
-  const loginRes = context.loginAdmin('test-password');
-  const token = loginRes.token;
+test('6. 導師帳號登入、首次強制改密、跨班權限隔離與點名冊', () => {
+  const { context, sheets } = createGasMockEnvironment();
+  const adminToken = context.loginAdmin('test-password').token;
 
-  // 導師查詢專區（支援管理員 Token 與專用導師通行碼）
+  // 未登入或無效 Token 禁止存取導師專區
   assert.throws(() => context.getHomeroomClassData('701'), /403/);
   assert.throws(() => context.getHomeroomClassData('701', 'invalid'), /403/);
-  const hrData = context.getHomeroomClassData('701', token);
-  assert.equal(hrData.status, 'success');
-  assert.equal(hrData.className, '701');
-  assert.ok(hrData.noticeText.includes('701 班社團選社進度通知'));
 
-  const hrTeacherData = context.getHomeroomClassData('701', 'teacher888');
+  // 管理員可查核任何班級
+  const adminHrData = context.getHomeroomClassData('701', adminToken);
+  assert.equal(adminHrData.status, 'success');
+  assert.equal(adminHrData.className, '701');
+  assert.ok(adminHrData.noticeText.includes('701 班社團選社進度通知'));
+
+  // 導師 tf51056（首次登入標記 true）登入成功並回傳 mustChangePassword=true
+  const tLogin = context.loginTeacher('TF51056', '701701');
+  assert.equal(tLogin.status, 'success');
+  assert.equal(tLogin.teacher.assignedClass, '701');
+  assert.equal(tLogin.teacher.mustChangePassword, true);
+
+  // 尚未改密前不可查詢班級資料
+  assert.throws(() => context.getHomeroomClassData('701', tLogin.token), /PasswordChangeRequired/);
+
+  // 導師變更密碼（至少 6 碼且不可同原密碼）
+  assert.equal(context.changeTeacherPassword(tLogin.token, '701701', '701701').status, 'error');
+  assert.equal(context.changeTeacherPassword(tLogin.token, '701701', '12345').status, 'error');
+  const tChg = context.changeTeacherPassword(tLogin.token, '701701', 'DaxiTch#2026');
+  assert.equal(tChg.status, 'success');
+  assert.ok(String(sheets['導師名單'].getDataRange().getValues()[1][3]).startsWith('sha256$'));
+  assert.equal(sheets['導師名單'].getDataRange().getValues()[1][4], false);
+
+  // 改密後：僅能查詢負責班級 701，跨班查詢 702 必拋 403
+  const hrTeacherData = context.getHomeroomClassData('701', tLogin.token);
   assert.equal(hrTeacherData.status, 'success');
   assert.equal(hrTeacherData.className, '701');
+  assert.throws(() => context.getHomeroomClassData('702', tLogin.token), /403/);
+
+  // 下次使用新密碼登入，mustChangePassword 為 false
+  const tReLogin = context.loginTeacher('tf51056', 'DaxiTch#2026');
+  assert.equal(tReLogin.status, 'success');
+  assert.equal(tReLogin.teacher.mustChangePassword, false);
 
   // 產出點名冊
-  const attRes = context.exportAttendanceSheets(token);
+  const attRes = context.exportAttendanceSheets(adminToken);
   assert.equal(attRes.status, 'success');
 });
 
@@ -388,30 +484,32 @@ test('Recorded draw order is the allocation order and capacities remain enforced
 
 test('9. 開放期間重新改選釋出名額、班級已選統計與後台未選名單', () => {
   const { context } = createGasMockEnvironment();
+  const stu1Token = context.verifyAndGetClubs('11470101', '67890101').token;
 
   // 701班01號選取 AI機器人創客社
-  const sel1 = context.submitSelection('701', '01', '6789', 'AI機器人創客社');
+  const sel1 = context.submitSelection(stu1Token, 'AI機器人創客社');
   assert.equal(sel1.status, 'success');
 
   // 701班02號登入時，可看到該社團本班已選 1 人
-  const verify2 = context.verifyAndGetClubs('701', '02', '6789');
+  const verify2 = context.verifyAndGetClubs('11470102', '67890202');
   const robotClub = verify2.clubs.find(c => c.name === 'AI機器人創客社');
   assert.equal(robotClub.classCount, 1);
   assert.equal(robotClub.current, 1);
 
   // 保障生 (701班03號) 不可自行退選
-  const cancelLocked = context.cancelSelection('701', '03', '6789');
+  const stu3Token = context.verifyAndGetClubs('11470103', '67890303').token;
+  const cancelLocked = context.cancelSelection(stu3Token);
   assert.equal(cancelLocked.status, 'error');
 
   // 701班01號執行開放期間重新改選 -> 釋出名額並可改選其他社團
-  const cancelRes = context.cancelSelection('701', '01', '6789');
+  const cancelRes = context.cancelSelection(stu1Token);
   assert.equal(cancelRes.status, 'success');
   assert.equal(cancelRes.student.assignedClub, '');
   const robotAfterCancel = cancelRes.clubs.find(c => c.name === 'AI機器人創客社');
   assert.equal(robotAfterCancel.current, 0);
 
   // 重新改選「數位動漫與繪畫社」成功
-  const selNew = context.submitSelection('701', '01', '6789', '數位動漫與繪畫社');
+  const selNew = context.submitSelection(stu1Token, '數位動漫與繪畫社');
   assert.equal(selNew.status, 'success');
 
   // 後台可取得未選社學生明細
@@ -482,7 +580,8 @@ test('11. 後台社團管理：新增／修改／刪除與保護規則', () => {
   assert.equal(updated.clubs.find(c => c.name === 'AI機器人創客社').limit, 30);
 
   // 已有學生錄取：不可更名、不可刪除、上限不可低於已錄取人數
-  assert.equal(context.submitSelection('701', '01', '6789', 'AI機器人創客社').status, 'success');
+  const stu1Token = context.verifyAndGetClubs('11470101', '67890101').token;
+  assert.equal(context.submitSelection(stu1Token, 'AI機器人創客社').status, 'success');
   assert.equal(context.saveClub(token, { originalName: 'AI機器人創客社', name: '改名社', limit: 30 }).status, 'error');
   assert.equal(context.saveClub(token, { originalName: 'AI機器人創客社', name: 'AI機器人創客社', limit: 0 }).status, 'error');
   assert.equal(context.deleteClub(token, 'AI機器人創客社').status, 'error');
@@ -494,21 +593,20 @@ test('11. 後台社團管理：新增／修改／刪除與保護規則', () => {
   assert.equal(context.deleteClub(token, '不存在的社團').status, 'error');
 });
 
-test('12. 導師通行碼可由後台更換，且儀表板提示是否仍為預設值', () => {
-  const { context } = createGasMockEnvironment();
-  const token = context.loginAdmin('test-password').token;
+test('12. 學生預設密碼無密碼欄回退 (身分證後4碼+出生月日) 與導師 5 次錯誤鎖定', () => {
+  const { context, sheets } = createGasMockEnvironment();
+  // 清空第 1 位學生第 16 欄（登入密碼）-> 應自動回退比對 身分證後4碼 + 出生月日 (67890101)
+  sheets['學生名冊'].getRange(2, 16).setValue('');
+  const fallbackLogin = context.verifyAndGetClubs('11470101', '67890101');
+  assert.equal(fallbackLogin.status, 'success');
 
-  assert.equal(context.getAdminDashboardData(token).settings.teacherPasswordIsDefault, true);
-
-  // 過短或沿用預設值被拒
-  assert.equal(context.saveSystemSettings(token, { teacherPassword: '123' }).status, 'error');
-  assert.equal(context.saveSystemSettings(token, { teacherPassword: 'teacher888' }).status, 'error');
-
-  // 設定新通行碼後，舊預設碼失效、新碼可用
-  assert.equal(context.saveSystemSettings(token, { teacherPassword: 'Daxi-Hr-2026' }).status, 'success');
-  assert.throws(() => context.getHomeroomClassData('701', 'teacher888'), /403/);
-  assert.equal(context.getHomeroomClassData('701', 'Daxi-Hr-2026').status, 'success');
-  assert.equal(context.getAdminDashboardData(token).settings.teacherPasswordIsDefault, false);
+  // 導師連續錯誤 5 次後鎖定 15 分鐘
+  for (let i = 0; i < 5; i++) {
+    assert.equal(context.loginTeacher('tf51032', 'wrong').status, 'error');
+  }
+  const lockedTeacher = context.loginTeacher('tf51032', '702702');
+  assert.equal(lockedTeacher.status, 'error');
+  assert.match(lockedTeacher.message, /鎖定/);
 });
 
 test('13. 試算表分頁健檢與多餘分頁清理（保護必要分頁，僅刪未使用分頁）', () => {
@@ -528,8 +626,9 @@ test('13. 試算表分頁健檢與多餘分頁清理（保護必要分頁，僅�
 
   const audit = context.getSpreadsheetAudit(token);
   assert.equal(audit.status, 'success');
-  assert.equal(audit.sheets.length, 7);
+  assert.equal(audit.sheets.length, 8);
   assert.equal(audit.sheets.find(s => s.name === '學生名冊').usedByApp, true);
+  assert.equal(audit.sheets.find(s => s.name === '導師名單').usedByApp, true);
   assert.equal(audit.sheets.find(s => s.name === '社團設定').usedByApp, true);
   assert.equal(audit.sheets.find(s => s.name === '系統設定').usedByApp, true);
   assert.equal(audit.sheets.find(s => s.name === 'Students').usedByApp, false);
@@ -538,11 +637,11 @@ test('13. 試算表分頁健檢與多餘分頁清理（保護必要分頁，僅�
   assert.equal(context.cleanupUnusedSheets(token, []).status, 'error');
 
   // 即使傳入系統必要分頁也必須受保護，只刪除未使用的英文分頁
-  const res = context.cleanupUnusedSheets(token, ['Students', 'Settings', 'Clubs', 'Registrations', '學生名冊', '社團設定']);
+  const res = context.cleanupUnusedSheets(token, ['Students', 'Settings', 'Clubs', 'Registrations', '學生名冊', '社團設定', '導師名單']);
   assert.equal(res.status, 'success');
   assert.deepEqual(Array.from(res.deleted).sort(), ['Clubs', 'Registrations', 'Settings', 'Students'].sort());
-  assert.deepEqual(Array.from(res.skippedProtected).sort(), ['社團設定', '學生名冊'].sort());
-  assert.deepEqual(Array.from(res.remaining).sort(), ['社團設定', '學生名冊', '系統設定'].sort());
+  assert.deepEqual(Array.from(res.skippedProtected).sort(), ['導師名單', '社團設定', '學生名冊'].sort());
+  assert.deepEqual(Array.from(res.remaining).sort(), ['導師名單', '社團設定', '學生名冊', '系統設定'].sort());
 });
 
 test('14. 後台統一管理網頁標題與 Google 試算表檔名，並防呆空白與未授權請求', () => {
@@ -582,7 +681,7 @@ test('14. 後台統一管理網頁標題與 Google 試算表檔名，並防呆�
   assert.equal(repeatRes.spreadsheetRenamed, false);
 });
 
-test('15. 試算表每一分頁每一欄皆套用適當欄寬與自動換列（含點名簽到冊）', () => {
+test('15. 試算表每一分頁每一欄皆套用適當欄寬與自動換列（含點名簽到冊與導師名單）', () => {
   const { context, sheets } = createGasMockEnvironment();
   const token = context.loginAdmin('test-password').token;
 
@@ -602,7 +701,7 @@ test('15. 試算表每一分頁每一欄皆套用適當欄寬與自動換列（�
   // 執行全分頁一鍵欄寬與自動換列
   const res = context.formatAllSheetsLayout(token);
   assert.equal(res.status, 'success');
-  assert.equal(res.sheets.length, 4);
+  assert.equal(res.sheets.length, 5);
 
   // 逐分頁檢查：所有欄都有正數寬度、整頁啟用 setWrap(true)、長文字欄位受限寬度以便換列
   Object.keys(sheets).forEach(name => {
@@ -625,4 +724,54 @@ test('15. 試算表每一分頁每一欄皆套用適當欄寬與自動換列（�
   // 檢查點名簽到冊：凍結前 3 列標題／表頭，第 11 欄簽到格不被 Row 2 緊通報字撐爆
   assert.equal(attSheet._layout.frozenRows, 3);
   assert.ok(attSheet._layout.colWidths[11] <= 120);
+});
+
+test('16. 從成績查詢系統唯讀複製學生與導師名單（不動來源試算表、保留前置0與選社成果/新密碼）', () => {
+  const scoreSource = {
+    '學生名單': [
+      ['學號', '姓名', '班級', '座號', '身分證後四碼', '出生月日', '密碼'],
+      ['1130001', '陳小明', '701', '01', '4567', '0105', 'sha256$fromscorehash'],
+      ['1130002', '林小華', '701', '02', '8901', '0912', '']
+    ],
+    '導師名單': [
+      ['教師帳號', '教師姓名', '負責班級', '密碼', '首次登入標記', '公務信箱'],
+      ['tf90001', '周導師', '7年1班', '701701', 'TRUE', 'tf90001@dsjh.tyc.edu.tw'],
+      ['tf90002', '吳導師', '7年2班', '702702', 'FALSE', 'tf90002@dsjh.tyc.edu.tw']
+    ]
+  };
+  const { context, sheets } = createGasMockEnvironment({ scoreSource });
+  const token = context.loginAdmin('test-password').token;
+
+  // 未授權不得觸發同步
+  assert.throws(() => context.syncUsersFromScoreSystem('bad-token'), /403/);
+
+  // 預先模擬社團系統已有學生「1130002」的選社與已在社團系統修改的新密碼
+  sheets['學生名冊'].appendRow([
+    '701', '02', '林小華', '8901', 'lin@example.com',
+    'AI機器人創客社', '', '', 'AI機器人創客社', '2026-09-27 10:00:00',
+    '即時選填成功', '', '', '1130002', '0912', 'sha256$localchanged'
+  ]);
+
+  // 執行同步：若程式碼有任何試圖寫入來源試算表，readOnlyGuard 會直接拋錯失敗
+  const syncRes = context.syncUsersFromScoreSystem(token);
+  assert.equal(syncRes.status, 'success');
+  assert.equal(syncRes.studentsCount, 2);
+  assert.equal(syncRes.teachersCount, 2);
+  assert.equal(syncRes.preservedSelections, 1);
+
+  const copiedStudents = sheets['學生名冊'].getDataRange().getValues();
+  // Demo 假學生已被取代清理，剩標頭 + 2 名真實學生
+  assert.equal(copiedStudents.length, 3);
+  assert.equal(copiedStudents[1][13], '1130001');
+  assert.equal(copiedStudents[1][14], '0105'); // 前置 0 完整保留
+  assert.equal(copiedStudents[1][15], 'sha256$fromscorehash'); // 沿用成績系統雜湊密碼
+  // 既有選社成果與社團內已修改的新密碼均被保留
+  assert.equal(copiedStudents[2][8], 'AI機器人創客社');
+  assert.equal(copiedStudents[2][15], 'sha256$localchanged');
+
+  // 驗證新複製過來的學生「1130002」無法用預設密碼，可用空白欄位回退或本地密碼；驗證新導師 tf90001 可用預設密碼登入並觸發首次改密
+  const tLogin = context.loginTeacher('tf90001', '701701');
+  assert.equal(tLogin.status, 'success');
+  assert.equal(tLogin.teacher.mustChangePassword, true);
+  assert.equal(tLogin.teacher.assignedClass, '701');
 });

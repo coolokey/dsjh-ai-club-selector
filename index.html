@@ -953,31 +953,22 @@
       </div>
     </div>
 
-    <!-- 步驟 1: 學生登入驗證 -->
+    <!-- 步驟 1: 學生登入驗證（比照成績查詢系統 7 碼學號 + 密碼） -->
     <div id="stepLogin" class="step-section active">
       <div style="margin-bottom: 22px;">
-        <h2 style="font-size: 20px; font-weight: 900; color: #0f172a;">學生身分驗證</h2>
-        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">請選擇班級、座號並輸入身分證字號驗證進入選社。</p>
+        <h2 style="font-size: 20px; font-weight: 900; color: #0f172a;">學生帳號登入</h2>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">帳號與密碼比照成績查詢系統，請輸入 7 碼學號與密碼進入選社。</p>
       </div>
 
       <div class="form-group">
-        <label>選擇班級</label>
-        <select id="classSelect" class="form-control" onchange="onClassChange()">
-          <option value="">載入班級中...</option>
-        </select>
+        <label for="studentAccountInput">學號（7 碼）</label>
+        <input type="text" id="studentAccountInput" class="form-control" placeholder="例如：1130001" maxlength="16" autocomplete="username">
       </div>
 
       <div class="form-group">
-        <label>選擇座號與姓名</label>
-        <select id="seatSelect" class="form-control" disabled>
-          <option value="">請先選擇班級</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>身分證字號 (驗證密碼)</label>
-        <input type="password" id="idInput" class="form-control" placeholder="請輸入完整身分證號或末 4 碼" autocomplete="off">
-        <div class="help-text">🛡️ 本校嚴格遵守資安個資指引，密碼僅於伺服器端核對，絕不外流。</div>
+        <label for="studentPwdInput">登入密碼</label>
+        <input type="password" id="studentPwdInput" class="form-control" placeholder="預設密碼：身分證後4碼 + 出生月日4碼（如 12340520）" autocomplete="current-password" onkeydown="if(event.key==='Enter') doStudentLogin()">
+        <div class="help-text">🛡️ 密碼驗證與鎖定機制比照成績查詢系統（連續錯誤 5 次鎖定 15 分鐘），登入後可自行修改密碼。</div>
       </div>
 
       <div id="loginError" class="error-msg"></div>
@@ -991,13 +982,16 @@
 
     <!-- 步驟 2: 社團瀏覽、Gemini AI 適性顧問、選填 -->
     <div id="stepSelect" class="step-section">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 8px; flex-wrap: wrap;">
         <div>
           <span style="font-size: 13px; color: var(--text-muted);">登入同學：</span>
           <strong id="displayStudentName" style="color: var(--primary); font-size: 16px;"></strong>
           <span id="displayClassSeat" style="font-size: 13px; color: var(--text-muted); margin-left: 4px;"></span>
         </div>
-        <button class="nav-btn" style="padding: 4px 10px; font-size: 12px;" onclick="logoutStudent()">登出</button>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button class="nav-btn" id="btnStudentChangePwd" style="padding: 4px 10px; font-size: 12px;" onclick="openStudentChangePwdModal()">🔑 修改密碼</button>
+          <button class="nav-btn" style="padding: 4px 10px; font-size: 12px;" onclick="logoutStudent()">登出</button>
+        </div>
       </div>
 
       <!-- 雙軌選社制度切換列 (即時搶額 vs 三志願適性分發) -->
@@ -1177,33 +1171,67 @@
 
       <button class="btn btn-primary" onclick="window.print()">🖨️ 列印 / 截圖留存憑證</button>
       <button class="btn btn-secondary" id="btnCancelReselect" onclick="cancelAndReselect()" style="border-color: #cbd5e1; color: #0369a1;">🔄 開放期間重新改選社團</button>
+      <button class="btn btn-secondary" onclick="openStudentChangePwdModal()" style="border-color: #cbd5e1;">🔑 修改個人密碼</button>
       <button class="btn btn-secondary" onclick="logoutStudent()">返回系統首頁</button>
     </div>
 
-    <!-- 導師班級專區 -->
+    <!-- 導師班級專區（比照成績查詢系統：教師帳號 + 密碼，首次登入強制修改密碼） -->
     <div id="stepHomeroom" class="step-section">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
         <div>
           <h2 style="font-size: 18px; font-weight: 900;">👨‍🏫 導師班級選社專區</h2>
-          <span style="font-size: 12px; color: var(--text-muted);">即時查驗本班選社進度與一鍵催繳</span>
+          <span style="font-size: 12px; color: var(--text-muted);">比照成績查詢系統教師帳號登入，即時查核所負責班級進度與催繳</span>
         </div>
         <button class="nav-btn" onclick="showStep('Login')">返回</button>
       </div>
 
-      <div class="form-group">
-        <label>請選擇您的導師班級</label>
-        <select id="teacherClassSelect" class="form-control" onchange="loadHomeroomData()">
-          <option value="">請選擇班級</option>
-        </select>
+      <div id="teacherLoginBox">
+        <div class="form-group">
+          <label for="teacherAccountInput">教師帳號</label>
+          <input type="text" id="teacherAccountInput" class="form-control" placeholder="請輸入成績系統教師帳號（如 tf51056）" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="teacherPwdInput">導師登入密碼</label>
+          <input type="password" id="teacherPwdInput" class="form-control" placeholder="預設密碼為負責班級代碼兩次（如 701701）" autocomplete="current-password" onkeydown="if(event.key==='Enter') doTeacherLogin()">
+          <div class="help-text">💡 導師僅可檢視個人負責班級之選社名單；若為首次登入，系統將要求立即變更密碼。</div>
+        </div>
+        <div id="teacherLoginError" class="error-msg"></div>
+        <button class="btn btn-primary" id="btnTeacherLogin" onclick="doTeacherLogin()" style="margin-top: 8px;">🔐 登入導師班級專區</button>
       </div>
 
-      <div class="form-group" id="teacherAuthGroup">
-        <label>導師通行驗證碼</label>
-        <div style="display:flex; gap:8px;">
-          <input type="password" id="teacherPassInput" class="form-control" placeholder="請輸入導師通行碼（由訓育組提供）" autocomplete="off">
-          <button class="nav-btn" style="white-space:nowrap; padding:0 16px;" onclick="loadHomeroomData()">驗證查核</button>
+      <div id="teacherActiveBar" style="display: none; background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <div id="teacherIdentityBadge" style="font-size: 13px; font-weight: 800; color: #0f172a;"></div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button type="button" class="nav-btn" id="btnTeacherChangePwd" style="padding: 4px 10px; font-size: 12px;" onclick="openTeacherChangePwdModal()">🔑 修改密碼</button>
+            <button type="button" class="nav-btn" id="btnTeacherLogout" style="padding: 4px 10px; font-size: 12px;" onclick="logoutTeacher()">登出導師帳號</button>
+          </div>
         </div>
-        <div class="help-text">💡 供各班導師查核本班名冊與催繳，與學務處全校最高管理權限獨立隔離。</div>
+        <div class="form-group" id="adminHrClassPicker" style="display: none; margin-top: 10px; margin-bottom: 0;">
+          <label style="font-size: 12px;">管理員查核切換班級</label>
+          <select id="teacherClassSelect" class="form-control" onchange="loadHomeroomData()">
+            <option value="">請選擇班級</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="teacherForcePwdBox" style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin-bottom: 14px;">
+        <div style="font-size: 14px; font-weight: 800; color: #92400e; margin-bottom: 6px;">🔐 首次登入強制變更密碼</div>
+        <p style="font-size: 12.5px; color: #78350f; margin-bottom: 12px; line-height: 1.55;">比照成績查詢系統規範，首次登入必須將預設密碼變更為個人新密碼（至少 6 碼且不可與目前密碼相同），完成後即可查看負責班級名單。</p>
+        <div class="form-group">
+          <label style="font-size: 12px;">目前密碼</label>
+          <input type="password" id="hrForceOldPwd" class="form-control" autocomplete="current-password">
+        </div>
+        <div class="form-group">
+          <label style="font-size: 12px;">設定新密碼（至少 6 碼）</label>
+          <input type="password" id="hrForceNewPwd1" class="form-control" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label style="font-size: 12px;">再次確認新密碼</label>
+          <input type="password" id="hrForceNewPwd2" class="form-control" autocomplete="new-password" onkeydown="if(event.key==='Enter') submitTeacherForcePasswordChange()">
+        </div>
+        <div id="hrForcePwdErr" class="error-msg"></div>
+        <button type="button" class="btn btn-primary" id="btnForceTeacherPwd" onclick="submitTeacherForcePasswordChange()">確認變更密碼並進入班級專區</button>
       </div>
 
       <div id="homeroomContent" style="display: none;">
@@ -1399,17 +1427,12 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label style="font-size: 12px;">導師專區通行碼（至少 6 碼）</label>
-          <input type="password" id="adminTeacherPass" class="form-control" style="font-size: 13px;" placeholder="留空＝不變更" autocomplete="new-password">
-          <div id="teacherPassWarn" style="display: none; margin-top: 6px; font-size: 12px; font-weight: 700; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; padding: 6px 10px; border-radius: 8px;">⚠️ 導師通行碼仍是系統預設值，正式上線前請立即更換！</div>
-        </div>
-
         <button id="saveAdminSettingsBtn" class="btn btn-primary" style="font-size: 13px; padding: 11px;" onclick="saveAdminSettings()">儲存系統設定</button>
       </div>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         <a id="bottomSpreadsheetLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 170px; text-decoration: none;" onclick="return openSpreadsheetDirectly(event)">🔗 開啟 Google 試算表資料庫 ↗</a>
+        <button id="syncScoreUsersBtn" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 205px; color: #047857; border: 1px solid #a7f3d0; background: #ecfdf5;" onclick="triggerSyncScoreUsers()">🔄 從成績系統複製學生與導師</button>
         <button id="formatSheetsBtn" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 185px; color: #0369a1; border: 1px solid #bae6fd; background: #f0f9ff;" onclick="triggerFormatAllSheets()">📐 調整試算表欄寬與換列</button>
         <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 180px; color: #b91c1c; border: 1px solid #fecaca; background: #fff5f5;" onclick="openSheetAuditModal()">🧹 清理試算表多餘分頁</button>
         <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 130px;" onclick="showStep('ChangePwd')">🔑 修改密碼</button>
@@ -1495,34 +1518,43 @@
       spreadsheetName: '114學年度社團選社系統'
     };
 
+    var mockSheets = null;
+    var mockStudentPwd = '67890101';
+    var mockTeacherPwd = '701701';
+    var mockTeacherFirstLogin = true;
+
     var mockGoogle = {
       script: {
         run: {
           getServerStatus: function() { var self = this; setTimeout(function(){ self._success({ status: 'success', dbConnected: true, version: 'demo-mock', mode: mockSettings.mode, title: mockSettings.title }); }, 100); },
           getSystemSettings: function() { var self = this; setTimeout(function(){ self._success(mockSettings); }, 200); },
           getClassList: function() { var self = this; setTimeout(function(){ self._success(['701', '702', '703', '801', '802']); }, 180); },
-          getStudentsByClass: function(cls) {
+          verifyAndGetClubs: function(account, pwd) {
             var self = this;
             setTimeout(function(){
-              self._success([
-                { seat: '01', name: '王大明' },
-                { seat: '02', name: '李小美' },
-                { seat: '03', name: '張志豪' },
-                { seat: '04', name: '林佩君' }
-              ]);
-            }, 180);
-          },
-          verifyAndGetClubs: function(c, s, id) {
-            var self = this;
-            setTimeout(function(){
-              if (id.length < 4) self._success({ status: 'error', message: '身分證字號驗證長度不足！' });
-              else self._success({
+              var acc = String(account || '').trim();
+              if (!acc || !pwd) { self._success({ status: 'error', message: '請輸入 7 碼學號與登入密碼！' }); return; }
+              if (acc !== '11470101' && acc.length < 7) { self._success({ status: 'error', message: '學號或密碼錯誤！' }); return; }
+              if (String(pwd).toUpperCase() !== String(mockStudentPwd).toUpperCase()) { self._success({ status: 'error', message: '學號或密碼錯誤（展示帳號：11470101／密碼：67890101）！' }); return; }
+              self._success({
                 status: 'success',
-                student: { className: c, seat: s, name: (s === '02' ? '李小美' : (s === '03' ? '張志豪' : '王大明')), email: 'student@daxi.tyc.edu.tw', assignedClub: '', pref1: '', pref2: '', pref3: '' },
+                token: 'mock-stu-token',
+                student: { studentId: acc, className: '701', seat: '01', name: '王大明', email: 'student@daxi.tyc.edu.tw', assignedClub: '', pref1: '', pref2: '', pref3: '' },
                 clubs: mockClubs,
                 settings: mockSettings
               });
             }, 250);
+          },
+          changeStudentPassword: function(token, curPwd, newPwd) {
+            var self = this;
+            setTimeout(function(){
+              if (token !== 'mock-stu-token') { self._success({ status: 'error', message: '登入已逾時，請重新登入！' }); return; }
+              if (String(curPwd).toUpperCase() !== String(mockStudentPwd).toUpperCase()) { self._success({ status: 'error', message: '目前密碼不正確！' }); return; }
+              if (String(newPwd || '').length < 6) { self._success({ status: 'error', message: '新密碼長度至少需 6 個字元！' }); return; }
+              if (newPwd === curPwd) { self._success({ status: 'error', message: '新密碼不可與目前密碼相同！' }); return; }
+              mockStudentPwd = newPwd;
+              self._success({ status: 'success', message: '密碼變更成功！下次請使用新密碼登入。' });
+            }, 220);
           },
           aiConsultantRecommend: function(input) {
             var self = this;
@@ -1541,26 +1573,30 @@
               });
             }, 600);
           },
-          submitSelection: function(cls, seat, id, club) {
+          submitSelection: function(token, club) {
             var self = this;
             setTimeout(function(){
+              if (token !== 'mock-stu-token') { self._success({ status: 'error', message: '登入已逾時！' }); return; }
               var nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
               self._success({ status: 'success', clubName: club, timestamp: nowStr, emailSent: true });
             }, 400);
           },
-          submitPreferences: function(cls, seat, id, p1, p2, p3) {
+          submitPreferences: function(token, p1, p2, p3) {
             var self = this;
             setTimeout(function(){
+              if (token !== 'mock-stu-token') { self._success({ status: 'error', message: '登入已逾時！' }); return; }
               var nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
               self._success({ status: 'success', preferences: [p1, p2, p3], timestamp: nowStr });
             }, 400);
           },
-          cancelSelection: function(cls, seat, id) {
+          cancelSelection: function(token) {
             var self = this;
             setTimeout(function(){
+              if (token !== 'mock-stu-token') { self._success({ status: 'error', message: '登入已逾時！' }); return; }
               self._success({
                 status: 'success',
-                student: { className: cls, seat: seat, name: '王大明', email: 'student@daxi.tyc.edu.tw', assignedClub: '' },
+                token: token,
+                student: { studentId: '11470101', className: '701', seat: '01', name: '王大明', email: 'student@daxi.tyc.edu.tw', assignedClub: '' },
                 clubs: mockClubs,
                 settings: mockSettings
               });
@@ -1580,7 +1616,7 @@
             setTimeout(function(){
               self._success({
                 status: 'success',
-                stats: { totalStudents: 150, enrolledCount: 142, unassignedCount: 8, enrollmentRate: 95 },
+                stats: { totalStudents: 720, enrolledCount: 702, unassignedCount: 18, teacherCount: 29, enrollmentRate: 98 },
                 unassignedStudents: [
                   { className: '701', seat: '05', name: '陳建宏', pref1: 'AI機器人創客社' },
                   { className: '701', seat: '08', name: '林雅婷', pref1: '' },
@@ -1592,7 +1628,7 @@
                   { className: '802', seat: '15', name: '林柏宏', pref1: '' }
                 ],
                 clubs: mockClubs,
-                settings: Object.assign({}, mockSettings, { teacherPasswordIsDefault: false })
+                settings: Object.assign({}, mockSettings)
               });
             }, 300);
           },
@@ -1642,11 +1678,49 @@
           batchSendAllocationEmails: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', sentCount: 142, message: '已成功寄送 142 封個人化 HTML 錄取通知信至學生信箱！' }); }, 500); },
           exportAttendanceSheets: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: '各社團點名簽到冊（含特殊病史健康警示標記與緊急分機）已成功建立分頁！' }); }, 400); },
           generateClubDocManual: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: 'Google Docs 社團成果報告書與選社手冊已自動排版產出！' }); }, 500); },
+          loginTeacher: function(account, pwd) {
+            var self = this;
+            setTimeout(function(){
+              var acc = String(account || '').trim().toLowerCase();
+              if (acc !== 'tf51056' || pwd !== mockTeacherPwd) {
+                self._success({ status: 'error', message: '教師帳號或密碼錯誤（展示帳號：tf51056／預設密碼：701701）！' });
+                return;
+              }
+              self._success({
+                status: 'success',
+                token: 'mock-tch-token',
+                teacher: { account: 'tf51056', name: '張雅琪 導師', assignedClass: '701', rawAssignedClass: '7年1班', mustChangePassword: mockTeacherFirstLogin },
+                classList: ['701']
+              });
+            }, 220);
+          },
+          changeTeacherPassword: function(token, curPwd, newPwd) {
+            var self = this;
+            setTimeout(function(){
+              if (token !== 'mock-tch-token') { self._success({ status: 'error', message: '導師登入已逾時！' }); return; }
+              if (curPwd !== mockTeacherPwd) { self._success({ status: 'error', message: '目前密碼不正確！' }); return; }
+              if (String(newPwd || '').length < 6) { self._success({ status: 'error', message: '新密碼長度至少需 6 個字元！' }); return; }
+              if (newPwd === curPwd) { self._success({ status: 'error', message: '新密碼不可與目前密碼相同！' }); return; }
+              mockTeacherPwd = newPwd;
+              mockTeacherFirstLogin = false;
+              self._success({ status: 'success', mustChangePassword: false, message: '導師密碼已更新，現在可查詢負責班級的選社名單！' });
+            }, 220);
+          },
           getHomeroomClassData: function(cls, token) {
             var self = this;
             setTimeout(function(){
-              if (token !== 'teacher888' && token !== 'mock-token-xyz') {
-                self._failure({ message: '403 Unauthorized: 導師專區存取未獲授權，請輸入正確的導師通行碼！' });
+              if (token === 'mock-tch-token') {
+                if (mockTeacherFirstLogin) {
+                  self._failure({ message: '403 PasswordChangeRequired: 首次登入須先變更預設密碼後才可查詢班級名單！' });
+                  return;
+                }
+                if (cls && cls !== '701') {
+                  self._failure({ message: '403 Unauthorized: 導師僅能查詢負責班級（701）的選社名單！' });
+                  return;
+                }
+                cls = '701';
+              } else if (token !== 'mock-token-xyz') {
+                self._failure({ message: '403 Unauthorized: 導師專區存取未獲授權，請先以教師帳號密碼登入！' });
                 return;
               }
               self._success({
@@ -1666,7 +1740,7 @@
                   { seat: '08', name: '林雅婷', club: '' },
                   { seat: '12', name: '張家豪', club: '' }
                 ],
-                noticeText: '📢【' + (cls || '701') + ' 班社團選社進度通知】\n各位家長與同學好，本班目前已完成 27/30 人。\n⚠️ 尚未完成選社同學：05號 陳建宏、08號 林雅婷、12號 張家豪。\n請儘速使用手機登入學校 AI 選社系統完成志願選填，以保障自身權益！'
+                noticeText: '📢【' + (cls || '701') + ' 班社團選社進度通知】\n各位家長與同學好，本班目前已完成 27/30 人。\n⚠️ 尚未完成選社同學：05號 陳建宏、08號 林雅婷、12號 張家豪。\n請儘速使用 7 碼學號登入學校 AI 選社系統完成志願選填！'
               });
             }, 300);
           },
@@ -1679,10 +1753,6 @@
                 setTimeout(function(){ self._success({ status: 'error', message: '系統與試算表統一名稱不可為空白！' }); }, 200);
                 return;
               }
-            }
-            if (s.teacherPassword && (String(s.teacherPassword).length < 6 || s.teacherPassword === 'teacher888')) {
-              setTimeout(function(){ self._success({ status: 'error', message: '導師通行碼至少 6 碼，且不可使用預設值！' }); }, 200);
-              return;
             }
             if (s.mode) mockSettings.mode = s.mode;
             var renamed = false;
@@ -1702,6 +1772,18 @@
               });
             }, 250);
           },
+          syncUsersFromScoreSystem: function(t) {
+            var self = this;
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                studentsCount: 720,
+                teachersCount: 29,
+                preservedSelections: 0,
+                message: '已從成績查詢系統唯讀複製 720 位學生、29 位導師至社團試算表（未更動成績查詢系統，已保留 0 筆選社紀錄）！'
+              });
+            }, 300);
+          },
           getSpreadsheetAudit: function(t) {
             var self = this;
             setTimeout(function(){
@@ -1710,7 +1792,8 @@
                 sheets: (mockSheets = mockSheets || [
                   { name: 'Students', usedByApp: false, dataRows: 0, headers: [] },
                   { name: '社團設定', usedByApp: true, dataRows: mockClubs.length, headers: ['社團名稱', '人數上限', '已錄取人數'] },
-                  { name: '學生名冊', usedByApp: true, dataRows: 8, headers: ['班級', '座號', '姓名', '身分證字號'] },
+                  { name: '學生名冊', usedByApp: true, dataRows: 720, headers: ['班級', '座號', '姓名', '身分證字號'] },
+                  { name: '導師名單', usedByApp: true, dataRows: 29, headers: ['教師帳號', '教師姓名', '負責班級', '密碼'] },
                   { name: '系統設定', usedByApp: true, dataRows: 8, headers: ['設定項目', '設定值', '說明'] },
                   { name: 'Settings', usedByApp: false, dataRows: 0, headers: [] },
                   { name: 'Clubs', usedByApp: false, dataRows: 0, headers: [] },
@@ -1740,6 +1823,7 @@
             var current = (mockSheets || [
               { name: '社團設定' },
               { name: '學生名冊' },
+              { name: '導師名單' },
               { name: '系統設定' },
               { name: '社團點名簽到冊' }
             ]);
@@ -1760,6 +1844,9 @@
   var appState = {
     settings: {},
     currentStudent: null,
+    studentToken: null,
+    currentTeacher: null,
+    teacherToken: null,
     clubs: [],
     selectedClub: '',
     preferences: [],
@@ -1900,7 +1987,10 @@
     document.getElementById('showcaseFab').style.display = 'none';
 
     // 預設帳密提示只在展示模式顯示，避免在正式環境洩漏
-    document.getElementById('teacherPassInput').placeholder = isMock ? '展示通行碼：teacher888' : '請輸入導師通行碼（由訓育組提供）';
+    document.getElementById('studentAccountInput').placeholder = isMock ? '展示學號：11470101' : '例如：1130001';
+    document.getElementById('studentPwdInput').placeholder = isMock ? '展示密碼：67890101' : '預設密碼：身分證後4碼 + 出生月日4碼（如 12340520）';
+    document.getElementById('teacherAccountInput').placeholder = isMock ? '展示教師帳號：tf51056' : '請輸入成績系統教師帳號（如 tf51056）';
+    document.getElementById('teacherPwdInput').placeholder = isMock ? '展示密碼：701701' : '預設密碼為負責班級代碼兩次（如 701701）';
     document.getElementById('adminPwdInput').placeholder = isMock ? '展示密碼：admin' : '請輸入管理密碼';
   }
 
@@ -1973,19 +2063,14 @@
       checkTimeStatus(settings);
 
       callGas('getClassList', [], function(classes) {
-        var classSel = document.getElementById('classSelect');
         var hrSel = document.getElementById('teacherClassSelect');
-        var prevCls = classSel.value;
+        if (!hrSel) return;
         var prevHrCls = hrSel.value;
-        var html = '<option value="">請選擇班級</option>';
         var hrHtml = '<option value="">請選擇班級</option>';
-        classes.forEach(function(c) {
-          html += '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + ' 班</option>';
+        (classes || []).forEach(function(c) {
           hrHtml += '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + ' 班</option>';
         });
-        classSel.innerHTML = html;
         hrSel.innerHTML = hrHtml;
-        if (prevCls && classes.indexOf(prevCls) !== -1) classSel.value = prevCls;
         if (prevHrCls && classes.indexOf(prevHrCls) !== -1) hrSel.value = prevHrCls;
       });
     });
@@ -2026,49 +2111,27 @@
     showStep('Closed');
   }
 
-  function onClassChange() {
-    var cls = document.getElementById('classSelect').value;
-    var seatSel = document.getElementById('seatSelect');
-    if (!cls) {
-      seatSel.disabled = true;
-      seatSel.innerHTML = '<option value="">請先選擇班級</option>';
-      return;
-    }
-    seatSel.disabled = true;
-    seatSel.innerHTML = '<option>載入座號名冊中...</option>';
-    
-    callGas('getStudentsByClass', [cls], function(students) {
-      var html = '<option value="">請選擇座號與姓名</option>';
-      students.forEach(function(s) {
-        html += '<option value="' + escapeHtml(s.seat) + '">' + escapeHtml(s.seat) + ' 號 - ' + escapeHtml(s.name) + '</option>';
-      });
-      seatSel.innerHTML = html;
-      seatSel.disabled = false;
-    });
-  }
-
   function doStudentLogin() {
-    var cls = document.getElementById('classSelect').value;
-    var seat = document.getElementById('seatSelect').value;
-    var idNum = document.getElementById('idInput').value;
+    var account = (document.getElementById('studentAccountInput').value || '').trim();
+    var password = document.getElementById('studentPwdInput').value || '';
     var errEl = document.getElementById('loginError');
     errEl.innerText = '';
 
-    if (!cls || !seat || !idNum) {
-      errEl.innerText = '請完整填寫班級、座號與身分證字號！';
+    if (!account || !password) {
+      errEl.innerText = '請完整輸入 7 碼學號與登入密碼！';
       return;
     }
 
-    setLoading(true, '驗證身分並取得社團資料中...');
-    callGas('verifyAndGetClubs', [cls, seat, idNum], function(res) {
+    setLoading(true, '驗證學號密碼並取得社團資料中...');
+    callGas('verifyAndGetClubs', [account, password], function(res) {
       if (res.status === 'error') {
         errEl.innerText = res.message;
       } else {
+        appState.studentToken = res.token || null;
         appState.currentStudent = res.student;
         appState.clubs = res.clubs || [];
         if (res.settings) appState.settings = res.settings;
 
-        // 若學生已保障錄取或早已有錄取社團
         if (res.student.lockedClub) {
           showReceiptView(res.student.name, res.student.lockedClub, res.student.selectedTime, true);
           return;
@@ -2081,7 +2144,6 @@
         document.getElementById('displayStudentName').innerText = res.student.name;
         document.getElementById('displayClassSeat').innerText = '(' + res.student.className + '班 ' + res.student.seat + '號)';
 
-        // 初始化選社模式與既存志願
         var mode = (appState.settings && appState.settings.mode) ? appState.settings.mode : 'instant';
         appState.preferences = [];
         if (res.student.pref1) appState.preferences.push(res.student.pref1);
@@ -2399,7 +2461,11 @@
 
   function doFinalSubmit() {
     var st = appState.currentStudent;
-    var idNum = document.getElementById('idInput').value;
+    if (!st || !appState.studentToken) {
+      showModal('登入已逾時', '請重新以 7 碼學號與密碼登入後再試。');
+      logoutStudent();
+      return;
+    }
     var mode = (appState.settings && appState.settings.mode) || 'instant';
 
     if (mode === 'preferences') {
@@ -2407,7 +2473,7 @@
       var p1 = appState.preferences[0] || '';
       var p2 = appState.preferences[1] || '';
       var p3 = appState.preferences[2] || '';
-      callGas('submitPreferences', [st.className, st.seat, idNum, p1, p2, p3], function(res) {
+      callGas('submitPreferences', [appState.studentToken, p1, p2, p3], function(res) {
         if (res.status === 'error') {
           document.getElementById('submitError').innerText = res.message;
         } else {
@@ -2417,7 +2483,7 @@
       });
     } else {
       setLoading(true, '正在寫入資料庫並鎖定名額...');
-      callGas('submitSelection', [st.className, st.seat, idNum, appState.selectedClub], function(res) {
+      callGas('submitSelection', [appState.studentToken, appState.selectedClub], function(res) {
         if (res.status === 'error') {
           document.getElementById('submitError').innerText = res.message;
         } else {
@@ -2488,8 +2554,10 @@
 
   function cancelAndReselect() {
     var st = appState.currentStudent;
-    if (!st) return;
-    var idNum = document.getElementById('idInput').value || '6789';
+    if (!st || !appState.studentToken) {
+      logoutStudent();
+      return;
+    }
 
     showConfirmModal(
       '重新改選社團確認',
@@ -2497,7 +2565,7 @@
       '確定重新改選',
       function() {
         setLoading(true, '正在釋出原社團名額並載入最新清單...');
-        callGas('cancelSelection', [st.className, st.seat, idNum], function(res) {
+        callGas('cancelSelection', [appState.studentToken], function(res) {
           if (res.status === 'error') {
             showModal('無法改選', res.message);
             return;
@@ -2528,38 +2596,208 @@
 
   function logoutStudent() {
     appState.currentStudent = null;
+    appState.studentToken = null;
     appState.selectedClub = '';
     appState.preferences = [];
-    document.getElementById('idInput').value = '';
-    document.getElementById('seatSelect').innerHTML = '<option value="">請先選擇班級</option>';
-    document.getElementById('seatSelect').disabled = true;
-    document.getElementById('classSelect').value = '';
+    var pwdEl = document.getElementById('studentPwdInput');
+    if (pwdEl) pwdEl.value = '';
+    var errEl = document.getElementById('loginError');
+    if (errEl) errEl.innerText = '';
     showStep('Login');
   }
 
-  // ==================== 導師班級專區 ====================
-  function openHomeroomView() {
-    document.getElementById('mainContainer').classList.remove('admin-expanded');
-    showStep('Homeroom');
+  function openStudentChangePwdModal() {
+    if (!appState.studentToken || !appState.currentStudent) {
+      showModal('請先登入', '請先以 7 碼學號與密碼登入後再變更密碼。');
+      return;
+    }
+    var formHtml = '<div style="font-size:13px; color:#475569; margin-bottom:10px;">帳號：<strong>' + escapeHtml(appState.currentStudent.studentId || '') + '</strong>（' + escapeHtml(appState.currentStudent.name) + '）</div>' +
+      '<div class="form-group"><label style="font-size:12px;">目前密碼</label><input type="password" id="stuModalOldPwd" class="form-control" autocomplete="current-password"></div>' +
+      '<div class="form-group"><label style="font-size:12px;">新密碼（至少 6 個字元）</label><input type="password" id="stuModalNewPwd1" class="form-control" autocomplete="new-password"></div>' +
+      '<div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">再次確認新密碼</label><input type="password" id="stuModalNewPwd2" class="form-control" autocomplete="new-password"></div>';
+
+    showConfirmModal('🔑 變更學生登入密碼', formHtml, '確認修改密碼', function() {
+      var o = document.getElementById('stuModalOldPwd').value || '';
+      var n1 = document.getElementById('stuModalNewPwd1').value || '';
+      var n2 = document.getElementById('stuModalNewPwd2').value || '';
+      if (!o || !n1) { showModal('資料不完整', '請完整填寫目前密碼與新密碼！'); return; }
+      if (n1.length < 6) { showModal('格式不符', '新密碼長度至少需 6 個字元！'); return; }
+      if (n1 !== n2) { showModal('輸入不一致', '兩次輸入的新密碼不一致！'); return; }
+      setLoading(true, '正在加密更新學生密碼...');
+      callGas('changeStudentPassword', [appState.studentToken, o, n1], function(res) {
+        if (!res || res.status === 'error') {
+          showModal('變更失敗', escapeHtml((res && res.message) || '密碼修改失敗'));
+          return;
+        }
+        showModal('密碼已更新', escapeHtml(res.message));
+      });
+    });
   }
 
-  function loadHomeroomData() {
-    var cls = document.getElementById('teacherClassSelect').value;
+  // ==================== 導師班級專區（比照成績查詢系統帳號密碼與首次強制改密） ====================
+  function renderHomeroomAuthUi() {
+    var loginBox = document.getElementById('teacherLoginBox');
+    var activeBar = document.getElementById('teacherActiveBar');
+    var forceBox = document.getElementById('teacherForcePwdBox');
+    var contentBox = document.getElementById('homeroomContent');
+    var adminPicker = document.getElementById('adminHrClassPicker');
+    var btnChg = document.getElementById('btnTeacherChangePwd');
+    var btnOut = document.getElementById('btnTeacherLogout');
+    var badge = document.getElementById('teacherIdentityBadge');
+
+    if (appState.teacherToken && appState.currentTeacher) {
+      var t = appState.currentTeacher;
+      loginBox.style.display = 'none';
+      activeBar.style.display = 'block';
+      adminPicker.style.display = 'none';
+      btnChg.style.display = 'inline-block';
+      btnOut.style.display = 'inline-block';
+      badge.innerText = '👤 ' + t.name + '（' + t.account + '）｜負責班級：' + t.assignedClass + ' 班';
+      if (t.mustChangePassword) {
+        forceBox.style.display = 'block';
+        contentBox.style.display = 'none';
+      } else {
+        forceBox.style.display = 'none';
+      }
+      return;
+    }
+
+    if (appState.adminToken) {
+      loginBox.style.display = 'none';
+      activeBar.style.display = 'block';
+      adminPicker.style.display = 'block';
+      btnChg.style.display = 'none';
+      btnOut.style.display = 'none';
+      forceBox.style.display = 'none';
+      badge.innerText = '🛡️ 學務處管理員檢視模式（可跨班查核）';
+      return;
+    }
+
+    loginBox.style.display = 'block';
+    activeBar.style.display = 'none';
+    forceBox.style.display = 'none';
+    contentBox.style.display = 'none';
+  }
+
+  function openHomeroomView() {
+    document.getElementById('mainContainer').classList.remove('admin-expanded');
+    renderHomeroomAuthUi();
+    showStep('Homeroom');
+    if (appState.teacherToken && appState.currentTeacher && !appState.currentTeacher.mustChangePassword) {
+      loadHomeroomData(appState.currentTeacher.assignedClass);
+    }
+  }
+
+  function doTeacherLogin() {
+    var acc = (document.getElementById('teacherAccountInput').value || '').trim();
+    var pwd = document.getElementById('teacherPwdInput').value || '';
+    var errEl = document.getElementById('teacherLoginError');
+    errEl.innerText = '';
+
+    if (!acc || !pwd) {
+      errEl.innerText = '請輸入教師帳號與密碼！';
+      return;
+    }
+    setLoading(true, '驗證導師帳號密碼中...');
+    callGas('loginTeacher', [acc, pwd], function(res) {
+      if (!res || res.status === 'error') {
+        errEl.innerText = (res && res.message) || '導師登入失敗！';
+        return;
+      }
+      appState.teacherToken = res.token;
+      appState.currentTeacher = res.teacher;
+      document.getElementById('teacherPwdInput').value = '';
+      renderHomeroomAuthUi();
+      if (res.teacher && !res.teacher.mustChangePassword) {
+        loadHomeroomData(res.teacher.assignedClass);
+      } else {
+        var oldEl = document.getElementById('hrForceOldPwd');
+        if (oldEl) oldEl.value = pwd;
+      }
+    });
+  }
+
+  function submitTeacherForcePasswordChange() {
+    var o = document.getElementById('hrForceOldPwd').value || '';
+    var n1 = document.getElementById('hrForceNewPwd1').value || '';
+    var n2 = document.getElementById('hrForceNewPwd2').value || '';
+    var errEl = document.getElementById('hrForcePwdErr');
+    errEl.innerText = '';
+
+    if (!o || !n1) { errEl.innerText = '請填寫目前密碼與新密碼！'; return; }
+    if (n1.length < 6) { errEl.innerText = '新密碼長度至少需 6 個字元！'; return; }
+    if (n1 !== n2) { errEl.innerText = '兩次輸入的新密碼不一致！'; return; }
+
+    setLoading(true, '正在更新導師個人密碼...');
+    callGas('changeTeacherPassword', [appState.teacherToken, o, n1], function(res) {
+      if (!res || res.status === 'error') {
+        errEl.innerText = (res && res.message) || '密碼修改失敗！';
+        return;
+      }
+      if (appState.currentTeacher) appState.currentTeacher.mustChangePassword = false;
+      document.getElementById('hrForceOldPwd').value = '';
+      document.getElementById('hrForceNewPwd1').value = '';
+      document.getElementById('hrForceNewPwd2').value = '';
+      renderHomeroomAuthUi();
+      showModal('導師密碼已變更', escapeHtml(res.message));
+      if (appState.currentTeacher && appState.currentTeacher.assignedClass) {
+        loadHomeroomData(appState.currentTeacher.assignedClass);
+      }
+    });
+  }
+
+  function openTeacherChangePwdModal() {
+    if (!appState.teacherToken || !appState.currentTeacher) return;
+    var formHtml = '<div style="font-size:13px; color:#475569; margin-bottom:10px;">教師帳號：<strong>' + escapeHtml(appState.currentTeacher.account) + '</strong></div>' +
+      '<div class="form-group"><label style="font-size:12px;">目前密碼</label><input type="password" id="tchModalOldPwd" class="form-control" autocomplete="current-password"></div>' +
+      '<div class="form-group"><label style="font-size:12px;">新密碼（至少 6 個字元）</label><input type="password" id="tchModalNewPwd1" class="form-control" autocomplete="new-password"></div>' +
+      '<div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">再次確認新密碼</label><input type="password" id="tchModalNewPwd2" class="form-control" autocomplete="new-password"></div>';
+
+    showConfirmModal('🔑 變更導師登入密碼', formHtml, '確認修改密碼', function() {
+      var o = document.getElementById('tchModalOldPwd').value || '';
+      var n1 = document.getElementById('tchModalNewPwd1').value || '';
+      var n2 = document.getElementById('tchModalNewPwd2').value || '';
+      if (!o || !n1) { showModal('資料不完整', '請完整填寫目前密碼與新密碼！'); return; }
+      if (n1.length < 6) { showModal('格式不符', '新密碼長度至少需 6 個字元！'); return; }
+      if (n1 !== n2) { showModal('輸入不一致', '兩次輸入的新密碼不一致！'); return; }
+      setLoading(true, '正在更新導師密碼...');
+      callGas('changeTeacherPassword', [appState.teacherToken, o, n1], function(res) {
+        if (!res || res.status === 'error') {
+          showModal('變更失敗', escapeHtml((res && res.message) || '密碼修改失敗'));
+          return;
+        }
+        showModal('密碼已更新', escapeHtml(res.message));
+      });
+    });
+  }
+
+  function logoutTeacher() {
+    appState.teacherToken = null;
+    appState.currentTeacher = null;
+    document.getElementById('teacherPwdInput').value = '';
+    document.getElementById('teacherLoginError').innerText = '';
+    renderHomeroomAuthUi();
+  }
+
+  function loadHomeroomData(forcedClass) {
+    var cls = forcedClass || (appState.currentTeacher ? appState.currentTeacher.assignedClass : '') || document.getElementById('teacherClassSelect').value;
     if (!cls) return;
 
-    var teacherPass = (document.getElementById('teacherPassInput').value || '').trim() || appState.adminToken;
-    if (!teacherPass) {
-      showModal('請輸入通行碼', '請先輸入導師通行碼（由訓育組提供），再選擇班級查核。');
+    var token = appState.teacherToken || appState.adminToken;
+    if (!token) {
+      renderHomeroomAuthUi();
+      showModal('請先登入', '請先輸入成績查詢系統教師帳號密碼再查詢班級名單。');
       return;
     }
     setLoading(true, '載入本班選社名單中...');
-    callGas('getHomeroomClassData', [cls, teacherPass], function(res) {
+    callGas('getHomeroomClassData', [cls, token], function(res) {
       if (res && res.status === 'error') {
         showModal('驗證失敗', res.message || '導師專區存取未獲授權');
         return;
       }
       document.getElementById('hrClassTitle').innerText = res.className + ' 班社團選社進度';
-      document.getElementById('hrProgressText').innerText = '已完成 ' + res.enrolledCount + ' / ' + res.total + ' 人 (' + Math.round((res.enrolledCount / res.total)*100) + '%)';
+      var rate = res.total > 0 ? Math.round((res.enrolledCount / res.total) * 100) : 0;
+      document.getElementById('hrProgressText').innerText = '已完成 ' + res.enrolledCount + ' / ' + res.total + ' 人 (' + rate + '%)';
       appState.currentHomeroomNotice = res.noticeText;
 
       var unassignedHtml = '';
@@ -2662,7 +2900,6 @@
       appState.adminClubs = res.clubs || [];
       renderClubAdminTable(appState.adminClubs);
       renderClubHeatmap(appState.adminClubs);
-      document.getElementById('teacherPassWarn').style.display = res.settings.teacherPasswordIsDefault ? 'block' : 'none';
       showStep('AdminDashboard');
     });
   }
@@ -2893,8 +3130,7 @@
       openTime: document.getElementById('adminOpenTime').value,
       closeTime: document.getElementById('adminCloseTime').value,
       maxPerClass: parseInt(document.getElementById('adminMaxPerClass').value, 10) || 4,
-      geminiApiKey: document.getElementById('adminGeminiKey').value,
-      teacherPassword: document.getElementById('adminTeacherPass').value
+      geminiApiKey: document.getElementById('adminGeminiKey').value
     };
 
     setLoading(true, '儲存設定並同步試算表名稱中...');
@@ -2904,8 +3140,6 @@
         return;
       }
       document.getElementById('adminGeminiKey').value = '';
-      document.getElementById('adminTeacherPass').value = '';
-      if (newSettings.teacherPassword) document.getElementById('teacherPassWarn').style.display = 'none';
       if (res && res.spreadsheetName) appState.spreadsheetName = res.spreadsheetName;
       applySystemTitle((res && res.title) || cleanTitle);
       renderTitleSyncBadge();
@@ -3009,6 +3243,25 @@
     });
   }
 
+  function triggerSyncScoreUsers() {
+    showConfirmModal(
+      '🔄 從成績查詢系統複製更新名冊',
+      '此動作僅從「大溪國中成績查詢系統」試算表<strong>唯讀複製</strong>「學生名單」與「導師名單」進本系統試算表：<br><br>• <strong>絕不會更動</strong>成績查詢系統網站或試算表任何資料<br>• 自動保留社團系統內已完成的選社錄取、志願序與已修改的新密碼<br><br>是否立即同步最新名冊？',
+      '確認唯讀複製同步',
+      function() {
+        setLoading(true, '正在從成績查詢系統唯讀複製名冊...');
+        callGas('syncUsersFromScoreSystem', [appState.adminToken], function(res) {
+          if (!res || res.status === 'error') {
+            showModal('同步失敗', escapeHtml((res && res.message) || '無法讀取成績查詢系統試算表'));
+            return;
+          }
+          showModal('名冊同步完成', escapeHtml(res.message || '同步完成！'));
+          loadAdminDashboard();
+        });
+      }
+    );
+  }
+
   function logoutAdmin() {
     appState.adminToken = null;
     appState.settings.spreadsheetUrl = '';
@@ -3037,20 +3290,9 @@
 
   function demoQuickStudent() {
     document.getElementById('mainContainer').classList.remove('admin-expanded');
-    ensureClassOption(document.getElementById('classSelect'), '701');
-    document.getElementById('idInput').value = '6789';
-    callGas('getStudentsByClass', ['701'], function(students) {
-      var html = '<option value="">請選擇座號與姓名</option>';
-      students.forEach(function(s) {
-        html += '<option value="' + escapeHtml(s.seat) + '">' + escapeHtml(s.seat) + ' 號 - ' + escapeHtml(s.name) + '</option>';
-      });
-      var seatSel = document.getElementById('seatSelect');
-      seatSel.innerHTML = html;
-      seatSel.disabled = false;
-      seatSel.value = '01';
-      ensureClassOption(document.getElementById('classSelect'), '701');
-      doStudentLogin();
-    });
+    document.getElementById('studentAccountInput').value = '11470101';
+    document.getElementById('studentPwdInput').value = '67890101';
+    doStudentLogin();
   }
 
   function demoQuickAiAdvisor() {
@@ -3083,12 +3325,17 @@
 
   function demoQuickHomeroom() {
     openHomeroomView();
-    document.getElementById('teacherPassInput').value = 'teacher888';
-    var sel = document.getElementById('teacherClassSelect');
-    if (sel) {
-      ensureClassOption(sel, '701');
-      loadHomeroomData();
+    if (appState.adminToken) {
+      var sel = document.getElementById('teacherClassSelect');
+      if (sel) {
+        ensureClassOption(sel, '701');
+        loadHomeroomData();
+      }
+      return;
     }
+    document.getElementById('teacherAccountInput').value = 'tf51056';
+    document.getElementById('teacherPwdInput').value = '701701';
+    doTeacherLogin();
   }
 
   function demoQuickAdmin() {

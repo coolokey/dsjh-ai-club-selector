@@ -22,12 +22,15 @@ const CONFIG = {
   LOCK_TIMEOUT_MS: 30000,
   MAX_PER_CLASS_PER_CLUB: 4, // 單一社團各班人數上限（防抱團）
   DEFAULT_SALT: 'DSJH_SECURE_SALT_2026',
-  SESSION_EXPIRE_SEC: 7200, // 管理員 Token 效期 2 小時
+  SESSION_EXPIRE_SEC: 7200, // Session Token 效期 2 小時
+  LOGIN_MAX_ATTEMPTS: 5,
+  LOGIN_LOCK_SECONDS: 900, // 連續登入失敗 5 次鎖定 15 分鐘
   // 預設綁定的 Google 試算表資料庫（獨立指令碼無「目前綁定試算表」時使用；他校複製請改成自己的 ID，或在指令碼屬性設定 SPREADSHEET_ID）
   DEFAULT_SPREADSHEET_ID: '186jh-V-z7reYO9Y2ybJJhugITiz2pqqmH9pLheDayJ4',
+  // 成績查詢系統（https://coolokey.github.io/dsjh-score/）後台試算表 ID：僅供唯讀匯入學生名單與導師名單，絕不修改來源
+  SCORE_SOURCE_SPREADSHEET_ID: '1cLrFMTA-gXTDQFKzW2E1C186_WJ0SuwMhky1_RL2Q3U',
   API_VERSION: '2026.11-pages-api',
-  DEFAULT_TEACHER_PASSWORD: 'teacher888',
-  REQUIRED_SHEETS: ['社團設定', '學生名冊', '系統設定', '社團點名簽到冊']
+  REQUIRED_SHEETS: ['社團設定', '學生名冊', '導師名單', '系統設定', '社團點名簽到冊']
 };
 
 // 全域執行週期單例快取，避免重複 openById
@@ -52,12 +55,14 @@ const API_ROUTES_ = {
   getServerStatus: getServerStatus,
   getSystemSettings: getSystemSettings,
   getClassList: getClassList,
-  getStudentsByClass: getStudentsByClass,
   verifyAndGetClubs: verifyAndGetClubs,
+  changeStudentPassword: changeStudentPassword,
   submitSelection: submitSelection,
   submitPreferences: submitPreferences,
   cancelSelection: cancelSelection,
   aiConsultantRecommend: aiConsultantRecommend,
+  loginTeacher: loginTeacher,
+  changeTeacherPassword: changeTeacherPassword,
   getHomeroomClassData: getHomeroomClassData,
   loginAdmin: loginAdmin,
   changeAdminPassword: changeAdminPassword,
@@ -71,7 +76,8 @@ const API_ROUTES_ = {
   generateClubDocManual: generateClubDocManual,
   getSpreadsheetAudit: getSpreadsheetAudit,
   cleanupUnusedSheets: cleanupUnusedSheets,
-  formatAllSheetsLayout: formatAllSheetsLayout
+  formatAllSheetsLayout: formatAllSheetsLayout,
+  syncUsersFromScoreSystem: syncUsersFromScoreSystem
 };
 
 function doPost(e) {
@@ -151,6 +157,16 @@ function getSpreadsheet() {
 function ensureSheetExists() {
   const props = PropertiesService.getScriptProperties();
   if (props.getProperty('IS_INITIALIZED') === 'true') {
+    if (props.getProperty('SCORE_SYNC_V') !== '1') {
+      try {
+        const syncRes = syncDirectoryFromScoreDb_(getSpreadsheet());
+        if (syncRes && syncRes.status === 'success') {
+          props.setProperty('SCORE_SYNC_V', '1');
+        }
+      } catch (e) {
+        console.warn('Auto score directory sync skipped: ' + e.message);
+      }
+    }
     if (props.getProperty('SHEET_LAYOUT_V') !== '1') {
       try {
         formatAllSheets_(getSpreadsheet());
@@ -182,28 +198,41 @@ function ensureSheetExists() {
     clubSheet.getRange(2, 1, demoClubs.length, 8).setValues(demoClubs);
   }
 
-  // 2. 學生名冊表（擴充 Email、保障鎖定、健康提醒）
+  // 2. 學生名冊表（對齊成績系統 學號／出生月日／密碼 + 社團選填、Email、保障鎖定、健康提醒）
   let studentSheet = ss.getSheetByName('學生名冊');
   if (!studentSheet) {
     studentSheet = ss.insertSheet('學生名冊');
     studentSheet.appendRow([
       '班級', '座號', '姓名', '身分證字號', '學生Email',
       '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間',
-      '分發備註', '保障身分鎖定', '健康安全提醒'
+      '分發備註', '保障身分鎖定', '健康安全提醒', '學號', '出生月日', '登入密碼'
     ]);
-    studentSheet.getRange(1, 1, 1, 13).setBackground('#0f9d58').setFontColor('#ffffff').setFontWeight('bold');
+    studentSheet.getRange(1, 1, 1, 16).setBackground('#0f9d58').setFontColor('#ffffff').setFontWeight('bold');
 
     const demoStudents = [
-      ['701', '01', '王大明', 'A123456789', 'daxi_70101@example.com', '', '', '', '', '', '', '', ''],
-      ['701', '02', '李小美', 'B223456789', 'daxi_70102@example.com', '', '', '', '', '', '', '', ''],
-      ['701', '03', '張志豪', 'C123456789', 'daxi_70103@example.com', '', '', '', '', '', '', '校隊保障(籃球)', ''],
-      ['701', '04', '林佩君', 'D223456789', 'daxi_70104@example.com', '', '', '', '', '', '', '', '氣喘，劇烈運動需注意'],
-      ['702', '01', '陳建宏', 'E123456789', 'daxi_70201@example.com', '', '', '', '', '', '', '', ''],
-      ['702', '02', '黃雅婷', 'F223456789', 'daxi_70202@example.com', '', '', '', '', '', '', '', ''],
-      ['702', '03', '吳宗憲', 'G123456789', 'daxi_70203@example.com', '', '', '', '', '', '', '', ''],
-      ['702', '04', '蔡依林', 'H223456789', 'daxi_70204@example.com', '', '', '', '', '', '', '', '']
+      ['701', '01', '王大明', '6789', 'daxi_70101@example.com', '', '', '', '', '', '', '', '', '11470101', '0101', '67890101'],
+      ['701', '02', '李小美', '6789', 'daxi_70102@example.com', '', '', '', '', '', '', '', '', '11470102', '0202', '67890202'],
+      ['701', '03', '張志豪', '6789', 'daxi_70103@example.com', '', '', '', '', '', '', '校隊保障(籃球)', '', '11470103', '0303', '67890303'],
+      ['701', '04', '林佩君', '6789', 'daxi_70104@example.com', '', '', '', '', '', '', '', '氣喘，劇烈運動需注意', '11470104', '0404', '67890404'],
+      ['702', '01', '陳建宏', '6789', 'daxi_70201@example.com', '', '', '', '', '', '', '', '', '11470201', '0505', '67890505'],
+      ['702', '02', '黃雅婷', '6789', 'daxi_70202@example.com', '', '', '', '', '', '', '', '', '11470202', '0606', '67890606'],
+      ['702', '03', '吳宗憲', '6789', 'daxi_70203@example.com', '', '', '', '', '', '', '', '', '11470203', '0707', '67890707'],
+      ['702', '04', '蔡依林', '6789', 'daxi_70204@example.com', '', '', '', '', '', '', '', '', '11470204', '0808', '67890808']
     ];
-    studentSheet.getRange(2, 1, demoStudents.length, 13).setValues(demoStudents);
+    studentSheet.getRange(2, 1, demoStudents.length, 16).setValues(demoStudents);
+  }
+
+  // 2b. 導師名單表（比照成績系統 教師帳號／密碼／負責班級／首次登入標記）
+  let teacherSheet = ss.getSheetByName('導師名單');
+  if (!teacherSheet) {
+    teacherSheet = ss.insertSheet('導師名單');
+    teacherSheet.appendRow(['教師帳號', '教師姓名', '負責班級', '密碼', '首次登入標記', '公務信箱']);
+    teacherSheet.getRange(1, 1, 1, 6).setBackground('#334155').setFontColor('#ffffff').setFontWeight('bold');
+    const demoTeachers = [
+      ['tf51056', '張雅琪 導師', '7年1班', '701701', true, 'tf51056@dsjh.tyc.edu.tw'],
+      ['tf51032', '李俊毅 導師', '7年2班', '702702', true, 'tf51032@dsjh.tyc.edu.tw']
+    ];
+    teacherSheet.getRange(2, 1, demoTeachers.length, 6).setValues(demoTeachers);
   }
 
   // 3. 系統設定表
@@ -229,6 +258,15 @@ function ensureSheetExists() {
   const defaultSheet = ss.getSheetByName('工作表1') || ss.getSheetByName('Sheet1');
   if (defaultSheet && ss.getSheets().length > 3) {
     try { ss.deleteSheet(defaultSheet); } catch (e) {}
+  }
+
+  try {
+    const syncRes = syncDirectoryFromScoreDb_(ss);
+    if (syncRes && syncRes.status === 'success') {
+      props.setProperty('SCORE_SYNC_V', '1');
+    }
+  } catch (e) {
+    console.warn('Initial score directory sync skipped: ' + e.message);
   }
 
   try {
@@ -329,15 +367,6 @@ function saveSystemSettings(adminToken, newSettings) {
     if (!cleanTitle) {
       return { status: 'error', message: '系統與試算表統一名稱不可為空白！' };
     }
-  }
-
-  // 導師通行碼：與管理員密碼分離，至少 6 碼且不可沿用預設值
-  if (newSettings.teacherPassword) {
-    const tp = String(newSettings.teacherPassword).trim();
-    if (tp.length < 6 || tp === CONFIG.DEFAULT_TEACHER_PASSWORD) {
-      return { status: 'error', message: '導師通行碼至少 6 碼，且不可使用預設值！' };
-    }
-    PropertiesService.getScriptProperties().setProperty('TEACHER_PASSWORD', tp);
   }
 
   const ss = getSpreadsheet();
@@ -496,6 +525,156 @@ function deleteClub(adminToken, clubName) {
   }
 }
 
+// ==================== 班級代碼、帳號密碼與 Session 驗證（比照成績查詢系統） ====================
+
+function normalizeClassCode_(value) {
+  const raw = String(value === undefined || value === null ? '' : value).trim();
+  if (!raw) return '';
+  if (/^\d{3}$/.test(raw)) return raw;
+  const zhMatch = raw.match(/([789])\s*年\s*(\d{1,2})\s*班?/);
+  if (zhMatch) return zhMatch[1] + String(zhMatch[2]).padStart(2, '0');
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 3 && /^[789]/.test(digits)) return digits;
+  return raw;
+}
+
+function padSeatNo_(value) {
+  const raw = String(value === undefined || value === null ? '' : value).trim();
+  if (!raw) return '';
+  return /^\d+$/.test(raw) ? raw.padStart(2, '0') : raw;
+}
+
+function padBirthMMDD_(value) {
+  const raw = String(value === undefined || value === null ? '' : value).trim().replace(/\D/g, '');
+  if (!raw) return '';
+  return raw.length <= 4 ? raw.padStart(4, '0') : raw.slice(-4);
+}
+
+function isClassMatch_(clsA, clsB) {
+  const a = normalizeClassCode_(clsA);
+  const b = normalizeClassCode_(clsB);
+  return !!a && a === b;
+}
+
+function constantTimeEqual_(a, b) {
+  const strA = String(a === undefined || a === null ? '' : a);
+  const strB = String(b === undefined || b === null ? '' : b);
+  let diff = strA.length ^ strB.length;
+  const len = Math.max(strA.length, strB.length);
+  for (let i = 0; i < len; i++) {
+    const ca = i < strA.length ? strA.charCodeAt(i) : 0;
+    const cb = i < strB.length ? strB.charCodeAt(i) : 0;
+    diff |= ca ^ cb;
+  }
+  return diff === 0;
+}
+
+function hashScorePassword_(account, password) {
+  const saltAccount = String(account === undefined || account === null ? '' : account).trim().toLowerCase();
+  const payload = 'dsjh_v1$' + saltAccount + '$' + String(password === undefined || password === null ? '' : password);
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, payload, Utilities.Charset.UTF_8);
+  const hex = digest.map(b => ('0' + (b & 0xff).toString(16)).slice(-2)).join('');
+  return 'sha256$' + hex;
+}
+
+function verifyScorePassword_(inputPwd, account, storedPwd, caseInsensitivePlain) {
+  const candidate = String(inputPwd === undefined || inputPwd === null ? '' : inputPwd);
+  const stored = String(storedPwd === undefined || storedPwd === null ? '' : storedPwd).trim();
+  if (!stored) return false;
+  if (stored.indexOf('sha256$') === 0) {
+    return constantTimeEqual_(hashScorePassword_(account, candidate), stored);
+  }
+  if (caseInsensitivePlain) {
+    return constantTimeEqual_(candidate.trim().toUpperCase(), stored.toUpperCase());
+  }
+  return constantTimeEqual_(candidate, stored);
+}
+
+function checkLoginRateLimit_(scope, account) {
+  const key = 'LOGIN_FAIL_' + scope + '_' + String(account || '').trim().toLowerCase();
+  const cache = CacheService.getScriptCache();
+  const raw = cache.get(key);
+  if (!raw) return { allowed: true };
+  try {
+    const info = JSON.parse(raw);
+    if ((info.count || 0) >= CONFIG.LOGIN_MAX_ATTEMPTS) {
+      return {
+        allowed: false,
+        message: `密碼連續錯誤達 ${CONFIG.LOGIN_MAX_ATTEMPTS} 次，帳號暫時鎖定 15 分鐘，請稍後再試或聯繫教務處／學務處。`
+      };
+    }
+  } catch (e) {}
+  return { allowed: true };
+}
+
+function recordLoginFailure_(scope, account) {
+  const key = 'LOGIN_FAIL_' + scope + '_' + String(account || '').trim().toLowerCase();
+  const cache = CacheService.getScriptCache();
+  let count = 0;
+  try {
+    const raw = cache.get(key);
+    if (raw) count = Number(JSON.parse(raw).count) || 0;
+  } catch (e) {}
+  count += 1;
+  cache.put(key, JSON.stringify({ count: count, ts: Date.now() }), CONFIG.LOGIN_LOCK_SECONDS);
+  const remaining = Math.max(0, CONFIG.LOGIN_MAX_ATTEMPTS - count);
+  return { count: count, remaining: remaining };
+}
+
+function clearLoginFailures_(scope, account) {
+  const key = 'LOGIN_FAIL_' + scope + '_' + String(account || '').trim().toLowerCase();
+  try {
+    CacheService.getScriptCache().remove(key);
+  } catch (e) {}
+}
+
+function verifyStudentSession_(token) {
+  if (!token) return null;
+  const raw = CacheService.getScriptCache().get('STU_SESSION_' + String(token).trim());
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+function verifyTeacherSession_(token) {
+  if (!token) return null;
+  const raw = CacheService.getScriptCache().get('TCH_SESSION_' + String(token).trim());
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+function getStudentColIndex_(headerRow) {
+  const idx = {
+    className: 0, seat: 1, name: 2, idLast4: 3, email: 4,
+    pref1: 5, pref2: 6, pref3: 7, assignedClub: 8, selectedTime: 9,
+    note: 10, lockedClub: 11, healthNotice: 12,
+    studentId: 13, birthMMDD: 14, password: 15
+  };
+  if (Array.isArray(headerRow)) {
+    for (let c = 0; c < headerRow.length; c++) {
+      const h = String(headerRow[c] || '').trim();
+      if (h === '學號') idx.studentId = c;
+      else if (h === '出生月日') idx.birthMMDD = c;
+      else if (h === '登入密碼' || h === '密碼') idx.password = c;
+      else if (h === '身分證後四碼' || h === '身分證字號') idx.idLast4 = c;
+    }
+  }
+  return idx;
+}
+
+function buildStudentFallbackPwd_(row, cols) {
+  const idPart = String(row[cols.idLast4] || '').trim().slice(-4).toUpperCase();
+  const birthPart = padBirthMMDD_(row[cols.birthMMDD]);
+  return idPart && birthPart ? (idPart + birthPart) : idPart;
+}
+
 function getClassList() {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName('學生名冊');
@@ -503,75 +682,91 @@ function getClassList() {
   const classSet = {};
 
   for (let i = 1; i < data.length; i++) {
-    const cls = String(data[i][0]).trim();
+    const cls = normalizeClassCode_(data[i][0]);
     if (cls) classSet[cls] = true;
   }
 
   return Object.keys(classSet).sort();
 }
 
-function getStudentsByClass(className) {
-  const ss = getSpreadsheet();
-  const sheet = ss.getSheetByName('學生名冊');
-  const data = sheet.getDataRange().getValues();
-  const list = [];
-
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === String(className).trim()) {
-      const rawName = String(data[i][2]).trim();
-      list.push({
-        seat: String(data[i][1]).trim(),
-        name: rawName
-      });
-    }
+function verifyAndGetClubs(account, password) {
+  const cleanAccount = String(account || '').trim();
+  const inputPwd = String(password || '');
+  if (!cleanAccount || !inputPwd.trim()) {
+    return { status: 'error', message: '請輸入 7 碼學號與登入密碼！' };
   }
 
-  list.sort((a, b) => parseInt(a.seat, 10) - parseInt(b.seat, 10));
-  return list;
-}
+  const rateCheck = checkLoginRateLimit_('student', cleanAccount);
+  if (!rateCheck.allowed) {
+    return { status: 'error', message: rateCheck.message };
+  }
 
-function verifyAndGetClubs(className, seat, idNum) {
   const ss = getSpreadsheet();
   const studentSheet = ss.getSheetByName('學生名冊');
-  const sData = studentSheet.getDataRange().getValues();
+  const sData = studentSheet.getDataRange().getDisplayValues();
+  const cols = getStudentColIndex_(sData[0]);
 
-  let student = null;
-  const cleanId = String(idNum).trim().toUpperCase();
-
+  let matchedRow = null;
   for (let i = 1; i < sData.length; i++) {
-    if (String(sData[i][0]).trim() === String(className).trim() &&
-        String(sData[i][1]).trim() === String(seat).trim()) {
-      const realId = String(sData[i][3]).trim().toUpperCase();
-
-      if (cleanId === realId || (cleanId.length >= 4 && realId.endsWith(cleanId))) {
-        student = {
-          className: sData[i][0],
-          seat: sData[i][1],
-          name: sData[i][2],
-          email: sData[i][4] || '',
-          pref1: sData[i][5] || '',
-          pref2: sData[i][6] || '',
-          pref3: sData[i][7] || '',
-          assignedClub: sData[i][8] || '',
-          selectedTime: sData[i][9] || '',
-          lockedClub: sData[i][11] || '',
-          healthNotice: sData[i][12] || ''
-        };
-      } else {
-        return { status: 'error', message: '身分證字號驗證不符，請重新確認！' };
-      }
+    const rowId = String(sData[i][cols.studentId] || '').trim();
+    if (rowId && rowId.toLowerCase() === cleanAccount.toLowerCase()) {
+      matchedRow = sData[i];
       break;
     }
   }
 
-  if (!student) {
-    return { status: 'error', message: '查無此班級座號學生資料！' };
+  if (!matchedRow) {
+    const fail = recordLoginFailure_('student', cleanAccount);
+    return {
+      status: 'error',
+      message: fail.remaining > 0
+        ? `學號或密碼錯誤，還可嘗試 ${fail.remaining} 次。`
+        : '密碼連續錯誤達 5 次，帳號已鎖定 15 分鐘。'
+    };
   }
+
+  const storedPwd = String(matchedRow[cols.password] || '').trim();
+  const effectivePwd = storedPwd || buildStudentFallbackPwd_(matchedRow, cols);
+  if (!verifyScorePassword_(inputPwd, cleanAccount, effectivePwd, true)) {
+    const fail = recordLoginFailure_('student', cleanAccount);
+    return {
+      status: 'error',
+      message: fail.remaining > 0
+        ? `學號或密碼錯誤（預設密碼為身分證後4碼+出生月日4碼），還可嘗試 ${fail.remaining} 次。`
+        : '密碼連續錯誤達 5 次，帳號已鎖定 15 分鐘。'
+    };
+  }
+
+  clearLoginFailures_('student', cleanAccount);
+
+  const normClass = normalizeClassCode_(matchedRow[cols.className]);
+  const student = {
+    studentId: cleanAccount,
+    className: normClass,
+    seat: padSeatNo_(matchedRow[cols.seat]),
+    name: String(matchedRow[cols.name] || '').trim(),
+    email: String(matchedRow[cols.email] || '').trim(),
+    pref1: String(matchedRow[cols.pref1] || '').trim(),
+    pref2: String(matchedRow[cols.pref2] || '').trim(),
+    pref3: String(matchedRow[cols.pref3] || '').trim(),
+    assignedClub: String(matchedRow[cols.assignedClub] || '').trim(),
+    selectedTime: String(matchedRow[cols.selectedTime] || '').trim(),
+    lockedClub: String(matchedRow[cols.lockedClub] || '').trim(),
+    healthNotice: String(matchedRow[cols.healthNotice] || '').trim()
+  };
+
+  const studentToken = Utilities.getUuid();
+  CacheService.getScriptCache().put('STU_SESSION_' + studentToken, JSON.stringify({
+    studentId: cleanAccount,
+    className: normClass,
+    seat: student.seat,
+    name: student.name
+  }), 7200);
 
   const classClubCounts = {};
   for (let i = 1; i < sData.length; i++) {
-    if (String(sData[i][0]).trim() === String(className).trim()) {
-      const assigned = String(sData[i][8] || '').trim();
+    if (isClassMatch_(sData[i][cols.className], normClass)) {
+      const assigned = String(sData[i][cols.assignedClub] || '').trim();
       if (assigned) {
         classClubCounts[assigned] = (classClubCounts[assigned] || 0) + 1;
       }
@@ -586,11 +781,111 @@ function verifyAndGetClubs(className, seat, idNum) {
 
   return {
     status: 'success',
+    token: studentToken,
     student: student,
     clubs: clubs,
     classClubCounts: classClubCounts,
     settings: settings
   };
+}
+
+function buildStudentDashboardResponse_(studentId, token) {
+  const ss = getSpreadsheet();
+  const studentSheet = ss.getSheetByName('學生名冊');
+  const sData = studentSheet.getDataRange().getDisplayValues();
+  const cols = getStudentColIndex_(sData[0]);
+
+  let matchedRow = null;
+  for (let i = 1; i < sData.length; i++) {
+    if (String(sData[i][cols.studentId] || '').trim().toLowerCase() === String(studentId).trim().toLowerCase()) {
+      matchedRow = sData[i];
+      break;
+    }
+  }
+  if (!matchedRow) return { status: 'error', message: '查無學生資料！' };
+
+  const normClass = normalizeClassCode_(matchedRow[cols.className]);
+  const student = {
+    studentId: String(matchedRow[cols.studentId] || '').trim(),
+    className: normClass,
+    seat: padSeatNo_(matchedRow[cols.seat]),
+    name: String(matchedRow[cols.name] || '').trim(),
+    email: String(matchedRow[cols.email] || '').trim(),
+    pref1: String(matchedRow[cols.pref1] || '').trim(),
+    pref2: String(matchedRow[cols.pref2] || '').trim(),
+    pref3: String(matchedRow[cols.pref3] || '').trim(),
+    assignedClub: String(matchedRow[cols.assignedClub] || '').trim(),
+    selectedTime: String(matchedRow[cols.selectedTime] || '').trim(),
+    lockedClub: String(matchedRow[cols.lockedClub] || '').trim(),
+    healthNotice: String(matchedRow[cols.healthNotice] || '').trim()
+  };
+
+  const classClubCounts = {};
+  for (let i = 1; i < sData.length; i++) {
+    if (isClassMatch_(sData[i][cols.className], normClass)) {
+      const assigned = String(sData[i][cols.assignedClub] || '').trim();
+      if (assigned) classClubCounts[assigned] = (classClubCounts[assigned] || 0) + 1;
+    }
+  }
+
+  const clubs = getClubList().map(c => ({ ...c, classCount: classClubCounts[c.name] || 0 }));
+  return {
+    status: 'success',
+    token: token,
+    student: student,
+    clubs: clubs,
+    classClubCounts: classClubCounts,
+    settings: getSystemSettings()
+  };
+}
+
+function changeStudentPassword(studentToken, currentPassword, newPassword) {
+  const session = verifyStudentSession_(studentToken);
+  if (!session) {
+    return { status: 'error', message: '登入階段已逾時，請重新以學號密碼登入！' };
+  }
+  if (!currentPassword || !newPassword) {
+    return { status: 'error', message: '請填寫目前密碼與新密碼！' };
+  }
+  if (String(newPassword).length < 6) {
+    return { status: 'error', message: '新密碼長度至少需 6 個字元！' };
+  }
+  if (String(newPassword) === String(currentPassword)) {
+    return { status: 'error', message: '新密碼不可與目前密碼相同！' };
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) {
+      return { status: 'error', message: '伺服器忙碌中，請稍後再試。' };
+    }
+    const ss = getSpreadsheet();
+    const studentSheet = ss.getSheetByName('學生名冊');
+    const sData = studentSheet.getDataRange().getDisplayValues();
+    const cols = getStudentColIndex_(sData[0]);
+
+    for (let i = 1; i < sData.length; i++) {
+      const rowId = String(sData[i][cols.studentId] || '').trim();
+      if (rowId && rowId.toLowerCase() === String(session.studentId).toLowerCase()) {
+        const storedPwd = String(sData[i][cols.password] || '').trim();
+        const effectivePwd = storedPwd || buildStudentFallbackPwd_(sData[i], cols);
+        if (!verifyScorePassword_(currentPassword, rowId, effectivePwd, true)) {
+          return { status: 'error', message: '目前密碼不正確，請重新確認！' };
+        }
+        const hashed = hashScorePassword_(rowId, newPassword);
+        const pwdCell = studentSheet.getRange(i + 1, cols.password + 1);
+        if (typeof pwdCell.setNumberFormat === 'function') pwdCell.setNumberFormat('@');
+        pwdCell.setValue(hashed);
+        return { status: 'success', message: '密碼變更成功！下次請使用新密碼登入。' };
+      }
+    }
+    return { status: 'error', message: '查無此學生帳號！' };
+  } catch (err) {
+    console.error('changeStudentPassword error: ' + err.message);
+    return { status: 'error', message: '密碼更新失敗：' + err.message };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function getClubList() {
@@ -619,7 +914,12 @@ function getClubList() {
 }
 
 // ==================== 學生即時選社（含班級人數防抱團、等冪性、Email發送） ====================
-function submitSelection(className, seat, idNum, selectedClub) {
+function submitSelection(studentToken, selectedClub) {
+  const session = verifyStudentSession_(studentToken);
+  if (!session) {
+    return { status: 'error', message: '登入階段已逾時，請重新以學號與密碼登入！' };
+  }
+
   const settings = getSystemSettings();
   const now = new Date();
   if (settings.openTime && now < new Date(settings.openTime)) {
@@ -640,50 +940,45 @@ function submitSelection(className, seat, idNum, selectedClub) {
     const studentSheet = ss.getSheetByName('學生名冊');
     const clubSheet = ss.getSheetByName('社團設定');
 
-    const sData = studentSheet.getDataRange().getValues();
+    const sData = studentSheet.getDataRange().getDisplayValues();
+    const cols = getStudentColIndex_(sData[0]);
     const cData = clubSheet.getDataRange().getValues();
 
     let studentRowIndex = -1;
     let studentObj = null;
-    const cleanId = String(idNum).trim().toUpperCase();
 
-    // 1. 驗證學生身分與特殊保障
+    // 1. 依已驗證學號查核學生狀態與保障身分
     for (let i = 1; i < sData.length; i++) {
-      if (String(sData[i][0]).trim() === String(className).trim() &&
-          String(sData[i][1]).trim() === String(seat).trim()) {
-        const realId = String(sData[i][3]).trim().toUpperCase();
-        if (cleanId === realId || (cleanId.length >= 4 && realId.endsWith(cleanId))) {
-          studentRowIndex = i + 1;
-          studentObj = {
-            className: sData[i][0],
-            seat: sData[i][1],
-            name: sData[i][2],
-            email: sData[i][4],
-            assigned: sData[i][8],
-            time: sData[i][9],
-            locked: sData[i][11]
+      const rowId = String(sData[i][cols.studentId] || '').trim();
+      if (rowId && rowId.toLowerCase() === String(session.studentId).toLowerCase()) {
+        studentRowIndex = i + 1;
+        studentObj = {
+          studentId: rowId,
+          className: normalizeClassCode_(sData[i][cols.className]),
+          seat: padSeatNo_(sData[i][cols.seat]),
+          name: String(sData[i][cols.name] || '').trim(),
+          email: String(sData[i][cols.email] || '').trim(),
+          assigned: String(sData[i][cols.assignedClub] || '').trim(),
+          time: String(sData[i][cols.selectedTime] || '').trim(),
+          locked: String(sData[i][cols.lockedClub] || '').trim()
+        };
+
+        if (studentObj.assigned === selectedClub) {
+          return {
+            status: 'success',
+            message: '您已成功報名錄取【' + selectedClub + '】（先前已確認）！',
+            clubName: selectedClub,
+            timestamp: studentObj.time || Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss'),
+            isDuplicateConfirm: true
           };
+        }
 
-          // 🛡️ 等冪性防重複報錯處理：若重複點擊送出相同社團，直接判定成功回傳憑證！
-          if (studentObj.assigned === selectedClub) {
-            return {
-              status: 'success',
-              message: '您已成功報名錄取【' + selectedClub + '】（先前已確認）！',
-              clubName: selectedClub,
-              timestamp: studentObj.time || Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss'),
-              isDuplicateConfirm: true
-            };
-          }
+        if (studentObj.assigned) {
+          return { status: 'error', message: '您先前已成功錄取【' + studentObj.assigned + '】，不得重複選填或更改！' };
+        }
 
-          if (studentObj.assigned) {
-            return { status: 'error', message: '您先前已成功錄取【' + studentObj.assigned + '】，不得重複選填或更改！' };
-          }
-
-          if (studentObj.locked) {
-            return { status: 'error', message: '您已被學務處設定為身分保障錄取【' + studentObj.locked + '】，無須再次登記！' };
-          }
-        } else {
-          return { status: 'error', message: '身分證字號驗證失敗！' };
+        if (studentObj.locked) {
+          return { status: 'error', message: '您已被學務處設定為身分保障錄取【' + studentObj.locked + '】，無須再次登記！' };
         }
         break;
       }
@@ -723,8 +1018,8 @@ function submitSelection(className, seat, idNum, selectedClub) {
     const maxPerClass = settings.maxPerClass || CONFIG.MAX_PER_CLASS_PER_CLUB;
     let classCountInClub = 0;
     for (let i = 1; i < sData.length; i++) {
-      if (String(sData[i][0]).trim() === String(className).trim() &&
-          String(sData[i][8]).trim() === String(selectedClub).trim()) {
+      if (isClassMatch_(sData[i][cols.className], studentObj.className) &&
+          String(sData[i][cols.assignedClub]).trim() === String(selectedClub).trim()) {
         classCountInClub++;
       }
     }
@@ -771,7 +1066,12 @@ function submitSelection(className, seat, idNum, selectedClub) {
 }
 
 // ==================== 多志願序模式提交 ====================
-function submitPreferences(className, seat, idNum, pref1, pref2, pref3) {
+function submitPreferences(studentToken, pref1, pref2, pref3) {
+  const session = verifyStudentSession_(studentToken);
+  if (!session) {
+    return { status: 'error', message: '登入階段已逾時，請重新以學號與密碼登入！' };
+  }
+
   const settings = getSystemSettings();
   const now = new Date();
   if (settings.openTime && now < new Date(settings.openTime)) return { status: 'error', message: '選填尚未開放！' };
@@ -784,20 +1084,14 @@ function submitPreferences(className, seat, idNum, pref1, pref2, pref3) {
 
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName('學生名冊');
-  const data = sheet.getDataRange().getValues();
+  const data = sheet.getDataRange().getDisplayValues();
+  const cols = getStudentColIndex_(data[0]);
 
   let studentRowIndex = -1;
-  const cleanId = String(idNum).trim().toUpperCase();
-
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === String(className).trim() &&
-        String(data[i][1]).trim() === String(seat).trim()) {
-      const realId = String(data[i][3]).trim().toUpperCase();
-      if (cleanId === realId || (cleanId.length >= 4 && realId.endsWith(cleanId))) {
-        studentRowIndex = i + 1;
-      } else {
-        return { status: 'error', message: '身分證字號驗證失敗！' };
-      }
+    const rowId = String(data[i][cols.studentId] || '').trim();
+    if (rowId && rowId.toLowerCase() === String(session.studentId).toLowerCase()) {
+      studentRowIndex = i + 1;
       break;
     }
   }
@@ -805,7 +1099,6 @@ function submitPreferences(className, seat, idNum, pref1, pref2, pref3) {
   if (studentRowIndex === -1) return { status: 'error', message: '查無此學生資料！' };
 
   const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
-  // 一次性批次寫入第 6, 7, 8, 10, 11 欄
   sheet.getRange(studentRowIndex, 6, 1, 3).setValues([[pref1, pref2 || '', pref3 || '']]);
   sheet.getRange(studentRowIndex, 10).setValue(timestamp);
   sheet.getRange(studentRowIndex, 11).setValue('志願已登記，待分發');
@@ -819,7 +1112,12 @@ function submitPreferences(className, seat, idNum, pref1, pref2, pref3) {
 }
 
 // ==================== 學生開放期間重新改選（安全釋出原社團名額） ====================
-function cancelSelection(className, seat, idNum) {
+function cancelSelection(studentToken) {
+  const session = verifyStudentSession_(studentToken);
+  if (!session) {
+    return { status: 'error', message: '登入階段已逾時，請重新以學號與密碼登入！' };
+  }
+
   const settings = getSystemSettings();
   const now = new Date();
   if (settings.openTime && now < new Date(settings.openTime)) {
@@ -838,25 +1136,20 @@ function cancelSelection(className, seat, idNum) {
     const ss = getSpreadsheet();
     const studentSheet = ss.getSheetByName('學生名冊');
     const clubSheet = ss.getSheetByName('社團設定');
-    const sData = studentSheet.getDataRange().getValues();
+    const sData = studentSheet.getDataRange().getDisplayValues();
+    const cols = getStudentColIndex_(sData[0]);
     const cData = clubSheet.getDataRange().getValues();
-    const cleanId = String(idNum).trim().toUpperCase();
 
     let studentRowIndex = -1;
     let oldClub = '';
     let lockedClub = '';
 
     for (let i = 1; i < sData.length; i++) {
-      if (String(sData[i][0]).trim() === String(className).trim() &&
-          String(sData[i][1]).trim() === String(seat).trim()) {
-        const realId = String(sData[i][3]).trim().toUpperCase();
-        if (cleanId === realId || (cleanId.length >= 4 && realId.endsWith(cleanId))) {
-          studentRowIndex = i + 1;
-          oldClub = String(sData[i][8] || '').trim();
-          lockedClub = String(sData[i][11] || '').trim();
-        } else {
-          return { status: 'error', message: '身分證字號驗證失敗！' };
-        }
+      const rowId = String(sData[i][cols.studentId] || '').trim();
+      if (rowId && rowId.toLowerCase() === String(session.studentId).toLowerCase()) {
+        studentRowIndex = i + 1;
+        oldClub = String(sData[i][cols.assignedClub] || '').trim();
+        lockedClub = String(sData[i][cols.lockedClub] || '').trim();
         break;
       }
     }
@@ -876,7 +1169,7 @@ function cancelSelection(className, seat, idNum) {
       studentSheet.getRange(studentRowIndex, 11).setValue('開放期間重新改選');
     }
 
-    return verifyAndGetClubs(className, seat, idNum);
+    return buildStudentDashboardResponse_(session.studentId, studentToken);
   } catch (err) {
     return { status: 'error', message: '取消選填時發生異常：' + err.message };
   } finally {
@@ -1164,9 +1457,9 @@ function getAdminDashboardData(adminToken) {
   const settings = getSystemSettings();
   settings.spreadsheetUrl = ss.getUrl(); // 🛡️ 僅在管理者驗證後回傳
   settings.spreadsheetName = ss.getName(); // 供後台檢查並統一試算表與首頁名稱
-  // 🛡️ 提醒管理者：導師通行碼仍為預設值（僅管理端可見）
-  settings.teacherPasswordIsDefault =
-    (PropertiesService.getScriptProperties().getProperty('TEACHER_PASSWORD') || CONFIG.DEFAULT_TEACHER_PASSWORD) === CONFIG.DEFAULT_TEACHER_PASSWORD;
+
+  const teacherSheet = ss.getSheetByName('導師名單');
+  const teacherCount = teacherSheet ? Math.max(0, teacherSheet.getDataRange().getValues().length - 1) : 0;
 
   return {
     status: 'success',
@@ -1175,6 +1468,7 @@ function getAdminDashboardData(adminToken) {
       enrolledCount: enrolledCount,
       unassignedCount: unassignedCount,
       preferencesFilledCount: preferencesFilledCount,
+      teacherCount: teacherCount,
       enrollmentRate: totalStudents > 0 ? Math.round((enrolledCount / totalStudents) * 100) : 0
     },
     unassignedStudents: unassignedStudents,
@@ -1234,17 +1528,17 @@ function runAiSmartAllocation(adminToken, previewToken) {
       };
     }
 
-    // 2. 🛡️ 修復重大Bug：先將「既有已錄取或保障」學生納入佔位，絕不覆蓋清零！
+    // 2. 🛡️ 先將「既有已錄取或保障」學生納入佔位，絕不覆蓋清零！
     const pendingStudents = [];
     for (let i = 1; i < sData.length; i++) {
-      const cls = String(sData[i][0]).trim();
+      const cls = normalizeClassCode_(sData[i][0]);
       const currentAssigned = String(sData[i][8] || '').trim();
       const lockedClub = String(sData[i][11] || '').trim();
 
       const studentObj = {
         rowIdx: i,
         className: cls,
-        seat: String(sData[i][1]).trim(),
+        seat: padSeatNo_(sData[i][1]),
         name: String(sData[i][2]).trim(),
         email: String(sData[i][4] || '').trim(),
         prefs: [sData[i][5], sData[i][6], sData[i][7]].map(p => String(p || '').trim()),
@@ -1539,47 +1833,208 @@ function generateClubDocManual(adminToken) {
   };
 }
 
-function assertAdminOrTeacherAuth_(authCode) {
-  if (verifyAdminSession_(authCode)) return true;
-  const teacherPwd = PropertiesService.getScriptProperties().getProperty('TEACHER_PASSWORD') || CONFIG.DEFAULT_TEACHER_PASSWORD;
-  if (authCode && String(authCode).trim() === teacherPwd) return true;
-  throw new Error('403 Unauthorized: 導師專區存取未獲授權，請輸入正確的導師通行碼！');
+/**
+ * 👨‍🏫 導師登入（比照成績查詢系統：教師帳號 + 密碼，首次登入強制修改密碼）
+ */
+function loginTeacher(account, password) {
+  const cleanAccount = String(account || '').trim().toLowerCase();
+  const inputPwd = String(password || '');
+  if (!cleanAccount || !inputPwd.trim()) {
+    return { status: 'error', message: '請輸入教師帳號與密碼！' };
+  }
+
+  const rateCheck = checkLoginRateLimit_('teacher', cleanAccount);
+  if (!rateCheck.allowed) {
+    return { status: 'error', message: rateCheck.message };
+  }
+
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName('導師名單');
+  if (!sheet) {
+    return { status: 'error', message: '尚未建立「導師名單」工作表，請管理員先從成績系統同步名單！' };
+  }
+
+  const rows = sheet.getDataRange().getDisplayValues();
+  let matchedRow = null;
+  for (let i = 1; i < rows.length; i++) {
+    const rowAcc = String(rows[i][0] || '').trim().toLowerCase();
+    if (rowAcc && rowAcc === cleanAccount) {
+      matchedRow = rows[i];
+      break;
+    }
+  }
+
+  if (!matchedRow) {
+    const fail = recordLoginFailure_('teacher', cleanAccount);
+    return {
+      status: 'error',
+      message: fail.remaining > 0
+        ? `教師帳號或密碼錯誤，還可嘗試 ${fail.remaining} 次。`
+        : '密碼連續錯誤達 5 次，帳號已鎖定 15 分鐘。'
+    };
+  }
+
+  const storedPwd = String(matchedRow[3] || '').trim();
+  if (!verifyScorePassword_(inputPwd, cleanAccount, storedPwd, false)) {
+    const fail = recordLoginFailure_('teacher', cleanAccount);
+    return {
+      status: 'error',
+      message: fail.remaining > 0
+        ? `教師帳號或密碼錯誤，還可嘗試 ${fail.remaining} 次。`
+        : '密碼連續錯誤達 5 次，帳號已鎖定 15 分鐘。'
+    };
+  }
+
+  clearLoginFailures_('teacher', cleanAccount);
+
+  const teacherName = String(matchedRow[1] || '').trim();
+  const rawAssignedClass = String(matchedRow[2] || '').trim();
+  const assignedClass = normalizeClassCode_(rawAssignedClass);
+  const firstLoginFlag = String(matchedRow[4] || '').trim().toUpperCase();
+  const mustChangePassword = firstLoginFlag === 'TRUE' || firstLoginFlag === '1';
+
+  const teacherToken = Utilities.getUuid();
+  CacheService.getScriptCache().put('TCH_SESSION_' + teacherToken, JSON.stringify({
+    account: cleanAccount,
+    name: teacherName,
+    assignedClass: assignedClass,
+    rawAssignedClass: rawAssignedClass,
+    mustChangePassword: mustChangePassword
+  }), 7200);
+
+  return {
+    status: 'success',
+    token: teacherToken,
+    teacher: {
+      account: cleanAccount,
+      name: teacherName,
+      assignedClass: assignedClass,
+      rawAssignedClass: rawAssignedClass,
+      mustChangePassword: mustChangePassword,
+      email: String(matchedRow[5] || '').trim()
+    },
+    classList: assignedClass ? [assignedClass] : []
+  };
+}
+
+function changeTeacherPassword(teacherToken, currentPassword, newPassword) {
+  const session = verifyTeacherSession_(teacherToken);
+  if (!session) {
+    return { status: 'error', message: '導師登入階段已逾時，請重新登入！' };
+  }
+  if (!currentPassword || !newPassword) {
+    return { status: 'error', message: '請填寫目前密碼與新密碼！' };
+  }
+  if (String(newPassword).length < 6) {
+    return { status: 'error', message: '新密碼長度至少需 6 個字元！' };
+  }
+  if (String(newPassword) === String(currentPassword)) {
+    return { status: 'error', message: '新密碼不可與目前密碼相同！' };
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) {
+      return { status: 'error', message: '伺服器忙碌中，請稍後再試。' };
+    }
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('導師名單');
+    if (!sheet) return { status: 'error', message: '找不到「導師名單」工作表！' };
+
+    const rows = sheet.getDataRange().getDisplayValues();
+    for (let i = 1; i < rows.length; i++) {
+      const rowAcc = String(rows[i][0] || '').trim().toLowerCase();
+      if (rowAcc && rowAcc === String(session.account).toLowerCase()) {
+        const storedPwd = String(rows[i][3] || '').trim();
+        if (!verifyScorePassword_(currentPassword, rowAcc, storedPwd, false)) {
+          return { status: 'error', message: '目前密碼不正確，請重新確認！' };
+        }
+        const hashed = hashScorePassword_(rowAcc, newPassword);
+        const pwdCell = sheet.getRange(i + 1, 4);
+        if (typeof pwdCell.setNumberFormat === 'function') pwdCell.setNumberFormat('@');
+        pwdCell.setValue(hashed);
+        sheet.getRange(i + 1, 5).setValue(false);
+
+        session.mustChangePassword = false;
+        CacheService.getScriptCache().put('TCH_SESSION_' + String(teacherToken).trim(), JSON.stringify(session), 7200);
+        return {
+          status: 'success',
+          mustChangePassword: false,
+          message: '導師密碼已更新，現在可查詢負責班級的選社名單！'
+        };
+      }
+    }
+    return { status: 'error', message: '查無此教師帳號！' };
+  } catch (err) {
+    console.error('changeTeacherPassword error: ' + err.message);
+    return { status: 'error', message: '導師密碼變更失敗：' + err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function resolveTeacherOrAdminAuth_(authToken, requestedClass) {
+  if (verifyAdminSession_(authToken)) {
+    return { role: 'admin', targetClass: normalizeClassCode_(requestedClass) };
+  }
+  const tSession = verifyTeacherSession_(authToken);
+  if (!tSession) {
+    throw new Error('403 Unauthorized: 導師專區存取未獲授權，請先以教師帳號密碼登入！');
+  }
+  if (tSession.mustChangePassword) {
+    throw new Error('403 PasswordChangeRequired: 首次登入須先變更預設密碼後才可查詢班級名單！');
+  }
+  const target = requestedClass ? normalizeClassCode_(requestedClass) : tSession.assignedClass;
+  if (!tSession.assignedClass || !isClassMatch_(target, tSession.assignedClass)) {
+    throw new Error(`403 Unauthorized: 導師僅能查詢負責班級（${tSession.assignedClass}）的選社名單！`);
+  }
+  return { role: 'teacher', targetClass: tSession.assignedClass, teacher: tSession };
 }
 
 /**
  * 👨‍🏫 智慧行政 4：導師班級專區查核與 LINE 催繳文案
  */
-function getHomeroomClassData(className, authCode) {
-  assertAdminOrTeacherAuth_(authCode);
+function getHomeroomClassData(className, authToken) {
+  const auth = resolveTeacherOrAdminAuth_(authToken, className);
+  const targetClass = auth.targetClass;
+  if (!targetClass) {
+    return { status: 'error', message: '請指定要查詢的班級代碼！' };
+  }
+
   const ss = getSpreadsheet();
   const studentSheet = ss.getSheetByName('學生名冊');
-  const data = studentSheet.getDataRange().getValues();
+  const data = studentSheet.getDataRange().getDisplayValues();
+  const cols = getStudentColIndex_(data[0]);
 
   const enrolled = [];
   const unassigned = [];
 
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === String(className).trim()) {
+    if (isClassMatch_(data[i][cols.className], targetClass)) {
       const item = {
-        seat: String(data[i][1]).trim(),
-        name: String(data[i][2]).trim(),
-        club: String(data[i][8] || '').trim()
+        studentId: String(data[i][cols.studentId] || '').trim(),
+        seat: padSeatNo_(data[i][cols.seat]),
+        name: String(data[i][cols.name] || '').trim(),
+        club: String(data[i][cols.assignedClub] || '').trim()
       };
       if (item.club) enrolled.push(item);
       else unassigned.push(item);
     }
   }
 
+  enrolled.sort((a, b) => (parseInt(a.seat, 10) || 0) - (parseInt(b.seat, 10) || 0));
+  unassigned.sort((a, b) => (parseInt(a.seat, 10) || 0) - (parseInt(b.seat, 10) || 0));
+
   const unassignedNames = unassigned.map(s => `${s.seat}號${s.name}`).join('、');
-  const lineNotice = `【${className} 班社團選社進度通知】
+  const lineNotice = `【${targetClass} 班社團選社進度通知】
 親愛的家長與同學好：
 本學期社團選社即將截止，貴班尚有 ${unassigned.length} 位同學未完成選填：
 👉 未選名單：${unassignedNames || '全數已完成選填！'}
-請把握探索機會，使用手機進入「大溪國中AI選社系統」完成登記。逾期將由學務處進行適性分流。感謝大家配合！`;
+請把握探索機會，使用 7 碼學號登入「大溪國中AI選社系統」完成登記。逾期將由學務處進行適性分流。感謝大家配合！`;
 
   return {
     status: 'success',
-    className: className,
+    className: targetClass,
     total: enrolled.length + unassigned.length,
     enrolledCount: enrolled.length,
     unassignedCount: unassigned.length,
@@ -1672,12 +2127,12 @@ function cleanupUnusedSheets(adminToken, targetNames) {
 
 // ==================== 📐 試算表全分頁適當欄寬與自動換列排版引擎 ====================
 const COLUMN_WIDTH_RULES_ = [
-  { pattern: /^(班級|座號|人數上限|已錄取人數)$/, min: 78, max: 115 },
+  { pattern: /^(班級|座號|負責班級|人數上限|已錄取人數|出生月日|首次登入標記)$/, min: 82, max: 120 },
   { pattern: /^第\d+週簽到$/, min: 92, max: 120 },
-  { pattern: /^(姓名|授課教師|指導教師|社團類別|設定項目)$/, min: 110, max: 185 },
-  { pattern: /^(身分證字號|選填時間)$/, min: 135, max: 195 },
-  { pattern: /^(社團名稱|錄取社團|活動地點|第一志願|第二志願|第三志願|學生Email|設定值)$/, min: 150, max: 250 },
-  { pattern: /^(社團簡介|先備要求與材料費|分發備註|保障身分鎖定|健康安全提醒|說明)$/, min: 220, max: 360 }
+  { pattern: /^(姓名|教師姓名|教師帳號|學號|授課教師|指導教師|社團類別|設定項目)$/, min: 112, max: 185 },
+  { pattern: /^(身分證字號|身分證後四碼|選填時間)$/, min: 135, max: 195 },
+  { pattern: /^(社團名稱|錄取社團|活動地點|第一志願|第二志願|第三志願|學生Email|公務信箱|設定值)$/, min: 155, max: 255 },
+  { pattern: /^(密碼|登入密碼|社團簡介|先備要求與材料費|分發備註|保障身分鎖定|健康安全提醒|說明)$/, min: 210, max: 360 }
 ];
 
 function measureDisplayUnits_(val) {
@@ -1784,6 +2239,260 @@ function formatAllSheetsLayout(adminToken) {
   } catch (err) {
     console.error('formatAllSheetsLayout error: ' + err.message);
     return { status: 'error', message: '調整試算表排版時發生異常：' + err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ==================== 🔄 從「成績查詢系統」唯讀複製學生與導師名單（絕不寫回來源） ====================
+
+function getSheetDisplayRows_(sheet) {
+  const range = sheet.getDataRange();
+  return typeof range.getDisplayValues === 'function' ? range.getDisplayValues() : range.getValues();
+}
+
+function findHeaderCol_(headers, names, fallbackIdx) {
+  for (let n = 0; n < names.length; n++) {
+    const target = names[n];
+    for (let c = 0; c < headers.length; c++) {
+      if (String(headers[c] || '').trim() === target) return c;
+    }
+  }
+  return fallbackIdx;
+}
+
+function syncDirectoryFromScoreDb_(ss) {
+  const srcId = CONFIG.SCORE_SOURCE_SPREADSHEET_ID;
+  if (!srcId || srcId === ss.getId()) {
+    return { status: 'skipped', message: '來源試算表與目前試算表相同或未設定。' };
+  }
+
+  let srcSs = null;
+  try {
+    srcSs = SpreadsheetApp.openById(srcId);
+  } catch (err) {
+    return {
+      status: 'error',
+      message: '無法讀取成績查詢系統試算表（請確認共用權限）：' + err.message
+    };
+  }
+
+  if (!srcSs || srcSs.getId() === ss.getId()) {
+    return { status: 'skipped', message: '跳過同源試算表同步。' };
+  }
+
+  const srcStudentSheet = srcSs.getSheetByName('學生名單');
+  const srcTeacherSheet = srcSs.getSheetByName('導師名單');
+  if (!srcStudentSheet && !srcTeacherSheet) {
+    return { status: 'error', message: '來源試算表找不到「學生名單」或「導師名單」工作表！' };
+  }
+
+  let studentsCount = 0;
+  let teachersCount = 0;
+  let preservedSelections = 0;
+
+  // 1. 複製「學生名單」->「學生名冊」（保留既有選社成果與社團內已修改之 sha256 密碼）
+  if (srcStudentSheet) {
+    const srcRows = getSheetDisplayRows_(srcStudentSheet);
+    if (srcRows.length >= 1) {
+      const sh = srcRows[0];
+      const idxAcc = findHeaderCol_(sh, ['學號'], 0);
+      const idxName = findHeaderCol_(sh, ['姓名'], 1);
+      const idxClass = findHeaderCol_(sh, ['班級'], 2);
+      const idxSeat = findHeaderCol_(sh, ['座號'], 3);
+      const idxId4 = findHeaderCol_(sh, ['身分證後四碼', '身分證字號'], 4);
+      const idxBirth = findHeaderCol_(sh, ['出生月日'], 5);
+      const idxPwd = findHeaderCol_(sh, ['密碼', '登入密碼'], 6);
+
+      const targetHeaders = [
+        '班級', '座號', '姓名', '身分證字號', '學生Email',
+        '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間',
+        '分發備註', '保障身分鎖定', '健康安全提醒', '學號', '出生月日', '登入密碼'
+      ];
+
+      let targetStudentSheet = ss.getSheetByName('學生名冊');
+      if (!targetStudentSheet) {
+        targetStudentSheet = ss.insertSheet('學生名冊');
+      }
+
+      const existingRows = targetStudentSheet.getLastRow() > 0 ? getSheetDisplayRows_(targetStudentSheet) : [];
+      const existingCols = getStudentColIndex_(existingRows[0] || targetHeaders);
+      const existingById = {};
+      const existingByClassSeat = {};
+
+      for (let i = 1; i < existingRows.length; i++) {
+        const r = existingRows[i];
+        const sid = String(r[existingCols.studentId] || '').trim().toLowerCase();
+        const cls = normalizeClassCode_(r[existingCols.className]);
+        const seat = padSeatNo_(r[existingCols.seat]);
+        const record = {
+          email: String(r[existingCols.email] || '').trim(),
+          pref1: String(r[existingCols.pref1] || '').trim(),
+          pref2: String(r[existingCols.pref2] || '').trim(),
+          pref3: String(r[existingCols.pref3] || '').trim(),
+          assignedClub: String(r[existingCols.assignedClub] || '').trim(),
+          selectedTime: String(r[existingCols.selectedTime] || '').trim(),
+          note: String(r[existingCols.note] || '').trim(),
+          lockedClub: String(r[existingCols.lockedClub] || '').trim(),
+          healthNotice: String(r[existingCols.healthNotice] || '').trim(),
+          password: String(r[existingCols.password] || '').trim()
+        };
+        const isDemoPlaceholder = /^daxi_\d+@example\.com$/i.test(record.email) &&
+          !record.assignedClub && !record.pref1 && !record.lockedClub;
+        if (isDemoPlaceholder) continue;
+        if (sid) existingById[sid] = record;
+        if (cls && seat) existingByClassSeat[cls + '_' + seat] = record;
+      }
+
+      const nextRows = [targetHeaders];
+      for (let i = 1; i < srcRows.length; i++) {
+        const r = srcRows[i];
+        const sid = String(r[idxAcc] || '').trim();
+        const name = String(r[idxName] || '').trim();
+        if (!sid && !name) continue;
+
+        const cls = normalizeClassCode_(r[idxClass]);
+        const seat = padSeatNo_(r[idxSeat]);
+        const idLast4 = String(r[idxId4] || '').trim().toUpperCase();
+        const birthMMDD = padBirthMMDD_(r[idxBirth]);
+        const srcPwd = String(r[idxPwd] || '').trim();
+
+        const prev = (sid && existingById[sid.toLowerCase()]) || existingByClassSeat[cls + '_' + seat] || null;
+        if (prev && (prev.assignedClub || prev.pref1 || prev.lockedClub)) {
+          preservedSelections++;
+        }
+
+        const effectivePassword = (prev && prev.password.indexOf('sha256$') === 0)
+          ? prev.password
+          : (srcPwd || (idLast4 && birthMMDD ? idLast4 + birthMMDD : ''));
+
+        nextRows.push([
+          cls,
+          seat,
+          name,
+          idLast4,
+          prev ? prev.email : '',
+          prev ? prev.pref1 : '',
+          prev ? prev.pref2 : '',
+          prev ? prev.pref3 : '',
+          prev ? prev.assignedClub : '',
+          prev ? prev.selectedTime : '',
+          prev ? prev.note : '',
+          prev ? prev.lockedClub : '',
+          prev ? prev.healthNotice : '',
+          sid,
+          birthMMDD,
+          effectivePassword
+        ]);
+        studentsCount++;
+      }
+
+      if (typeof targetStudentSheet.clearContents === 'function') {
+        targetStudentSheet.clearContents();
+      }
+      const textCols = [1, 2, 4, 14, 15, 16];
+      textCols.forEach(c => {
+        const rng = targetStudentSheet.getRange(1, c, Math.max(nextRows.length, 1), 1);
+        if (typeof rng.setNumberFormat === 'function') rng.setNumberFormat('@');
+      });
+      targetStudentSheet.getRange(1, 1, nextRows.length, 16).setValues(nextRows);
+      targetStudentSheet.getRange(1, 1, 1, 16).setBackground('#0f9d58').setFontColor('#ffffff').setFontWeight('bold');
+      formatSheetLayout_(targetStudentSheet);
+    }
+  }
+
+  // 2. 複製「導師名單」->「導師名單」（保留社團內已啟用之 sha256 密碼）
+  if (srcTeacherSheet) {
+    const srcRows = getSheetDisplayRows_(srcTeacherSheet);
+    if (srcRows.length >= 1) {
+      const th = srcRows[0];
+      const idxAcc = findHeaderCol_(th, ['教師帳號', '帳號'], 0);
+      const idxName = findHeaderCol_(th, ['教師姓名', '姓名'], 1);
+      const idxClass = findHeaderCol_(th, ['負責班級', '班級'], 2);
+      const idxPwd = findHeaderCol_(th, ['密碼'], 3);
+      const idxFirst = findHeaderCol_(th, ['首次登入標記'], 4);
+      const idxEmail = findHeaderCol_(th, ['公務信箱', 'Email'], 5);
+
+      const teacherHeaders = ['教師帳號', '教師姓名', '負責班級', '密碼', '首次登入標記', '公務信箱'];
+      let targetTeacherSheet = ss.getSheetByName('導師名單');
+      if (!targetTeacherSheet) {
+        targetTeacherSheet = ss.insertSheet('導師名單');
+      }
+
+      const existingRows = targetTeacherSheet.getLastRow() > 0 ? getSheetDisplayRows_(targetTeacherSheet) : [];
+      const existingTeachers = {};
+      for (let i = 1; i < existingRows.length; i++) {
+        const acc = String(existingRows[i][0] || '').trim().toLowerCase();
+        if (acc) {
+          existingTeachers[acc] = {
+            password: String(existingRows[i][3] || '').trim(),
+            firstLogin: String(existingRows[i][4] || '').trim().toUpperCase()
+          };
+        }
+      }
+
+      const nextRows = [teacherHeaders];
+      for (let i = 1; i < srcRows.length; i++) {
+        const r = srcRows[i];
+        const acc = String(r[idxAcc] || '').trim();
+        if (!acc) continue;
+
+        const name = String(r[idxName] || '').trim();
+        const assignedClass = String(r[idxClass] || '').trim();
+        const normCls = normalizeClassCode_(assignedClass);
+        const srcPwd = String(r[idxPwd] || '').trim() || (normCls ? normCls + normCls : '');
+        const srcFirstRaw = String(r[idxFirst] || '').trim().toUpperCase();
+        const srcFirst = srcFirstRaw === '' ? true : (srcFirstRaw === 'TRUE' || srcFirstRaw === '1');
+        const email = String(r[idxEmail] || '').trim();
+
+        const prev = existingTeachers[acc.toLowerCase()];
+        const keepLocalChangedPwd = prev && prev.password.indexOf('sha256$') === 0 && prev.firstLogin === 'FALSE';
+
+        nextRows.push([
+          acc,
+          name,
+          assignedClass,
+          keepLocalChangedPwd ? prev.password : srcPwd,
+          keepLocalChangedPwd ? false : srcFirst,
+          email
+        ]);
+        teachersCount++;
+      }
+
+      if (typeof targetTeacherSheet.clearContents === 'function') {
+        targetTeacherSheet.clearContents();
+      }
+      [1, 3, 4].forEach(c => {
+        const rng = targetTeacherSheet.getRange(1, c, Math.max(nextRows.length, 1), 1);
+        if (typeof rng.setNumberFormat === 'function') rng.setNumberFormat('@');
+      });
+      targetTeacherSheet.getRange(1, 1, nextRows.length, 6).setValues(nextRows);
+      targetTeacherSheet.getRange(1, 1, 1, 6).setBackground('#334155').setFontColor('#ffffff').setFontWeight('bold');
+      formatSheetLayout_(targetTeacherSheet);
+    }
+  }
+
+  PropertiesService.getScriptProperties().setProperty('SCORE_SYNC_V', '1');
+  return {
+    status: 'success',
+    studentsCount: studentsCount,
+    teachersCount: teachersCount,
+    preservedSelections: preservedSelections,
+    message: `已從成績查詢系統唯讀複製 ${studentsCount} 位學生、${teachersCount} 位導師至社團試算表（未更動成績查詢系統，已保留 ${preservedSelections} 筆選社紀錄）！`
+  };
+}
+
+function syncUsersFromScoreSystem(adminToken) {
+  assertAdminAuth_(adminToken);
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) {
+      return { status: 'error', message: '伺服器忙碌中，請稍後再試。' };
+    }
+    return syncDirectoryFromScoreDb_(getSpreadsheet());
+  } catch (err) {
+    console.error('syncUsersFromScoreSystem error: ' + err.message);
+    return { status: 'error', message: '同步名冊時發生異常：' + err.message };
   } finally {
     lock.releaseLock();
   }
