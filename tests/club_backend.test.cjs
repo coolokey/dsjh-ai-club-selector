@@ -41,12 +41,39 @@ function createGasMockEnvironment() {
   ];
 
   function createMockSheet(name, rows) {
+    const layoutState = {
+      colWidths: {},
+      wrapCalls: [],
+      verticalAlignments: [],
+      frozenRows: 0,
+      autoResized: false
+    };
+    const getLastColCount = () => rows.reduce((m, r) => Math.max(m, r.length), 0);
     return {
+      _layout: layoutState,
       getName: () => name,
+      getLastRow: () => rows.length,
+      getLastColumn: () => getLastColCount(),
+      getMaxRows: () => Math.max(rows.length + 10, 50),
+      getMaxColumns: () => Math.max(getLastColCount() + 2, 15),
       getDataRange: () => ({
         getValues: () => rows.map(r => r.slice())
       }),
       getRange: (row, col, numRows, numCols) => ({
+        getValues: () => {
+          const out = [];
+          const rCount = numRows || 1;
+          const cCount = numCols || 1;
+          for (let r = 0; r < rCount; r++) {
+            const src = rows[row - 1 + r] || [];
+            const line = [];
+            for (let c = 0; c < cCount; c++) {
+              line.push(src[col - 1 + c] === undefined ? '' : src[col - 1 + c]);
+            }
+            out.push(line);
+          }
+          return out;
+        },
         setValue: (val) => {
           const rowIndex = row - 1;
           const colIndex = col - 1;
@@ -62,6 +89,14 @@ function createGasMockEnvironment() {
             }
           }
         },
+        setWrap: function(flag) {
+          layoutState.wrapCalls.push({ row, col, numRows: numRows || 1, numCols: numCols || 1, wrap: !!flag });
+          return this;
+        },
+        setVerticalAlignment: function(align) {
+          layoutState.verticalAlignments.push(align);
+          return this;
+        },
         setBackground: function() { return this; },
         setFontColor: function() { return this; },
         setFontWeight: function() { return this; },
@@ -69,6 +104,12 @@ function createGasMockEnvironment() {
         setHorizontalAlignment: function() { return this; },
         merge: function() { return this; }
       }),
+      setColumnWidth: (colIdx, width) => { layoutState.colWidths[colIdx] = width; },
+      setColumnWidths: (startCol, count, width) => {
+        for (let i = 0; i < count; i++) layoutState.colWidths[startCol + i] = width;
+      },
+      setFrozenRows: (n) => { layoutState.frozenRows = n; },
+      autoResizeRows: () => { layoutState.autoResized = true; },
       appendRow: (row) => rows.push(row.slice()),
       deleteRow: (n) => { rows.splice(n - 1, 1); },
       clear: () => { rows.length = 0; },
@@ -539,4 +580,49 @@ test('14. 後台統一管理網頁標題與 Google 試算表檔名，並防呆�
   const repeatRes = context.saveSystemSettings(token, { title: '114學年度 大溪國中社團選社系統' });
   assert.equal(repeatRes.status, 'success');
   assert.equal(repeatRes.spreadsheetRenamed, false);
+});
+
+test('15. 試算表每一分頁每一欄皆套用適當欄寬與自動換列（含點名簽到冊）', () => {
+  const { context, sheets } = createGasMockEnvironment();
+  const token = context.loginAdmin('test-password').token;
+
+  // 未授權不得調整排版
+  const noAuth = callApi(context, 'formatAllSheetsLayout', ['bad-token']);
+  assert.equal(noAuth.ok, false);
+  assert.match(noAuth.error, /403/);
+
+  // 產出點名簽到冊並驗證所有列皆為 11 欄且自動排版
+  const attRes = context.exportAttendanceSheets(token);
+  assert.equal(attRes.status, 'success');
+  const attSheet = sheets['社團點名簽到冊'];
+  assert.ok(attSheet);
+  const attRows = attSheet.getDataRange().getValues();
+  assert.ok(attRows.every(r => r.length === 11), '點名冊每一列應對齊 11 欄');
+
+  // 執行全分頁一鍵欄寬與自動換列
+  const res = context.formatAllSheetsLayout(token);
+  assert.equal(res.status, 'success');
+  assert.equal(res.sheets.length, 4);
+
+  // 逐分頁檢查：所有欄都有正數寬度、整頁啟用 setWrap(true)、長文字欄位受限寬度以便換列
+  Object.keys(sheets).forEach(name => {
+    const s = sheets[name];
+    const lastCol = s.getLastColumn();
+    const wrapCall = s._layout.wrapCalls.find(w => w.row === 1 && w.col === 1 && w.numCols === s.getMaxColumns() && w.wrap === true);
+    assert.ok(wrapCall, `${name} 必須全表（全部欄位與列）啟用自動換列 setWrap(true)`);
+    for (let c = 1; c <= lastCol; c++) {
+      const w = s._layout.colWidths[c];
+      assert.ok(w >= 78 && w <= 360, `${name} 第 ${c} 欄寬 ${w}px 應在合理範圍`);
+    }
+  });
+
+  // 檢查社團設定：第 6 欄（社團簡介）比第 2 欄（人數上限）寬，且不超過 360px 讓自動換列發揮作用
+  const clubWidths = sheets['社團設定']._layout.colWidths;
+  assert.ok(clubWidths[6] > clubWidths[2]);
+  assert.ok(clubWidths[6] <= 360);
+  assert.equal(sheets['社團設定']._layout.frozenRows, 1);
+
+  // 檢查點名簽到冊：凍結前 3 列標題／表頭，第 11 欄簽到格不被 Row 2 緊通報字撐爆
+  assert.equal(attSheet._layout.frozenRows, 3);
+  assert.ok(attSheet._layout.colWidths[11] <= 120);
 });

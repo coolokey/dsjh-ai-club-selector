@@ -1410,6 +1410,7 @@
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         <a id="bottomSpreadsheetLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 170px; text-decoration: none;" onclick="return openSpreadsheetDirectly(event)">🔗 開啟 Google 試算表資料庫 ↗</a>
+        <button id="formatSheetsBtn" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 185px; color: #0369a1; border: 1px solid #bae6fd; background: #f0f9ff;" onclick="triggerFormatAllSheets()">📐 調整試算表欄寬與換列</button>
         <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 180px; color: #b91c1c; border: 1px solid #fecaca; background: #fff5f5;" onclick="openSheetAuditModal()">🧹 清理試算表多餘分頁</button>
         <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 130px;" onclick="showStep('ChangePwd')">🔑 修改密碼</button>
       </div>
@@ -1733,6 +1734,22 @@
                 message: del.length ? ('已成功刪除 ' + del.length + ' 個未使用分頁：' + del.join('、')) : '沒有符合刪除條件的分頁。'
               });
             }, 300);
+          },
+          formatAllSheetsLayout: function(t) {
+            var self = this;
+            var current = (mockSheets || [
+              { name: '社團設定' },
+              { name: '學生名冊' },
+              { name: '系統設定' },
+              { name: '社團點名簽到冊' }
+            ]);
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                sheets: current.map(function(s){ return { name: s.name, columns: 8, wrappedRows: 100 }; }),
+                message: '已將試算表全部 ' + current.length + ' 個分頁套用適當欄寬與自動換列！'
+              });
+            }, 250);
           }
         }
       }
@@ -2975,6 +2992,20 @@
           showModal('清理完成', escapeHtml(delRes.message) + '<br><br><span style="font-size:12px; color:#64748b;">目前試算表剩餘分頁：' + escapeHtml((delRes.remaining || []).join('、')) + '</span>');
         });
       });
+    });
+  }
+
+  function triggerFormatAllSheets() {
+    setLoading(true, '正在最佳化所有分頁欄寬與自動換列...');
+    callGas('formatAllSheetsLayout', [appState.adminToken], function(res) {
+      if (!res || res.status === 'error') {
+        showModal('調整失敗', escapeHtml((res && res.message) || '操作失敗'));
+        return;
+      }
+      var listHtml = (res.sheets || []).map(function(s) {
+        return '<span class="student-badge-item st-enrolled">' + escapeHtml(s.name) + ' (' + s.columns + ' 欄已自動換列)</span>';
+      }).join('');
+      showModal('排版完成', escapeHtml(res.message) + (listHtml ? '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">' + listHtml + '</div>' : ''));
     });
   }
 

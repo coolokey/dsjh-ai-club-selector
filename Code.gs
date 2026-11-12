@@ -70,7 +70,8 @@ const API_ROUTES_ = {
   exportAttendanceSheets: exportAttendanceSheets,
   generateClubDocManual: generateClubDocManual,
   getSpreadsheetAudit: getSpreadsheetAudit,
-  cleanupUnusedSheets: cleanupUnusedSheets
+  cleanupUnusedSheets: cleanupUnusedSheets,
+  formatAllSheetsLayout: formatAllSheetsLayout
 };
 
 function doPost(e) {
@@ -150,6 +151,13 @@ function getSpreadsheet() {
 function ensureSheetExists() {
   const props = PropertiesService.getScriptProperties();
   if (props.getProperty('IS_INITIALIZED') === 'true') {
+    if (props.getProperty('SHEET_LAYOUT_V') !== '1') {
+      try {
+        formatAllSheets_(getSpreadsheet());
+      } catch (e) {
+        console.warn('Auto layout format skipped: ' + e.message);
+      }
+    }
     return; // 已初始化完成，跳過檢查以提升效能
   }
 
@@ -221,6 +229,12 @@ function ensureSheetExists() {
   const defaultSheet = ss.getSheetByName('工作表1') || ss.getSheetByName('Sheet1');
   if (defaultSheet && ss.getSheets().length > 3) {
     try { ss.deleteSheet(defaultSheet); } catch (e) {}
+  }
+
+  try {
+    formatAllSheets_(ss);
+  } catch (e) {
+    console.warn('Initial layout format skipped: ' + e.message);
   }
 
   props.setProperty('IS_INITIALIZED', 'true');
@@ -353,6 +367,8 @@ function saveSystemSettings(adminToken, newSettings) {
     PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', newSettings.geminiApiKey.trim());
   }
 
+  try { formatSheetLayout_(sheet); } catch (e) {}
+
   let spreadsheetRenamed = false;
   let spreadsheetName = ss.getName();
   if (cleanTitle !== null && spreadsheetName !== cleanTitle) {
@@ -434,11 +450,13 @@ function saveClub(adminToken, club) {
         return { status: 'error', message: '人數上限不可低於目前已錄取人數（' + current + ' 人）！' };
       }
       sheet.getRange(originalRow, 1, 1, 8).setValues([[name, limit, current].concat(fields)]);
+      try { formatSheetLayout_(sheet); } catch (e) {}
       return { status: 'success', message: '社團【' + name + '】已更新並寫入試算表。', clubs: getClubList() };
     }
 
     if (nameRow !== -1) return { status: 'error', message: '已有同名社團，請改用其他名稱！' };
     sheet.appendRow([name, limit, 0].concat(fields));
+    try { formatSheetLayout_(sheet); } catch (e) {}
     return { status: 'success', message: '社團【' + name + '】已新增並寫入試算表。', clubs: getClubList() };
   } catch (err) {
     console.error('saveClub error: ' + err.message);
@@ -1199,6 +1217,7 @@ function runAiSmartAllocation(adminToken, previewToken) {
       cache.put(key, '0', 1);
       studentSheet.getRange(1, 1, plan.sData.length, plan.sData[0].length).setValues(plan.sData);
       clubSheet.getRange(1, 1, plan.cData.length, plan.cData[0].length).setValues(plan.cData);
+      try { formatSheetLayout_(studentSheet); formatSheetLayout_(clubSheet); } catch (e) {}
       return { status: 'success', report: plan.report };
     }
 
@@ -1443,11 +1462,12 @@ function exportAttendanceSheets(adminToken) {
   }
 
   const rows = [];
-  rows.push(['桃園市立大溪國民中學 社團活動學生點名簽到表（學務處備查聯）']);
+  rows.push(['桃園市立大溪國民中學 社團活動學生點名簽到表（學務處備查聯）', '', '', '', '', '', '', '', '', '', '']);
   rows.push([
     '產表日期：' + Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy年MM月dd日'),
-    '', '', '', '', '', '', '', '',
-    '【緊急通報分機】學務處訓育組:211、健康中心:215'
+    '', '', '', '', '', '',
+    '【緊急通報分機】學務處訓育組:211、健康中心:215',
+    '', '', ''
   ]);
   rows.push(['社團名稱', '指導教師', '活動地點', '班級', '座號', '姓名', '健康與安全提醒', '第1週簽到', '第2週簽到', '第3週簽到', '第4週簽到']);
 
@@ -1465,7 +1485,10 @@ function exportAttendanceSheets(adminToken) {
 
   attSheet.getRange(1, 1, rows.length, 11).setValues(rows);
   attSheet.getRange(1, 1, 1, 11).merge().setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center').setBackground('#e8f0fe');
+  attSheet.getRange(2, 1, 1, 7).merge();
+  attSheet.getRange(2, 8, 1, 4).merge().setHorizontalAlignment('right');
   attSheet.getRange(3, 1, 1, 11).setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+  try { formatSheetLayout_(attSheet); } catch (e) {}
 
   return {
     status: 'success',
@@ -1642,6 +1665,125 @@ function cleanupUnusedSheets(adminToken, targetNames) {
   } catch (err) {
     console.error('cleanupUnusedSheets error: ' + err.message);
     return { status: 'error', message: '清理分頁時發生異常：' + err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ==================== 📐 試算表全分頁適當欄寬與自動換列排版引擎 ====================
+const COLUMN_WIDTH_RULES_ = [
+  { pattern: /^(班級|座號|人數上限|已錄取人數)$/, min: 78, max: 115 },
+  { pattern: /^第\d+週簽到$/, min: 92, max: 120 },
+  { pattern: /^(姓名|授課教師|指導教師|社團類別|設定項目)$/, min: 110, max: 185 },
+  { pattern: /^(身分證字號|選填時間)$/, min: 135, max: 195 },
+  { pattern: /^(社團名稱|錄取社團|活動地點|第一志願|第二志願|第三志願|學生Email|設定值)$/, min: 150, max: 250 },
+  { pattern: /^(社團簡介|先備要求與材料費|分發備註|保障身分鎖定|健康安全提醒|說明)$/, min: 220, max: 360 }
+];
+
+function measureDisplayUnits_(val) {
+  const text = String(val === undefined || val === null ? '' : val).trim();
+  if (!text) return 0;
+  const lines = text.split(/\r?\n/);
+  let maxLine = 0;
+  for (let i = 0; i < lines.length; i++) {
+    let units = 0;
+    const line = lines[i];
+    for (let j = 0; j < line.length; j++) {
+      units += line.charCodeAt(j) > 255 ? 2 : 1;
+    }
+    if (units > maxLine) maxLine = units;
+  }
+  return maxLine;
+}
+
+function getColumnWidthBounds_(headerText) {
+  const h = String(headerText || '').trim();
+  for (let i = 0; i < COLUMN_WIDTH_RULES_.length; i++) {
+    if (COLUMN_WIDTH_RULES_[i].pattern.test(h)) {
+      return COLUMN_WIDTH_RULES_[i];
+    }
+  }
+  return { min: 96, max: 300 };
+}
+
+/**
+ * 對單一工作表的每一欄位啟用自動換列、垂直置中並計算最佳欄寬
+ */
+function formatSheetLayout_(sheet) {
+  if (!sheet) return null;
+  const sheetName = sheet.getName();
+  const lastRow = Math.max(sheet.getLastRow(), 0);
+  const lastCol = Math.max(sheet.getLastColumn(), 0);
+  const maxRows = Math.max(typeof sheet.getMaxRows === 'function' ? sheet.getMaxRows() : lastRow, lastRow, 1);
+  const maxCols = Math.max(typeof sheet.getMaxColumns === 'function' ? sheet.getMaxColumns() : lastCol, lastCol, 1);
+
+  // 所有欄位（包含後續新增或備用欄）皆啟用自動換列
+  sheet.getRange(1, 1, maxRows, maxCols).setWrap(true);
+
+  if (lastRow >= 1 && lastCol >= 1) {
+    const activeRange = sheet.getRange(1, 1, lastRow, lastCol);
+    if (typeof activeRange.setVerticalAlignment === 'function') {
+      activeRange.setVerticalAlignment('middle');
+    }
+
+    const values = activeRange.getValues();
+    const isAttendance = (sheetName === '社團點名簽到冊' && values.length >= 3 && String(values[2][0] || '').trim() === '社團名稱');
+    const headerRowIdx = isAttendance ? 2 : 0;
+    const scanLimit = Math.min(values.length, headerRowIdx + 201);
+
+    for (let c = 0; c < lastCol; c++) {
+      const header = String((values[headerRowIdx] && values[headerRowIdx][c]) || '').trim();
+      const bounds = getColumnWidthBounds_(header);
+      let maxUnits = measureDisplayUnits_(header) + (header ? 2 : 0);
+      for (let r = headerRowIdx + 1; r < scanLimit; r++) {
+        const u = measureDisplayUnits_(values[r] ? values[r][c] : '');
+        if (u > maxUnits) maxUnits = u;
+      }
+      const computed = Math.round(maxUnits * 9 + 28);
+      const width = Math.max(bounds.min, Math.min(bounds.max, computed));
+      sheet.setColumnWidth(c + 1, width);
+    }
+
+    if (maxCols > lastCol && typeof sheet.setColumnWidths === 'function') {
+      sheet.setColumnWidths(lastCol + 1, maxCols - lastCol, 110);
+    }
+    if (typeof sheet.setFrozenRows === 'function' && lastRow > headerRowIdx + 1) {
+      sheet.setFrozenRows(headerRowIdx + 1);
+    }
+    try {
+      if (typeof sheet.autoResizeRows === 'function') {
+        sheet.autoResizeRows(1, lastRow);
+      }
+    } catch (e) {}
+  } else if (typeof sheet.setColumnWidths === 'function') {
+    sheet.setColumnWidths(1, maxCols, 120);
+  }
+
+  return { name: sheetName, columns: Math.max(lastCol, maxCols), wrappedRows: maxRows };
+}
+
+function formatAllSheets_(ss) {
+  const results = ss.getSheets().map(s => formatSheetLayout_(s)).filter(Boolean);
+  PropertiesService.getScriptProperties().setProperty('SHEET_LAYOUT_V', '1');
+  return results;
+}
+
+function formatAllSheetsLayout(adminToken) {
+  assertAdminAuth_(adminToken);
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) {
+      return { status: 'error', message: '伺服器忙碌中，請稍後再試。' };
+    }
+    const results = formatAllSheets_(getSpreadsheet());
+    return {
+      status: 'success',
+      sheets: results,
+      message: `已將試算表全部 ${results.length} 個分頁套用適當欄寬與自動換列！`
+    };
+  } catch (err) {
+    console.error('formatAllSheetsLayout error: ' + err.message);
+    return { status: 'error', message: '調整試算表排版時發生異常：' + err.message };
   } finally {
     lock.releaseLock();
   }
