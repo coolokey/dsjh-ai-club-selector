@@ -308,6 +308,15 @@ function saveSystemSettings(adminToken, newSettings) {
   assertAdminAuth_(adminToken);
   newSettings = newSettings || {};
 
+  // 網頁與試算表統一名稱驗證：若提供 title 欄位，不可為空白
+  let cleanTitle = null;
+  if (newSettings.title !== undefined) {
+    cleanTitle = String(newSettings.title).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 100);
+    if (!cleanTitle) {
+      return { status: 'error', message: '系統與試算表統一名稱不可為空白！' };
+    }
+  }
+
   // 導師通行碼：與管理員密碼分離，至少 6 碼且不可沿用預設值
   if (newSettings.teacherPassword) {
     const tp = String(newSettings.teacherPassword).trim();
@@ -320,10 +329,14 @@ function saveSystemSettings(adminToken, newSettings) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName('系統設定');
   const data = sheet.getDataRange().getValues();
+  let titleUpdated = false;
 
   for (let i = 1; i < data.length; i++) {
     const key = data[i][0];
-    if (key === 'SYSTEM_TITLE' && newSettings.title !== undefined) sheet.getRange(i + 1, 2).setValue(newSettings.title);
+    if (key === 'SYSTEM_TITLE' && cleanTitle !== null) {
+      sheet.getRange(i + 1, 2).setValue(cleanTitle);
+      titleUpdated = true;
+    }
     else if (key === 'SELECTION_MODE' && newSettings.mode !== undefined) sheet.getRange(i + 1, 2).setValue(newSettings.mode);
     else if (key === 'OPEN_TIME' && newSettings.openTime !== undefined) sheet.getRange(i + 1, 2).setValue(newSettings.openTime);
     else if (key === 'CLOSE_TIME' && newSettings.closeTime !== undefined) sheet.getRange(i + 1, 2).setValue(newSettings.closeTime);
@@ -332,11 +345,39 @@ function saveSystemSettings(adminToken, newSettings) {
     else if (key === 'EMAIL_NOTIFICATION_ENABLED' && newSettings.emailNotificationEnabled !== undefined) sheet.getRange(i + 1, 2).setValue(String(newSettings.emailNotificationEnabled));
   }
 
+  if (cleanTitle !== null && !titleUpdated) {
+    sheet.appendRow(['SYSTEM_TITLE', cleanTitle, '系統與試算表統一名稱']);
+  }
+
   if (newSettings.geminiApiKey) {
     PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', newSettings.geminiApiKey.trim());
   }
 
-  return { status: 'success', message: '系統設定已儲存並即時生效！' };
+  let spreadsheetRenamed = false;
+  let spreadsheetName = ss.getName();
+  if (cleanTitle !== null && spreadsheetName !== cleanTitle) {
+    try {
+      ss.rename(cleanTitle);
+      spreadsheetName = ss.getName();
+      spreadsheetRenamed = true;
+    } catch (renameErr) {
+      return {
+        status: 'error',
+        message: '系統設定已寫入，但同步更名 Google 試算表失敗：' + renameErr.message
+      };
+    }
+  }
+
+  const effectiveTitle = cleanTitle !== null ? cleanTitle : getSystemSettings().title;
+  return {
+    status: 'success',
+    title: effectiveTitle,
+    spreadsheetName: spreadsheetName,
+    spreadsheetRenamed: spreadsheetRenamed,
+    message: spreadsheetRenamed
+      ? `系統設定已儲存，並同步將 Google 試算表更名為「${spreadsheetName}」！`
+      : '系統設定已儲存並即時生效！'
+  };
 }
 
 // ==================== 學生端 API ====================
@@ -994,14 +1035,15 @@ function ruleBasedRecommendFallback(input, clubs) {
 function sendAdmissionEmail_(student, club, timestamp) {
   if (!student.email || !student.email.includes('@')) return false;
 
-  const subject = `【大溪國中】社團選社錄取通知函 - ${student.name} 同學`;
+  const systemTitle = (getSystemSettings().title || CONFIG.DEFAULT_TITLE);
+  const subject = `【${systemTitle}】社團選社錄取通知函 - ${student.name} 同學`;
   const serialNo = `DX-${Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyyMMdd')}-${student.className}${student.seat}`;
 
   const htmlBody = `
   <div style="font-family: 'Microsoft JhengHei', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
     <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 24px; text-align: center; color: white;">
       <h2 style="margin: 0; font-size: 20px; font-weight: bold;">桃園市立大溪國民中學</h2>
-      <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9;">113 學年度 社團選社錄取結果通知書</p>
+      <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9;">${systemTitle} — 錄取結果通知書</p>
     </div>
     
     <div style="padding: 24px; background: #ffffff;">
@@ -1103,6 +1145,7 @@ function getAdminDashboardData(adminToken) {
   const clubs = getClubList();
   const settings = getSystemSettings();
   settings.spreadsheetUrl = ss.getUrl(); // 🛡️ 僅在管理者驗證後回傳
+  settings.spreadsheetName = ss.getName(); // 供後台檢查並統一試算表與首頁名稱
   // 🛡️ 提醒管理者：導師通行碼仍為預設值（僅管理端可見）
   settings.teacherPasswordIsDefault =
     (PropertiesService.getScriptProperties().getProperty('TEACHER_PASSWORD') || CONFIG.DEFAULT_TEACHER_PASSWORD) === CONFIG.DEFAULT_TEACHER_PASSWORD;
@@ -1439,7 +1482,8 @@ function generateClubDocManual(adminToken) {
   const ss = getSpreadsheet();
   const clubs = getClubList();
 
-  const doc = DocumentApp.create('大溪國中_AI智慧社團成果手冊與開課報告書');
+  const systemTitle = (getSystemSettings().title || CONFIG.DEFAULT_TITLE);
+  const doc = DocumentApp.create(systemTitle + '_社團成果手冊與開課報告書');
   const body = doc.getBody();
 
   body.appendParagraph('桃園市立大溪國民中學').setHeading(DocumentApp.ParagraphHeading.HEADING3);

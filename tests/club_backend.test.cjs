@@ -92,7 +92,10 @@ function createGasMockEnvironment() {
       return newSheet;
     },
     deleteSheet: (s) => { delete sheets[s.getName()]; },
-    getSheets: () => Object.values(sheets)
+    getSheets: () => Object.values(sheets),
+    _name: '114學年度社團選社系統',
+    getName: () => mockSpreadsheet._name,
+    rename: (newName) => { mockSpreadsheet._name = String(newName); }
   };
 
   const sentEmails = [];
@@ -196,7 +199,7 @@ function createGasMockEnvironment() {
   vm.createContext(context);
   vm.runInContext(code, context);
 
-  return { context, sheets, scriptProperties, cacheStore, sentEmails };
+  return { context, sheets, scriptProperties, cacheStore, sentEmails, mockSpreadsheet };
 }
 
 test('1. 學生名冊、Email 與班級清單載入', () => {
@@ -499,4 +502,41 @@ test('13. 試算表分頁健檢與多餘分頁清理（保護必要分頁，僅�
   assert.deepEqual(Array.from(res.deleted).sort(), ['Clubs', 'Registrations', 'Settings', 'Students'].sort());
   assert.deepEqual(Array.from(res.skippedProtected).sort(), ['社團設定', '學生名冊'].sort());
   assert.deepEqual(Array.from(res.remaining).sort(), ['社團設定', '學生名冊', '系統設定'].sort());
+});
+
+test('14. 後台統一管理網頁標題與 Google 試算表檔名，並防呆空白與未授權請求', () => {
+  const { context, mockSpreadsheet } = createGasMockEnvironment();
+  const token = context.loginAdmin('test-password').token;
+
+  // 初始狀態：後台可偵測試算表檔名與系統設定標題不同
+  const initialDash = context.getAdminDashboardData(token);
+  assert.equal(initialDash.settings.title, '大溪國中 AI 智慧社團選社系統');
+  assert.equal(initialDash.settings.spreadsheetName, '114學年度社團選社系統');
+
+  // 未授權呼叫不得更名試算表或竄改標題
+  const badAuth = callApi(context, 'saveSystemSettings', ['invalid-token', { title: '被竄改的名稱' }]);
+  assert.equal(badAuth.ok, false);
+  assert.match(badAuth.error, /403/);
+  assert.equal(mockSpreadsheet.getName(), '114學年度社團選社系統');
+
+  // 空白名稱應被擋下，不可清空標題或試算表檔名
+  const emptyRes = context.saveSystemSettings(token, { title: '   \n\t  ' });
+  assert.equal(emptyRes.status, 'error');
+  assert.equal(mockSpreadsheet.getName(), '114學年度社團選社系統');
+
+  // 透過後台儲存統一名稱後，系統設定與試算表檔名同步一致
+  const saveRes = context.saveSystemSettings(token, { title: '114學年度 大溪國中社團選社系統' });
+  assert.equal(saveRes.status, 'success');
+  assert.equal(saveRes.spreadsheetRenamed, true);
+  assert.equal(saveRes.title, '114學年度 大溪國中社團選社系統');
+  assert.equal(saveRes.spreadsheetName, '114學年度 大溪國中社團選社系統');
+  assert.equal(mockSpreadsheet.getName(), '114學年度 大溪國中社團選社系統');
+  assert.equal(context.getSystemSettings().title, '114學年度 大溪國中社團選社系統');
+  assert.equal(context.getServerStatus().title, '114學年度 大溪國中社團選社系統');
+  assert.equal(context.getAdminDashboardData(token).settings.spreadsheetName, '114學年度 大溪國中社團選社系統');
+
+  // 相同名稱再次儲存不會重複觸發更名
+  const repeatRes = context.saveSystemSettings(token, { title: '114學年度 大溪國中社團選社系統' });
+  assert.equal(repeatRes.status, 'success');
+  assert.equal(repeatRes.spreadsheetRenamed, false);
 });

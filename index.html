@@ -4,7 +4,7 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>大溪國中 AI 智慧社團選社與適性導航系統</title>
+  <title>大溪國中 AI 智慧社團選社系統</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -910,7 +910,7 @@
       <div>
         <div class="masthead-school">桃園市立大溪國民中學</div>
         <div class="masthead-system">
-          <span id="titleText">AI 智慧社團選社與適性導航系統</span>
+          <span id="titleText">大溪國中 AI 智慧社團選社系統</span>
           <span class="brand-badge">AI 旗艦版</span>
         </div>
       </div>
@@ -1363,11 +1363,11 @@
         <label style="margin-bottom: 14px;">系統參數設定</label>
         
         <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px;">
-          <div class="form-group">
-            <label style="font-size: 12px;">系統名稱</label>
-            <input type="text" id="adminTitleInput" class="form-control" style="font-size: 13px;">
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label style="font-size: 12px;">網頁與試算表統一名稱（首頁＋分頁＋試算表同步）</label>
+            <input type="text" id="adminTitleInput" class="form-control" style="font-size: 13px;" maxlength="100" oninput="renderTitleSyncBadge()">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom: 6px;">
             <label style="font-size: 12px;">選社制度模式</label>
             <select id="adminSelectionMode" class="form-control" style="font-size: 13px;">
               <option value="instant">⚡ 即時搶額制 (先選先錄取)</option>
@@ -1375,6 +1375,7 @@
             </select>
           </div>
         </div>
+        <div id="titleSyncStatus" style="margin: 0 0 12px; font-size: 11px; line-height: 1.5;"></div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div class="form-group">
@@ -1404,7 +1405,7 @@
           <div id="teacherPassWarn" style="display: none; margin-top: 6px; font-size: 12px; font-weight: 700; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; padding: 6px 10px; border-radius: 8px;">⚠️ 導師通行碼仍是系統預設值，正式上線前請立即更換！</div>
         </div>
 
-        <button class="btn btn-primary" style="font-size: 13px; padding: 11px;" onclick="saveAdminSettings()">儲存系統設定</button>
+        <button id="saveAdminSettingsBtn" class="btn btn-primary" style="font-size: 13px; padding: 11px;" onclick="saveAdminSettings()">儲存系統設定</button>
       </div>
 
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -1489,7 +1490,8 @@
       aiAdvisorEnabled: true,
       maxPerClass: 4,
       emailNotificationEnabled: true,
-      spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/186jh-V-z7reYO9Y2ybJJhugITiz2pqqmH9pLheDayJ4/edit'
+      spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/186jh-V-z7reYO9Y2ybJJhugITiz2pqqmH9pLheDayJ4/edit',
+      spreadsheetName: '114學年度社團選社系統'
     };
 
     var mockGoogle = {
@@ -1669,14 +1671,35 @@
           },
           saveSystemSettings: function(t, s) {
             var self = this;
+            var cleanTitle = null;
+            if (s.title !== undefined) {
+              cleanTitle = String(s.title).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 100);
+              if (!cleanTitle) {
+                setTimeout(function(){ self._success({ status: 'error', message: '系統與試算表統一名稱不可為空白！' }); }, 200);
+                return;
+              }
+            }
             if (s.teacherPassword && (String(s.teacherPassword).length < 6 || s.teacherPassword === 'teacher888')) {
               setTimeout(function(){ self._success({ status: 'error', message: '導師通行碼至少 6 碼，且不可使用預設值！' }); }, 200);
               return;
             }
             if (s.mode) mockSettings.mode = s.mode;
-            if (s.title) mockSettings.title = s.title;
+            var renamed = false;
+            if (cleanTitle !== null) {
+              renamed = mockSettings.spreadsheetName !== cleanTitle;
+              mockSettings.title = cleanTitle;
+              mockSettings.spreadsheetName = cleanTitle;
+            }
             if (s.maxPerClass) mockSettings.maxPerClass = s.maxPerClass;
-            setTimeout(function(){ self._success({ status: 'success' }); }, 250);
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                title: mockSettings.title,
+                spreadsheetName: mockSettings.spreadsheetName,
+                spreadsheetRenamed: renamed,
+                message: renamed ? ('系統設定已儲存，並同步將 Google 試算表更名為「' + mockSettings.spreadsheetName + '」！') : '系統設定已儲存並即時生效！'
+              });
+            }, 250);
           },
           getSpreadsheetAudit: function(t) {
             var self = this;
@@ -1828,6 +1851,7 @@
     remoteCall('getServerStatus', [], function(res) {
       transport = (res && res.dbConnected) ? 'remote' : 'mock';
       appState.serverVersion = res && res.version;
+      if (res && res.title) applySystemTitle(res.title);
       applyTransportUi();
       done();
     }, function(err) {
@@ -1916,11 +1940,19 @@
   // 初始化
   window.onload = function() { detectTransport(initApp); };
 
+  function applySystemTitle(title) {
+    var clean = String(title || '').replace(/[\r\n\t]+/g, ' ').trim();
+    if (!clean) clean = '大溪國中 AI 智慧社團選社系統';
+    document.title = clean;
+    var el = document.getElementById('titleText');
+    if (el) el.innerText = clean;
+  }
+
   function initApp() {
     setLoading(true, '載入系統設定中...');
     callGas('getSystemSettings', [], function(settings) {
-      appState.settings = settings;
-      document.getElementById('titleText').innerText = settings.title || '大溪國中社團選社';
+      appState.settings = Object.assign({}, appState.settings, settings);
+      applySystemTitle(settings.title);
       checkTimeStatus(settings);
 
       callGas('getClassList', [], function(classes) {
@@ -2597,6 +2629,9 @@
       document.getElementById('statUnassigned').innerText = res.stats.unassignedCount + ' 人';
       
       document.getElementById('adminTitleInput').value = res.settings.title || '';
+      applySystemTitle(res.settings.title);
+      appState.spreadsheetName = res.settings.spreadsheetName || '';
+      renderTitleSyncBadge();
       if (document.getElementById('adminSelectionMode')) {
         document.getElementById('adminSelectionMode').value = res.settings.mode || 'instant';
       }
@@ -2800,9 +2835,43 @@
     });
   }
 
+  function renderTitleSyncBadge() {
+    var box = document.getElementById('titleSyncStatus');
+    var input = document.getElementById('adminTitleInput');
+    if (!box || !input) return;
+    var val = String(input.value || '').replace(/[\r\n\t]+/g, ' ').trim();
+    var sheetName = appState.spreadsheetName || '';
+    if (!sheetName) {
+      box.innerHTML = '<span style="color:var(--text-muted);">📌 儲存後將統一更新網頁首頁標題、瀏覽器分頁與 Google 試算表檔名</span>';
+      return;
+    }
+    if (val && val === sheetName) {
+      box.innerHTML = '<span style="color:#047857; font-weight:700;">✅ 網頁首頁、瀏覽器分頁與 Google 試算表檔名一致：「' + escapeHtml(sheetName) + '」</span>';
+      return;
+    }
+    box.innerHTML = '<div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:7px 10px; color:#92400e; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">' +
+      '<span>⚠️ 目前 Google 試算表檔名為「<strong>' + escapeHtml(sheetName) + '</strong>」；按「儲存系統設定」將統一更名為上方名稱</span>' +
+      '<button type="button" id="adoptSheetNameBtn" onclick="adoptSpreadsheetName()" style="border:1px solid #d97706; background:#fff; color:#b45309; border-radius:6px; padding:3px 9px; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap;">改用試算表名稱並統一</button>' +
+      '</div>';
+  }
+
+  function adoptSpreadsheetName() {
+    if (!appState.spreadsheetName) return;
+    document.getElementById('adminTitleInput').value = appState.spreadsheetName;
+    renderTitleSyncBadge();
+    saveAdminSettings();
+  }
+
   function saveAdminSettings() {
+    var cleanTitle = String(document.getElementById('adminTitleInput').value || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 100);
+    if (!cleanTitle) {
+      showModal('格式錯誤', '請輸入「網頁與試算表統一名稱」（不可為空白）。');
+      return;
+    }
+    document.getElementById('adminTitleInput').value = cleanTitle;
+
     var newSettings = {
-      title: document.getElementById('adminTitleInput').value,
+      title: cleanTitle,
       mode: document.getElementById('adminSelectionMode') ? document.getElementById('adminSelectionMode').value : 'instant',
       openTime: document.getElementById('adminOpenTime').value,
       closeTime: document.getElementById('adminCloseTime').value,
@@ -2811,7 +2880,7 @@
       teacherPassword: document.getElementById('adminTeacherPass').value
     };
 
-    setLoading(true, '儲存設定中...');
+    setLoading(true, '儲存設定並同步試算表名稱中...');
     callGas('saveSystemSettings', [appState.adminToken, newSettings], function(res) {
       if (res && res.status === 'error') {
         showModal('儲存失敗', escapeHtml(res.message));
@@ -2820,11 +2889,15 @@
       document.getElementById('adminGeminiKey').value = '';
       document.getElementById('adminTeacherPass').value = '';
       if (newSettings.teacherPassword) document.getElementById('teacherPassWarn').style.display = 'none';
-      showModal('成功', '系統設定已儲存生效！');
+      if (res && res.spreadsheetName) appState.spreadsheetName = res.spreadsheetName;
+      applySystemTitle((res && res.title) || cleanTitle);
+      renderTitleSyncBadge();
+      showModal('成功', escapeHtml((res && res.message) || '系統設定已儲存生效！'));
       // 重新讀取公開設定，但不要把管理員導向「已截止」畫面
       callGas('getSystemSettings', [], function(s) {
         appState.settings = Object.assign({}, appState.settings, s);
-        document.getElementById('titleText').innerText = s.title || 'AI 智慧社團選社與適性導航系統';
+        applySystemTitle(s.title || cleanTitle);
+        renderTitleSyncBadge();
         checkTimeStatus(s, true);
       });
     });
