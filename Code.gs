@@ -600,7 +600,7 @@ function checkLoginRateLimit_(scope, account) {
     if ((info.count || 0) >= CONFIG.LOGIN_MAX_ATTEMPTS) {
       return {
         allowed: false,
-        message: `密碼連續錯誤達 ${CONFIG.LOGIN_MAX_ATTEMPTS} 次，帳號暫時鎖定 15 分鐘，請稍後再試或聯繫教務處／學務處。`
+        message: `密碼連續錯誤達 ${CONFIG.LOGIN_MAX_ATTEMPTS} 次，帳號暫時鎖定 15 分鐘；若忘記密碼請洽教務處註冊組。`
       };
     }
   } catch (e) {}
@@ -720,8 +720,8 @@ function verifyAndGetClubs(account, password) {
     return {
       status: 'error',
       message: fail.remaining > 0
-        ? `學號或密碼錯誤，還可嘗試 ${fail.remaining} 次。`
-        : '密碼連續錯誤達 5 次，帳號已鎖定 15 分鐘。'
+        ? `學號或密碼錯誤，還可嘗試 ${fail.remaining} 次；若忘記密碼請洽教務處註冊組。`
+        : '密碼連續錯誤達 5 次，帳號已鎖定 15 分鐘；若忘記密碼請洽教務處註冊組。'
     };
   }
 
@@ -732,8 +732,8 @@ function verifyAndGetClubs(account, password) {
     return {
       status: 'error',
       message: fail.remaining > 0
-        ? `學號或密碼錯誤（預設密碼為身分證後4碼+出生月日4碼），還可嘗試 ${fail.remaining} 次。`
-        : '密碼連續錯誤達 5 次，帳號已鎖定 15 分鐘。'
+        ? `學號或密碼錯誤（預設為身分證後4碼+出生月日4碼，如 56780509），還可嘗試 ${fail.remaining} 次；若忘記密碼請洽教務處註冊組。`
+        : '密碼連續錯誤達 5 次，帳號已鎖定 15 分鐘；若忘記密碼請洽教務處註冊組。'
     };
   }
 

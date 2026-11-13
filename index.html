@@ -953,11 +953,11 @@
       </div>
     </div>
 
-    <!-- 步驟 1: 學生登入驗證（比照成績查詢系統 7 碼學號 + 密碼） -->
+    <!-- 步驟 1: 學生登入驗證 -->
     <div id="stepLogin" class="step-section active">
       <div style="margin-bottom: 22px;">
         <h2 style="font-size: 20px; font-weight: 900; color: #0f172a;">學生帳號登入</h2>
-        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">帳號與密碼比照成績查詢系統，請輸入 7 碼學號與密碼進入選社。</p>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">請輸入 7 碼學號與密碼進入選社系統。</p>
       </div>
 
       <div class="form-group">
@@ -967,8 +967,18 @@
 
       <div class="form-group">
         <label for="studentPwdInput">登入密碼</label>
-        <input type="password" id="studentPwdInput" class="form-control" placeholder="預設密碼：身分證後4碼 + 出生月日4碼（如 12340520）" autocomplete="current-password" onkeydown="if(event.key==='Enter') doStudentLogin()">
-        <div class="help-text">🛡️ 密碼驗證與鎖定機制比照成績查詢系統（連續錯誤 5 次鎖定 15 分鐘），登入後可自行修改密碼。</div>
+        <input type="password" id="studentPwdInput" class="form-control" placeholder="預設密碼共 8 碼（身分證後4碼 + 生日4碼）" autocomplete="current-password" onkeydown="if(event.key==='Enter') doStudentLogin()">
+        <div class="pwd-guide-box" style="margin-top: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 13px; font-size: 12.5px; line-height: 1.6; color: #334155;">
+          <div style="font-weight: 800; color: #0f172a; margin-bottom: 3px; display: flex; align-items: center; gap: 4px;">
+            <span>💡 預設密碼規則：身分證字號後四碼 ＋ 出生月日四碼（共 8 碼）</span>
+          </div>
+          <div>
+            • <strong>舉例說明</strong>：若身分證字號末四碼為 <code style="background:#e2e8f0; padding:1px 5px; border-radius:4px; font-family:monospace; color:#0f172a; font-weight:700;">5678</code>，出生月日為 5 月 9 日請填寫四碼 <code style="background:#e2e8f0; padding:1px 5px; border-radius:4px; font-family:monospace; color:#0f172a; font-weight:700;">0509</code>，完整預設密碼即為 <code style="background:#e2e8f0; padding:1px 5px; border-radius:4px; font-family:monospace; color:#0f172a; font-weight:700;">56780509</code>。
+          </div>
+          <div style="margin-top: 3px; color: #64748b; font-size: 12px;">
+            • 登入後可自行變更個人密碼；密碼連續輸入錯誤達 5 次將鎖定 15 分鐘。若忘記密碼請洽<strong>教務處註冊組</strong>。
+          </div>
+        </div>
       </div>
 
       <div id="loginError" class="error-msg"></div>
@@ -1988,7 +1998,7 @@
 
     // 預設帳密提示只在展示模式顯示，避免在正式環境洩漏
     document.getElementById('studentAccountInput').placeholder = isMock ? '展示學號：11470101' : '例如：1130001';
-    document.getElementById('studentPwdInput').placeholder = isMock ? '展示密碼：67890101' : '預設密碼：身分證後4碼 + 出生月日4碼（如 12340520）';
+    document.getElementById('studentPwdInput').placeholder = isMock ? '展示密碼：67890101' : '預設密碼共 8 碼（身分證後4碼 + 生日4碼）';
     document.getElementById('teacherAccountInput').placeholder = isMock ? '展示教師帳號：tf51056' : '請輸入成績系統教師帳號（如 tf51056）';
     document.getElementById('teacherPwdInput').placeholder = isMock ? '展示密碼：701701' : '預設密碼為負責班級代碼兩次（如 701701）';
     document.getElementById('adminPwdInput').placeholder = isMock ? '展示密碼：admin' : '請輸入管理密碼';
