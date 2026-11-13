@@ -866,3 +866,136 @@ test('18. 跨校 28 所多元熱門社團（涵蓋體能、創客、藝術、音
   assert.equal(postPub.result.totalClubs, seedRes.clubs.length);
 });
 
+test('19. Gemini 2.5 Flash 升級與試算表內嵌 GEMINI_API_KEY：安全遮蔽、雙向同步與 AI 呼叫模型驗證', () => {
+  const { context, sheets, scriptProperties } = createGasMockEnvironment();
+  context.ensureSheetExists();
+
+  // (1) 模型版本必須已升級為 gemini-2.5-flash，且系統設定工作表自動補齊 GEMINI_API_KEY 列
+  assert.equal(vm.runInContext('CONFIG.GEMINI_MODEL', context), 'gemini-2.5-flash');
+  const cfgRows = sheets['系統設定'].getDataRange().getValues();
+  const keyRowIdx = cfgRows.findIndex(r => r[0] === 'GEMINI_API_KEY');
+  assert.ok(keyRowIdx >= 1, '系統設定工作表必須內含 GEMINI_API_KEY 設定列');
+
+  // (2) 未設定金鑰前，getSystemSettings 回傳 hasGeminiApiKey=false 且絕不外洩任何敏感欄位
+  const s1 = context.getSystemSettings();
+  assert.equal(s1.geminiModel, 'gemini-2.5-flash');
+  assert.equal(s1.hasGeminiApiKey, false);
+  assert.equal('geminiApiKey' in s1, false);
+  assert.equal('GEMINI_API_KEY' in s1, false);
+
+  // (3) 管理者直接在試算表「系統設定」填入 GEMINI_API_KEY
+  sheets['系統設定'].getRange(keyRowIdx + 1, 2).setValue('AIzaSheetKeySample_12345');
+  const s2 = context.getSystemSettings();
+  assert.equal(s2.hasGeminiApiKey, true);
+  assert.equal('geminiApiKey' in s2, false, '公開 API 絕不可回傳原始金鑰內容');
+
+  // 驗證 AI 顧問呼叫確實使用 gemini-2.5-flash 且讀取試算表內之金鑰
+  let calledUrl = '';
+  let sentPayload = null;
+  context.UrlFetchApp.fetch = (url, opts) => {
+    calledUrl = url;
+    sentPayload = JSON.parse(opts.payload);
+    return {
+      getResponseCode: () => 200,
+      getContentText: () => JSON.stringify({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                recommendations: [{ clubName: 'AI機器人創客社', matchScore: 98, reason: '符合創客實作探索' }],
+                encouragement: '勇敢嘗試新科技！'
+              })
+            }]
+          }
+        }]
+      })
+    };
+  };
+  const aiRes = context.aiConsultantRecommend('我想學寫程式跟做機器人', '7年級');
+  assert.equal(aiRes.status, 'success');
+  assert.equal(aiRes.source, 'gemini');
+  assert.equal(aiRes.model, 'gemini-2.5-flash');
+  assert.ok(calledUrl.includes('gemini-2.5-flash:generateContent'), `必須呼叫 gemini-2.5-flash 端點，實際為：${calledUrl}`);
+  assert.ok(calledUrl.includes('key=AIzaSheetKeySample_12345'), '必須優先使用試算表中的 GEMINI_API_KEY');
+  assert.ok(sentPayload.generationConfig.maxOutputTokens >= 2048, 'maxOutputTokens 應支援 Gemini 2.5 完整回應');
+
+  // (4) 透過後台 saveSystemSettings 更新金鑰時，必須同步寫回試算表與 ScriptProperties
+  const token = context.loginAdmin('test-password').token;
+  const saveRes = context.saveSystemSettings(token, { geminiApiKey: 'AIzaAdminPanelKey_999' });
+  assert.equal(saveRes.status, 'success');
+  assert.equal(saveRes.hasGeminiApiKey, true);
+  const updatedCfgRows = sheets['系統設定'].getDataRange().getValues();
+  const updatedKeyRow = updatedCfgRows.find(r => r[0] === 'GEMINI_API_KEY');
+  assert.equal(updatedKeyRow[1], 'AIzaAdminPanelKey_999');
+  assert.equal(scriptProperties.get('GEMINI_API_KEY'), 'AIzaAdminPanelKey_999');
+});
+
+test('20. 核心管理擴充（人工轉社與退選、超額特案、名額重算、異動紀錄稽核、各班完成率排行、社團健康警示名冊）', () => {
+  const { context, sheets } = createGasMockEnvironment();
+  context.ensureSheetExists();
+  const token = context.loginAdmin('test-password').token;
+
+  // 建立 1 人滿額測試社團與一般社團
+  assert.equal(context.saveClub(token, { name: '測試滿額籃球社', limit: 1, category: '體育競技', teacher: '陳教練', location: '體育館' }).status, 'success');
+  assert.equal(context.saveClub(token, { name: '測試AI創客社', limit: 10, category: '科技創客', teacher: '李老師', location: '創客教室' }).status, 'success');
+
+  // (1) 後台學生搜尋（查詢種子學生 11470201 陳建宏，含健康安全提醒）
+  const searchRes = context.searchStudentForAdmin(token, '11470201');
+  assert.equal(searchRes.status, 'success');
+  assert.equal(searchRes.students.length, 1);
+  assert.equal(searchRes.students[0].name, '陳建宏');
+  assert.equal(searchRes.students[0].healthNotice, '氣喘，劇烈運動注意');
+
+  // 先將 11470201 人工安置進入「測試滿額籃球社」（1/1 滿額）
+  const initAssign = context.adminTransferStudentClub(token, '11470201', '測試滿額籃球社', '人工安置', false);
+  assert.equal(initAssign.status, 'success');
+  assert.equal(initAssign.clubs.find(c => c.name === '測試滿額籃球社').current, 1);
+
+  // (2) 嘗試把 11470102（李小美）塞進已滿額的「測試滿額籃球社」，未開啟 forceOverLimit 應拒絕
+  const blockedRes = context.adminTransferStudentClub(token, '11470102', '測試滿額籃球社', '一般轉社', false);
+  assert.equal(blockedRes.status, 'error');
+  assert.ok(blockedRes.message.includes('目前已額滿'));
+
+  // 開啟 forceOverLimit 特案安置應成功，並重算為 2 人
+  const forcedRes = context.adminTransferStudentClub(token, '11470102', '測試滿額籃球社', '特教適性超額安置', true);
+  assert.equal(forcedRes.status, 'success');
+  assert.equal(forcedRes.clubs.find(c => c.name === '測試滿額籃球社').current, 2);
+
+  // (3) 把 11470201 轉到「測試AI創客社」，確認籃球社自動減為 1 人、創客社增為 1 人
+  const moveRes = context.adminTransferStudentClub(token, '11470201', '測試AI創客社', '學生興趣調整', false);
+  assert.equal(moveRes.status, 'success');
+  assert.equal(moveRes.clubs.find(c => c.name === '測試滿額籃球社').current, 1);
+  assert.equal(moveRes.clubs.find(c => c.name === '測試AI創客社').current, 1);
+
+  // (4) 把 11470102 退選清空，確認籃球社歸 0
+  const dropRes = context.adminTransferStudentClub(token, '11470102', '', '轉學退選', false);
+  assert.equal(dropRes.status, 'success');
+  assert.equal(dropRes.clubs.find(c => c.name === '測試滿額籃球社').current, 0);
+
+  // (5) 驗證「異動紀錄」工作表已寫入且受系統健檢保護
+  assert.ok(sheets['異動紀錄'], '執行轉社後必須建立異動紀錄工作表');
+  const auditRows = sheets['異動紀錄'].getDataRange().getValues();
+  assert.ok(auditRows.length >= 5, '應包含表頭與 4 筆異動紀錄');
+  const sheetAudit = context.getSpreadsheetAudit(token);
+  const logAudit = sheetAudit.sheets.find(s => s.name === '異動紀錄');
+  assert.ok(logAudit && logAudit.usedByApp === true, '異動紀錄必須標記為受保護分頁');
+
+  // (6) 後台數據看板應回傳依完成率由低至高排序的 classProgress（702 全班 1 人已錄取=100%，701 僅張志豪保障=33%）
+  const dash = context.getAdminDashboardData(token);
+  assert.equal(dash.status, 'success');
+  assert.ok(Array.isArray(dash.classProgress) && dash.classProgress.length >= 2);
+  const cls702 = dash.classProgress.find(c => c.className === '702');
+  const cls701 = dash.classProgress.find(c => c.className === '701');
+  assert.equal(cls702.rate, 100);
+  assert.ok(cls701.rate < 100);
+  assert.ok(dash.classProgress[0].rate <= dash.classProgress[dash.classProgress.length - 1].rate, 'classProgress 必須依完成率由低至高排序');
+
+  // (7) 社員名冊與健康警示 API
+  const roster = context.getClubRosterForAdmin(token, '測試AI創客社');
+  assert.equal(roster.status, 'success');
+  assert.equal(roster.students.length, 1);
+  assert.equal(roster.healthCount, 1);
+  assert.equal(roster.students[0].healthNotice, '氣喘，劇烈運動注意');
+});
+
+
