@@ -30,7 +30,7 @@ const CONFIG = {
   // 成績查詢系統（https://coolokey.github.io/dsjh-score/）後台試算表 ID：僅供唯讀匯入學生名單與導師名單，絕不修改來源
   SCORE_SOURCE_SPREADSHEET_ID: '1cLrFMTA-gXTDQFKzW2E1C186_WJ0SuwMhky1_RL2Q3U',
   API_VERSION: '2026.11-pages-api',
-  REQUIRED_SHEETS: ['社團設定', '學生名冊', '導師名單', '管理者名單', '系統設定', '社團點名簽到冊']
+  REQUIRED_SHEETS: ['社團設定', '學生名單', '導師名單', '管理者名單', '系統設定', '社團點名簽到冊']
 };
 
 // 全域執行週期單例快取，避免重複 openById
@@ -378,11 +378,11 @@ function ensureSheetExists() {
         console.warn('Auto canonical clubs seed skipped: ' + e.message);
       }
     }
-    if (props.getProperty('SCORE_SYNC_V') !== '1') {
+    if (props.getProperty('SCORE_SYNC_V') !== '20261113_student_list') {
       try {
         const syncRes = syncDirectoryFromScoreDb_(getSpreadsheet());
         if (syncRes && syncRes.status === 'success') {
-          props.setProperty('SCORE_SYNC_V', '1');
+          props.setProperty('SCORE_SYNC_V', '20261113_student_list');
         }
       } catch (e) {
         console.warn('Auto score directory sync skipped: ' + e.message);
@@ -406,26 +406,46 @@ function ensureSheetExists() {
     seedCanonicalClubsToSheet_(ss, true);
   }
 
-  // 2. 學生名冊表（對齊成績系統 學號／出生月日／密碼 + 社團選填、Email、保障鎖定、健康提醒）
-  let studentSheet = ss.getSheetByName('學生名冊');
+  // 2. 學生名單表（直接以成績系統「學生名單」取代原學生名冊）
+  let studentSheet = ss.getSheetByName('學生名單');
   if (!studentSheet) {
-    studentSheet = ss.insertSheet('學生名冊');
+    const oldRoster = ss.getSheetByName('學生名冊');
+    if (oldRoster) {
+      try {
+        oldRoster.setName('學生名單');
+        studentSheet = oldRoster;
+      } catch (e) {
+        studentSheet = ss.insertSheet('學生名單');
+      }
+    } else {
+      studentSheet = ss.insertSheet('學生名單');
+    }
+  }
+
+  // 確保舊「學生名冊」分頁若仍存在則予以刪除
+  const legacyRoster = ss.getSheetByName('學生名冊');
+  if (legacyRoster && ss.getSheetByName('學生名單') && legacyRoster !== ss.getSheetByName('學生名單')) {
+    try { ss.deleteSheet(legacyRoster); } catch (e) {}
+  }
+
+  if (studentSheet.getLastRow() <= 1) {
+    studentSheet.clearContents();
     studentSheet.appendRow([
-      '班級', '座號', '姓名', '身分證字號', '學生Email',
-      '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間',
-      '分發備註', '保障身分鎖定', '健康安全提醒', '學號', '出生月日', '登入密碼'
+      '學號', '姓名', '班級', '座號', '身分證後四碼', '出生月日', '密碼',
+      '學生Email', '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間',
+      '分發備註', '保障身分鎖定', '健康安全提醒'
     ]);
     studentSheet.getRange(1, 1, 1, 16).setBackground('#0f9d58').setFontColor('#ffffff').setFontWeight('bold');
 
     const demoStudents = [
-      ['701', '01', '王大明', '6789', 'daxi_70101@example.com', '', '', '', '', '', '', '', '', '11470101', '0101', '67890101'],
-      ['701', '02', '李小美', '6789', 'daxi_70102@example.com', '', '', '', '', '', '', '', '', '11470102', '0202', '67890202'],
-      ['701', '03', '張志豪', '6789', 'daxi_70103@example.com', '', '', '', '', '', '', '校隊保障(籃球)', '', '11470103', '0303', '67890303'],
-      ['701', '04', '林佩君', '6789', 'daxi_70104@example.com', '', '', '', '', '', '', '', '氣喘，劇烈運動需注意', '11470104', '0404', '67890404'],
-      ['702', '01', '陳建宏', '6789', 'daxi_70201@example.com', '', '', '', '', '', '', '', '', '11470201', '0505', '67890505'],
-      ['702', '02', '黃雅婷', '6789', 'daxi_70202@example.com', '', '', '', '', '', '', '', '', '11470202', '0606', '67890606'],
-      ['702', '03', '吳宗憲', '6789', 'daxi_70203@example.com', '', '', '', '', '', '', '', '', '11470203', '0707', '67890707'],
-      ['702', '04', '蔡依林', '6789', 'daxi_70204@example.com', '', '', '', '', '', '', '', '', '11470204', '0808', '67890808']
+      ['11470101', '王大明', '701', '01', '6789', '0101', '67890101', 'daxi_70101@example.com', '', '', '', '', '', '', '', ''],
+      ['11470102', '李小美', '701', '02', '6789', '0202', '67890202', 'daxi_70102@example.com', '', '', '', '', '', '', '', ''],
+      ['11470103', '張志豪', '701', '03', '6789', '0303', '67890303', 'daxi_70103@example.com', '', '', '', '', '', '', '校隊保障(籃球)', ''],
+      ['11470104', '林佩君', '701', '04', '6789', '0404', '67890404', 'daxi_70104@example.com', '', '', '', '', '', '', '', '氣喘，劇烈運動需注意'],
+      ['11470201', '陳建宏', '702', '01', '6789', '0505', '67890505', 'daxi_70201@example.com', '', '', '', '', '', '', '', ''],
+      ['11470202', '黃雅婷', '702', '02', '6789', '0606', '67890606', 'daxi_70202@example.com', '', '', '', '', '', '', '', ''],
+      ['11470203', '吳宗憲', '702', '03', '6789', '0707', '67890707', 'daxi_70203@example.com', '', '', '', '', '', '', '', ''],
+      ['11470204', '蔡依林', '702', '04', '6789', '0808', '67890808', 'daxi_70204@example.com', '', '', '', '', '', '', '', '']
     ];
     studentSheet.getRange(2, 1, demoStudents.length, 16).setValues(demoStudents);
   }
@@ -781,7 +801,7 @@ function saveClub(adminToken, club) {
   const name = String(club.name || '').trim().slice(0, 40);
   const limit = parseInt(club.limit, 10);
   if (!name) return { status: 'error', message: '社團名稱為必填！' };
-  // 社團名稱會被學生名冊引用，必須與儲存值完全一致，因此直接拒絕可能被當成公式的開頭
+  // 社團名稱會被學生名單引用，必須與儲存值完全一致，因此直接拒絕可能被當成公式的開頭
   if (/^[=+\-@]/.test(name)) return { status: 'error', message: '社團名稱不可以 = + - @ 開頭！' };
   if (!(limit > 0) || limit > 500) return { status: 'error', message: '人數上限需為 1～500 的整數！' };
   const original = String(club.originalName || '').trim();
@@ -1019,21 +1039,36 @@ function verifyTeacherSession_(token) {
 
 function getStudentColIndex_(headerRow) {
   const idx = {
-    className: 0, seat: 1, name: 2, idLast4: 3, email: 4,
-    pref1: 5, pref2: 6, pref3: 7, assignedClub: 8, selectedTime: 9,
-    note: 10, lockedClub: 11, healthNotice: 12,
-    studentId: 13, birthMMDD: 14, password: 15
+    studentId: 0, name: 1, className: 2, seat: 3, idLast4: 4, birthMMDD: 5, password: 6,
+    email: 7, pref1: 8, pref2: 9, pref3: 10, assignedClub: 11, selectedTime: 12,
+    note: 13, lockedClub: 14, healthNotice: 15
   };
   if (Array.isArray(headerRow)) {
     for (let c = 0; c < headerRow.length; c++) {
       const h = String(headerRow[c] || '').trim();
       if (h === '學號') idx.studentId = c;
+      else if (h === '姓名') idx.name = c;
+      else if (h === '班級' || h === '負責班級') idx.className = c;
+      else if (h === '座號') idx.seat = c;
+      else if (h === '身分證後四碼' || h === '身分證字號') idx.idLast4 = c;
       else if (h === '出生月日') idx.birthMMDD = c;
       else if (h === '登入密碼' || h === '密碼') idx.password = c;
-      else if (h === '身分證後四碼' || h === '身分證字號') idx.idLast4 = c;
+      else if (h === '學生Email' || h === 'Email') idx.email = c;
+      else if (h === '第一志願') idx.pref1 = c;
+      else if (h === '第二志願') idx.pref2 = c;
+      else if (h === '第三志願') idx.pref3 = c;
+      else if (h === '錄取社團') idx.assignedClub = c;
+      else if (h === '選填時間') idx.selectedTime = c;
+      else if (h === '分發備註') idx.note = c;
+      else if (h === '保障身分鎖定') idx.lockedClub = c;
+      else if (h === '健康安全提醒') idx.healthNotice = c;
     }
   }
   return idx;
+}
+
+function getStudentSheet_(ss) {
+  return ss.getSheetByName('學生名單') || ss.getSheetByName('學生名冊');
 }
 
 function buildStudentFallbackPwd_(row, cols) {
@@ -1044,12 +1079,15 @@ function buildStudentFallbackPwd_(row, cols) {
 
 function getClassList() {
   const ss = getSpreadsheet();
-  const sheet = ss.getSheetByName('學生名冊');
+  const sheet = getStudentSheet_(ss);
+  if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  const cols = getStudentColIndex_(data[0]);
   const classSet = {};
 
   for (let i = 1; i < data.length; i++) {
-    const cls = normalizeClassCode_(data[i][0]);
+    const cls = normalizeClassCode_(data[i][cols.className]);
     if (cls) classSet[cls] = true;
   }
 
@@ -1069,7 +1107,8 @@ function verifyAndGetClubs(account, password) {
   }
 
   const ss = getSpreadsheet();
-  const studentSheet = ss.getSheetByName('學生名冊');
+  const studentSheet = getStudentSheet_(ss);
+  if (!studentSheet) return { status: 'error', message: '尚未建立學生名單工作表！' };
   const sData = studentSheet.getDataRange().getDisplayValues();
   const cols = getStudentColIndex_(sData[0]);
 
@@ -1158,7 +1197,8 @@ function verifyAndGetClubs(account, password) {
 
 function buildStudentDashboardResponse_(studentId, token) {
   const ss = getSpreadsheet();
-  const studentSheet = ss.getSheetByName('學生名冊');
+  const studentSheet = getStudentSheet_(ss);
+  if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
   const sData = studentSheet.getDataRange().getDisplayValues();
   const cols = getStudentColIndex_(sData[0]);
 
@@ -1207,52 +1247,10 @@ function buildStudentDashboardResponse_(studentId, token) {
 }
 
 function changeStudentPassword(studentToken, currentPassword, newPassword) {
-  const session = verifyStudentSession_(studentToken);
-  if (!session) {
-    return { status: 'error', message: '登入階段已逾時，請重新以學號密碼登入！' };
-  }
-  if (!currentPassword || !newPassword) {
-    return { status: 'error', message: '請填寫目前密碼與新密碼！' };
-  }
-  if (String(newPassword).length < 6) {
-    return { status: 'error', message: '新密碼長度至少需 6 個字元！' };
-  }
-  if (String(newPassword) === String(currentPassword)) {
-    return { status: 'error', message: '新密碼不可與目前密碼相同！' };
-  }
-
-  const lock = LockService.getScriptLock();
-  try {
-    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) {
-      return { status: 'error', message: '伺服器忙碌中，請稍後再試。' };
-    }
-    const ss = getSpreadsheet();
-    const studentSheet = ss.getSheetByName('學生名冊');
-    const sData = studentSheet.getDataRange().getDisplayValues();
-    const cols = getStudentColIndex_(sData[0]);
-
-    for (let i = 1; i < sData.length; i++) {
-      const rowId = String(sData[i][cols.studentId] || '').trim();
-      if (rowId && rowId.toLowerCase() === String(session.studentId).toLowerCase()) {
-        const storedPwd = String(sData[i][cols.password] || '').trim();
-        const effectivePwd = storedPwd || buildStudentFallbackPwd_(sData[i], cols);
-        if (!verifyScorePassword_(currentPassword, rowId, effectivePwd, true)) {
-          return { status: 'error', message: '目前密碼不正確，請重新確認！' };
-        }
-        const hashed = hashScorePassword_(rowId, newPassword);
-        const pwdCell = studentSheet.getRange(i + 1, cols.password + 1);
-        if (typeof pwdCell.setNumberFormat === 'function') pwdCell.setNumberFormat('@');
-        pwdCell.setValue(hashed);
-        return { status: 'success', message: '密碼變更成功！下次請使用新密碼登入。' };
-      }
-    }
-    return { status: 'error', message: '查無此學生帳號！' };
-  } catch (err) {
-    console.error('changeStudentPassword error: ' + err.message);
-    return { status: 'error', message: '密碼更新失敗：' + err.message };
-  } finally {
-    lock.releaseLock();
-  }
+  return {
+    status: 'error',
+    message: '本系統學生密碼由教務處註冊組統一管理，不開放線上自行變更；若忘記密碼請洽教務處註冊組。'
+  };
 }
 
 function getClubList() {
@@ -1304,8 +1302,9 @@ function submitSelection(studentToken, selectedClub) {
     }
 
     const ss = getSpreadsheet();
-    const studentSheet = ss.getSheetByName('學生名冊');
+    const studentSheet = getStudentSheet_(ss);
     const clubSheet = ss.getSheetByName('社團設定');
+    if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
 
     const sData = studentSheet.getDataRange().getDisplayValues();
     const cols = getStudentColIndex_(sData[0]);
@@ -1400,9 +1399,9 @@ function submitSelection(studentToken, selectedClub) {
 
     // 4. 原子寫入試算表
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
-    studentSheet.getRange(studentRowIndex, 9).setValue(selectedClub);
-    studentSheet.getRange(studentRowIndex, 10).setValue(timestamp);
-    studentSheet.getRange(studentRowIndex, 11).setValue('即時選填成功');
+    studentSheet.getRange(studentRowIndex, cols.assignedClub + 1).setValue(selectedClub);
+    studentSheet.getRange(studentRowIndex, cols.selectedTime + 1).setValue(timestamp);
+    studentSheet.getRange(studentRowIndex, cols.note + 1).setValue('即時選填成功');
 
     clubSheet.getRange(clubRowIndex, 3).setValue(current + 1);
 
@@ -1450,7 +1449,8 @@ function submitPreferences(studentToken, pref1, pref2, pref3) {
   }
 
   const ss = getSpreadsheet();
-  const sheet = ss.getSheetByName('學生名冊');
+  const sheet = getStudentSheet_(ss);
+  if (!sheet) return { status: 'error', message: '查無學生名單工作表！' };
   const data = sheet.getDataRange().getDisplayValues();
   const cols = getStudentColIndex_(data[0]);
 
@@ -1466,9 +1466,11 @@ function submitPreferences(studentToken, pref1, pref2, pref3) {
   if (studentRowIndex === -1) return { status: 'error', message: '查無此學生資料！' };
 
   const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
-  sheet.getRange(studentRowIndex, 6, 1, 3).setValues([[pref1, pref2 || '', pref3 || '']]);
-  sheet.getRange(studentRowIndex, 10).setValue(timestamp);
-  sheet.getRange(studentRowIndex, 11).setValue('志願已登記，待分發');
+  sheet.getRange(studentRowIndex, cols.pref1 + 1).setValue(pref1);
+  sheet.getRange(studentRowIndex, cols.pref2 + 1).setValue(pref2 || '');
+  sheet.getRange(studentRowIndex, cols.pref3 + 1).setValue(pref3 || '');
+  sheet.getRange(studentRowIndex, cols.selectedTime + 1).setValue(timestamp);
+  sheet.getRange(studentRowIndex, cols.note + 1).setValue('志願已登記，待分發');
 
   return {
     status: 'success',
@@ -1501,8 +1503,9 @@ function cancelSelection(studentToken) {
     }
 
     const ss = getSpreadsheet();
-    const studentSheet = ss.getSheetByName('學生名冊');
+    const studentSheet = getStudentSheet_(ss);
     const clubSheet = ss.getSheetByName('社團設定');
+    if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
     const sData = studentSheet.getDataRange().getDisplayValues();
     const cols = getStudentColIndex_(sData[0]);
     const cData = clubSheet.getDataRange().getValues();
@@ -1532,8 +1535,8 @@ function cancelSelection(studentToken) {
           break;
         }
       }
-      studentSheet.getRange(studentRowIndex, 9).setValue('');
-      studentSheet.getRange(studentRowIndex, 11).setValue('開放期間重新改選');
+      studentSheet.getRange(studentRowIndex, cols.assignedClub + 1).setValue('');
+      studentSheet.getRange(studentRowIndex, cols.note + 1).setValue('開放期間重新改選');
     }
 
     return buildStudentDashboardResponse_(session.studentId, studentToken);
@@ -1791,8 +1794,10 @@ function sendAdmissionEmail_(student, club, timestamp) {
 function getAdminDashboardData(adminToken) {
   assertAdminAuth_(adminToken);
   const ss = getSpreadsheet();
-  const studentSheet = ss.getSheetByName('學生名冊');
+  const studentSheet = getStudentSheet_(ss);
+  if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
   const sData = studentSheet.getDataRange().getValues();
+  const cols = getStudentColIndex_(sData[0]);
 
   let totalStudents = 0;
   let enrolledCount = 0;
@@ -1801,22 +1806,24 @@ function getAdminDashboardData(adminToken) {
   const unassignedStudents = [];
 
   for (let i = 1; i < sData.length; i++) {
-    const cls = sData[i][0];
+    const cls = sData[i][cols.className];
     if (cls) {
       totalStudents++;
-      if (sData[i][8] || sData[i][11]) {
+      const assigned = sData[i][cols.assignedClub];
+      const locked = sData[i][cols.lockedClub];
+      if (assigned || locked) {
         enrolledCount++;
       } else {
         unassignedCount++;
         unassignedStudents.push({
-          className: String(sData[i][0]).trim(),
-          seat: String(sData[i][1]).trim(),
-          name: String(sData[i][2]).trim(),
-          pref1: String(sData[i][5] || '').trim()
+          className: String(sData[i][cols.className] || '').trim(),
+          seat: String(sData[i][cols.seat] || '').trim(),
+          name: String(sData[i][cols.name] || '').trim(),
+          pref1: String(sData[i][cols.pref1] || '').trim()
         });
       }
 
-      if (sData[i][5]) preferencesFilledCount++;
+      if (sData[i][cols.pref1]) preferencesFilledCount++;
     }
   }
 
@@ -1856,10 +1863,12 @@ function runAiSmartAllocation(adminToken, previewToken) {
     if (!hasLock) return { status: 'error', message: '伺服器忙碌中，分發作業請稍候再試。' };
 
     const ss = getSpreadsheet();
-    const studentSheet = ss.getSheetByName('學生名冊');
+    const studentSheet = getStudentSheet_(ss);
     const clubSheet = ss.getSheetByName('社團設定');
+    if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
 
     const sData = studentSheet.getDataRange().getValues();
+    const cols = getStudentColIndex_(sData[0]);
     const cData = clubSheet.getDataRange().getValues();
     const settings = getSystemSettings();
     const maxPerClass = settings.maxPerClass || CONFIG.MAX_PER_CLASS_PER_CLUB;
@@ -1898,19 +1907,19 @@ function runAiSmartAllocation(adminToken, previewToken) {
     // 2. 🛡️ 先將「既有已錄取或保障」學生納入佔位，絕不覆蓋清零！
     const pendingStudents = [];
     for (let i = 1; i < sData.length; i++) {
-      const cls = normalizeClassCode_(sData[i][0]);
-      const currentAssigned = String(sData[i][8] || '').trim();
-      const lockedClub = String(sData[i][11] || '').trim();
+      const cls = normalizeClassCode_(sData[i][cols.className]);
+      const currentAssigned = String(sData[i][cols.assignedClub] || '').trim();
+      const lockedClub = String(sData[i][cols.lockedClub] || '').trim();
 
       const studentObj = {
         rowIdx: i,
         className: cls,
-        seat: padSeatNo_(sData[i][1]),
-        name: String(sData[i][2]).trim(),
-        email: String(sData[i][4] || '').trim(),
-        prefs: [sData[i][5], sData[i][6], sData[i][7]].map(p => String(p || '').trim()),
+        seat: padSeatNo_(sData[i][cols.seat]),
+        name: String(sData[i][cols.name]).trim(),
+        email: String(sData[i][cols.email] || '').trim(),
+        prefs: [sData[i][cols.pref1], sData[i][cols.pref2], sData[i][cols.pref3]].map(p => String(p || '').trim()),
         assigned: currentAssigned,
-        note: String(sData[i][10] || '').trim(),
+        note: String(sData[i][cols.note] || '').trim(),
         lotteryNo: null
       };
 
@@ -1920,8 +1929,8 @@ function runAiSmartAllocation(adminToken, previewToken) {
         studentObj.note = '身分優先保障錄取';
         clubMap[lockedClub].assigned.push(studentObj);
         clubMap[lockedClub].classCounts[cls] = (clubMap[lockedClub].classCounts[cls] || 0) + 1;
-        sData[i][8] = lockedClub;
-        sData[i][10] = studentObj.note;
+        sData[i][cols.assignedClub] = lockedClub;
+        sData[i][cols.note] = studentObj.note;
       } else if (currentAssigned && clubMap[currentAssigned]) {
         // 原本已錄取者保留
         clubMap[currentAssigned].assigned.push(studentObj);
@@ -1992,9 +2001,9 @@ function runAiSmartAllocation(adminToken, previewToken) {
     // 6. ⚡ 效能關鍵：批次寫回記憶體陣列（只呼叫 2 次 setValues，徹底排除超時）
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
     pendingStudents.forEach(s => {
-      sData[s.rowIdx][8] = s.assigned || '';
-      sData[s.rowIdx][9] = s.assigned ? timestamp : '';
-      sData[s.rowIdx][10] = s.note || '';
+      sData[s.rowIdx][cols.assignedClub] = s.assigned || '';
+      sData[s.rowIdx][cols.selectedTime] = s.assigned ? timestamp : '';
+      sData[s.rowIdx][cols.note] = s.note || '';
     });
 
     Object.keys(clubMap).forEach(k => {
@@ -2037,10 +2046,12 @@ function runAiSmartAllocation(adminToken, previewToken) {
 function batchSendAllocationEmails(adminToken) {
   assertAdminAuth_(adminToken);
   const ss = getSpreadsheet();
-  const studentSheet = ss.getSheetByName('學生名冊');
+  const studentSheet = getStudentSheet_(ss);
   const clubSheet = ss.getSheetByName('社團設定');
+  if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
 
   const sData = studentSheet.getDataRange().getValues();
+  const cols = getStudentColIndex_(sData[0]);
   const cData = clubSheet.getDataRange().getValues();
 
   const clubInfoMap = {};
@@ -2056,17 +2067,17 @@ function batchSendAllocationEmails(adminToken) {
   const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
 
   for (let i = 1; i < sData.length; i++) {
-    const email = String(sData[i][4] || '').trim();
-    const assigned = String(sData[i][8] || '').trim();
+    const email = String(sData[i][cols.email] || '').trim();
+    const assigned = String(sData[i][cols.assignedClub] || '').trim();
 
     if (email && email.includes('@') && assigned && clubInfoMap[assigned]) {
       const student = {
-        className: sData[i][0],
-        seat: sData[i][1],
-        name: sData[i][2],
+        className: sData[i][cols.className],
+        seat: sData[i][cols.seat],
+        name: sData[i][cols.name],
         email: email
       };
-      const ok = sendAdmissionEmail_(student, clubInfoMap[assigned], sData[i][9] || timestamp);
+      const ok = sendAdmissionEmail_(student, clubInfoMap[assigned], sData[i][cols.selectedTime] || timestamp);
       if (ok) sentCount++;
     }
   }
@@ -2084,10 +2095,12 @@ function batchSendAllocationEmails(adminToken) {
 function exportAttendanceSheets(adminToken) {
   assertAdminAuth_(adminToken);
   const ss = getSpreadsheet();
-  const studentSheet = ss.getSheetByName('學生名冊');
+  const studentSheet = getStudentSheet_(ss);
   const clubSheet = ss.getSheetByName('社團設定');
+  if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
 
   const sData = studentSheet.getDataRange().getValues();
+  const cols = getStudentColIndex_(sData[0]);
   const cData = clubSheet.getDataRange().getValues();
 
   const clubStudents = {};
@@ -2103,13 +2116,13 @@ function exportAttendanceSheets(adminToken) {
   }
 
   for (let i = 1; i < sData.length; i++) {
-    const assigned = String(sData[i][8] || '').trim();
+    const assigned = String(sData[i][cols.assignedClub] || '').trim();
     if (assigned && clubStudents[assigned]) {
       clubStudents[assigned].list.push({
-        className: sData[i][0],
-        seat: sData[i][1],
-        name: sData[i][2],
-        health: sData[i][12] || ''
+        className: sData[i][cols.className],
+        seat: sData[i][cols.seat],
+        name: sData[i][cols.name],
+        health: sData[i][cols.healthNotice] || ''
       });
     }
   }
@@ -2369,7 +2382,8 @@ function getHomeroomClassData(className, authToken) {
   }
 
   const ss = getSpreadsheet();
-  const studentSheet = ss.getSheetByName('學生名冊');
+  const studentSheet = getStudentSheet_(ss);
+  if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
   const data = studentSheet.getDataRange().getDisplayValues();
   const cols = getStudentColIndex_(data[0]);
 
@@ -2658,7 +2672,7 @@ function syncDirectoryFromScoreDb_(ss) {
   let teachersCount = 0;
   let preservedSelections = 0;
 
-  // 1. 複製「學生名單」->「學生名冊」（保留既有選社成果與社團內已修改之 sha256 密碼）
+  // 1. 複製「學生名單」->「學生名單」（取代舊學生名冊，保留既有選社成果）
   if (srcStudentSheet) {
     const srcRows = getSheetDisplayRows_(srcStudentSheet);
     if (srcRows.length >= 1) {
@@ -2672,44 +2686,60 @@ function syncDirectoryFromScoreDb_(ss) {
       const idxPwd = findHeaderCol_(sh, ['密碼', '登入密碼'], 6);
 
       const targetHeaders = [
-        '班級', '座號', '姓名', '身分證字號', '學生Email',
-        '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間',
-        '分發備註', '保障身分鎖定', '健康安全提醒', '學號', '出生月日', '登入密碼'
+        '學號', '姓名', '班級', '座號', '身分證後四碼', '出生月日', '密碼',
+        '學生Email', '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間',
+        '分發備註', '保障身分鎖定', '健康安全提醒'
       ];
 
-      let targetStudentSheet = ss.getSheetByName('學生名冊');
-      if (!targetStudentSheet) {
-        targetStudentSheet = ss.insertSheet('學生名冊');
+      let targetStudentSheet = ss.getSheetByName('學生名單');
+      const legacyRoster = ss.getSheetByName('學生名冊');
+      if (!targetStudentSheet && legacyRoster) {
+        try {
+          legacyRoster.setName('學生名單');
+          targetStudentSheet = legacyRoster;
+        } catch (e) {
+          targetStudentSheet = ss.insertSheet('學生名單');
+        }
+      } else if (!targetStudentSheet) {
+        targetStudentSheet = ss.insertSheet('學生名單');
       }
 
-      const existingRows = targetStudentSheet.getLastRow() > 0 ? getSheetDisplayRows_(targetStudentSheet) : [];
-      const existingCols = getStudentColIndex_(existingRows[0] || targetHeaders);
+      // 從現有「學生名單」與舊「學生名冊」中完整讀取並保留已選填之社團志願紀錄
       const existingById = {};
       const existingByClassSeat = {};
 
-      for (let i = 1; i < existingRows.length; i++) {
-        const r = existingRows[i];
-        const sid = String(r[existingCols.studentId] || '').trim().toLowerCase();
-        const cls = normalizeClassCode_(r[existingCols.className]);
-        const seat = padSeatNo_(r[existingCols.seat]);
-        const record = {
-          email: String(r[existingCols.email] || '').trim(),
-          pref1: String(r[existingCols.pref1] || '').trim(),
-          pref2: String(r[existingCols.pref2] || '').trim(),
-          pref3: String(r[existingCols.pref3] || '').trim(),
-          assignedClub: String(r[existingCols.assignedClub] || '').trim(),
-          selectedTime: String(r[existingCols.selectedTime] || '').trim(),
-          note: String(r[existingCols.note] || '').trim(),
-          lockedClub: String(r[existingCols.lockedClub] || '').trim(),
-          healthNotice: String(r[existingCols.healthNotice] || '').trim(),
-          password: String(r[existingCols.password] || '').trim()
-        };
-        const isDemoPlaceholder = /^daxi_\d+@example\.com$/i.test(record.email) &&
-          !record.assignedClub && !record.pref1 && !record.lockedClub;
-        if (isDemoPlaceholder) continue;
-        if (sid) existingById[sid] = record;
-        if (cls && seat) existingByClassSeat[cls + '_' + seat] = record;
-      }
+      const collectExisting_ = function(sheet) {
+        if (!sheet || sheet.getLastRow() <= 1) return;
+        const rows = getSheetDisplayRows_(sheet);
+        if (rows.length <= 1) return;
+        const cols = getStudentColIndex_(rows[0] || targetHeaders);
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const sid = String(r[cols.studentId] || '').trim().toLowerCase();
+          const cls = normalizeClassCode_(r[cols.className]);
+          const seat = padSeatNo_(r[cols.seat]);
+          const record = {
+            email: String(r[cols.email] || '').trim(),
+            pref1: String(r[cols.pref1] || '').trim(),
+            pref2: String(r[cols.pref2] || '').trim(),
+            pref3: String(r[cols.pref3] || '').trim(),
+            assignedClub: String(r[cols.assignedClub] || '').trim(),
+            selectedTime: String(r[cols.selectedTime] || '').trim(),
+            note: String(r[cols.note] || '').trim(),
+            lockedClub: String(r[cols.lockedClub] || '').trim(),
+            healthNotice: String(r[cols.healthNotice] || '').trim(),
+            password: String(r[cols.password] || '').trim()
+          };
+          const isDemoPlaceholder = /^daxi_\d+@example\.com$/i.test(record.email) &&
+            !record.assignedClub && !record.pref1 && !record.lockedClub;
+          if (isDemoPlaceholder) continue;
+          if (sid) existingById[sid] = record;
+          if (cls && seat) existingByClassSeat[cls + '_' + seat] = record;
+        }
+      };
+
+      if (legacyRoster) collectExisting_(legacyRoster);
+      if (targetStudentSheet && targetStudentSheet !== legacyRoster) collectExisting_(targetStudentSheet);
 
       const nextRows = [targetHeaders];
       for (let i = 1; i < srcRows.length; i++) {
@@ -2729,15 +2759,18 @@ function syncDirectoryFromScoreDb_(ss) {
           preservedSelections++;
         }
 
-        const effectivePassword = (prev && prev.password.indexOf('sha256$') === 0)
+        const effectivePassword = (prev && prev.password && prev.password.indexOf('sha256$') === 0)
           ? prev.password
           : (srcPwd || (idLast4 && birthMMDD ? idLast4 + birthMMDD : ''));
 
         nextRows.push([
+          sid,
+          name,
           cls,
           seat,
-          name,
           idLast4,
+          birthMMDD,
+          effectivePassword,
           prev ? prev.email : '',
           prev ? prev.pref1 : '',
           prev ? prev.pref2 : '',
@@ -2746,10 +2779,7 @@ function syncDirectoryFromScoreDb_(ss) {
           prev ? prev.selectedTime : '',
           prev ? prev.note : '',
           prev ? prev.lockedClub : '',
-          prev ? prev.healthNotice : '',
-          sid,
-          birthMMDD,
-          effectivePassword
+          prev ? prev.healthNotice : ''
         ]);
         studentsCount++;
       }
@@ -2757,7 +2787,7 @@ function syncDirectoryFromScoreDb_(ss) {
       if (typeof targetStudentSheet.clearContents === 'function') {
         targetStudentSheet.clearContents();
       }
-      const textCols = [1, 2, 4, 14, 15, 16];
+      const textCols = [1, 3, 4, 5, 6, 7]; // 學號, 班級, 座號, 身分證後四碼, 出生月日, 密碼
       textCols.forEach(c => {
         const rng = targetStudentSheet.getRange(1, c, Math.max(nextRows.length, 1), 1);
         if (typeof rng.setNumberFormat === 'function') rng.setNumberFormat('@');
@@ -2765,6 +2795,12 @@ function syncDirectoryFromScoreDb_(ss) {
       targetStudentSheet.getRange(1, 1, nextRows.length, 16).setValues(nextRows);
       targetStudentSheet.getRange(1, 1, 1, 16).setBackground('#0f9d58').setFontColor('#ffffff').setFontWeight('bold');
       formatSheetLayout_(targetStudentSheet);
+
+      // 若舊「學生名冊」分頁仍然存在且與新表不同，依使用者需求予以刪除
+      const legacySheetToDelete = ss.getSheetByName('學生名冊');
+      if (legacySheetToDelete && legacySheetToDelete !== targetStudentSheet) {
+        try { ss.deleteSheet(legacySheetToDelete); } catch (e) { console.warn('Could not delete 學生名冊: ' + e.message); }
+      }
     }
   }
 
@@ -2839,7 +2875,7 @@ function syncDirectoryFromScoreDb_(ss) {
     }
   }
 
-  PropertiesService.getScriptProperties().setProperty('SCORE_SYNC_V', '1');
+  PropertiesService.getScriptProperties().setProperty('SCORE_SYNC_V', '20261113_student_list');
   return {
     status: 'success',
     studentsCount: studentsCount,

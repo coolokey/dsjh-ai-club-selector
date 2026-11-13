@@ -22,17 +22,17 @@ function createGasMockEnvironment(options) {
     ['數位動漫與繪畫社', 20, 0, '王老師', '電腦教室二', '電繪板基礎教學、角色骨架設計', '無基礎可', '視覺藝術']
   ];
 
-  // 模擬學生名冊 (含 學號 / 出生月日 / 登入密碼)
+  // 模擬學生名單 (對齊成績查詢系統 7 欄 + 選社專用 9 欄)
   const studentRows = [
     [
-      '班級', '座號', '姓名', '身分證字號', '學生Email',
-      '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間',
-      '分發備註', '保障身分鎖定', '健康安全提醒', '學號', '出生月日', '登入密碼'
+      '學號', '姓名', '班級', '座號', '身分證後四碼', '出生月日', '密碼',
+      '學生Email', '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間',
+      '分發備註', '保障身分鎖定', '健康安全提醒'
     ],
-    ['701', '01', '王大明', '6789', 'daxi_70101@example.com', '', '', '', '', '', '', '', '', '11470101', '0101', '67890101'],
-    ['701', '02', '李小美', '6789', 'daxi_70102@example.com', '', '', '', '', '', '', '', '', '11470102', '0202', '67890202'],
-    ['701', '03', '張志豪', '6789', 'daxi_70103@example.com', '', '', '', '', '', '', '校隊保障(籃球)', '', '11470103', '0303', '67890303'],
-    ['702', '01', '陳建宏', '6789', 'daxi_70201@example.com', '', '', '', '', '', '', '', '氣喘，劇烈運動注意', '11470201', '0404', '67890404']
+    ['11470101', '王大明', '701', '01', '6789', '0101', '67890101', 'daxi_70101@example.com', '', '', '', '', '', '', '', ''],
+    ['11470102', '李小美', '701', '02', '6789', '0202', '67890202', 'daxi_70102@example.com', '', '', '', '', '', '', '', ''],
+    ['11470103', '張志豪', '701', '03', '6789', '0303', '67890303', 'daxi_70103@example.com', '', '', '', '', '', '', '校隊保障(籃球)', ''],
+    ['11470201', '陳建宏', '702', '01', '6789', '0404', '67890404', 'daxi_70201@example.com', '', '', '', '', '', '', '', '氣喘，劇烈運動注意']
   ];
 
   // 模擬導師名單 (比照成績查詢系統)
@@ -145,7 +145,7 @@ function createGasMockEnvironment(options) {
 
   const sheets = {
     '社團設定': createMockSheet('社團設定', clubRows),
-    '學生名冊': createMockSheet('學生名冊', studentRows),
+    '學生名單': createMockSheet('學生名單', studentRows),
     '導師名單': createMockSheet('導師名單', teacherRows),
     '系統設定': createMockSheet('系統設定', configRows)
   };
@@ -299,8 +299,8 @@ test('1. 班級清單載入與未登入不可列舉班級學生名單', () => {
   assert.match(enumRes.error, /404/);
 });
 
-test('2. 學生學號密碼驗證、自我變更密碼 (SHA-256) 與連續錯誤鎖定', () => {
-  const { context, sheets } = createGasMockEnvironment();
+test('2. 學生學號密碼驗證、免自行改密功能與連續錯誤鎖定', () => {
+  const { context } = createGasMockEnvironment();
 
   // 正確學號與預設密碼（支援身分證末4碼+出生月日，取得 studentToken）
   const res1 = context.verifyAndGetClubs('11470101', '67890101');
@@ -311,15 +311,10 @@ test('2. 學生學號密碼驗證、自我變更密碼 (SHA-256) 與連續錯誤
   assert.equal(res1.student.className, '701');
   assert.equal(res1.student.seat, '01');
 
-  // 學生變更密碼 -> 寫入 sha256$ 雜湊，舊密碼失效、新密碼生效
-  assert.equal(context.changeStudentPassword(res1.token, 'wrong', 'newPass99').status, 'error');
-  assert.equal(context.changeStudentPassword(res1.token, '67890101', '123').status, 'error');
+  // 學生密碼不開放線上自行變更，由教務處註冊組統一管理
   const chg = context.changeStudentPassword(res1.token, '67890101', 'DaxiStu!99');
-  assert.equal(chg.status, 'success');
-  const storedHash = sheets['學生名冊'].getDataRange().getValues()[1][15];
-  assert.ok(String(storedHash).startsWith('sha256$'), '學生新密碼應以 sha256$ 格式儲存');
-  assert.equal(context.verifyAndGetClubs('11470101', '67890101').status, 'error');
-  assert.equal(context.verifyAndGetClubs('11470101', 'DaxiStu!99').status, 'success');
+  assert.equal(chg.status, 'error');
+  assert.match(chg.message, /教務處註冊組/);
 
   // 身分保障學生 (701班03號 11470103)
   const resLocked = context.verifyAndGetClubs('11470103', '67890303');
@@ -463,7 +458,7 @@ test('Default password grants only password change; preview is bound to unchange
   assert.equal(context.changeAdminPassword(token, 'admin888', 'new-password').status, 'success');
   const preview = context.runAiSmartAllocation(token);
   assert.equal(context.runAiSmartAllocation(context.loginAdmin('new-password').token, preview.previewToken).status, 'error');
-  sheets['學生名冊'].getRange(2, 6).setValue('熱血籃球戰術社');
+  sheets['學生名單'].getRange(2, 9).setValue('熱血籃球戰術社');
   assert.equal(context.runAiSmartAllocation(token, preview.previewToken).status, 'error');
 });
 
@@ -472,7 +467,7 @@ test('Recorded draw order is the allocation order and capacities remain enforced
   sheets['社團設定'].getRange(1, 1).setValues([
     ['社團名稱', '人數上限', '已錄取人數'], ['唯一社團', 1, 0]
   ]);
-  for (let row = 2; row <= 5; row++) sheets['學生名冊'].getRange(row, 6).setValue('唯一社團');
+  for (let row = 2; row <= 5; row++) sheets['學生名單'].getRange(row, 9).setValue('唯一社團');
   const token = context.loginAdmin('test-password').token;
   const preview = context.runAiSmartAllocation(token);
   assert.equal(preview.review[0].lotteryNo, 1);
@@ -596,8 +591,8 @@ test('11. 後台社團管理：新增／修改／刪除與保護規則', () => {
 
 test('12. 學生預設密碼無密碼欄回退 (身分證後4碼+出生月日) 與導師 5 次錯誤鎖定', () => {
   const { context, sheets } = createGasMockEnvironment();
-  // 清空第 1 位學生第 16 欄（登入密碼）-> 應自動回退比對 身分證後4碼 + 出生月日 (67890101)
-  sheets['學生名冊'].getRange(2, 16).setValue('');
+  // 清空第 1 位學生第 7 欄（密碼）-> 應自動回退比對 身分證後4碼 + 出生月日 (67890101)
+  sheets['學生名單'].getRange(2, 7).setValue('');
   const fallbackLogin = context.verifyAndGetClubs('11470101', '67890101');
   assert.equal(fallbackLogin.status, 'success');
 
@@ -628,7 +623,7 @@ test('13. 試算表分頁健檢與多餘分頁清理（保護必要分頁，僅�
   const audit = context.getSpreadsheetAudit(token);
   assert.equal(audit.status, 'success');
   assert.equal(audit.sheets.length, 9);
-  assert.equal(audit.sheets.find(s => s.name === '學生名冊').usedByApp, true);
+  assert.equal(audit.sheets.find(s => s.name === '學生名單').usedByApp, true);
   assert.equal(audit.sheets.find(s => s.name === '導師名單').usedByApp, true);
   assert.equal(audit.sheets.find(s => s.name === '管理者名單').usedByApp, true);
   assert.equal(audit.sheets.find(s => s.name === '社團設定').usedByApp, true);
@@ -639,11 +634,11 @@ test('13. 試算表分頁健檢與多餘分頁清理（保護必要分頁，僅�
   assert.equal(context.cleanupUnusedSheets(token, []).status, 'error');
 
   // 即使傳入系統必要分頁也必須受保護，只刪除未使用的英文分頁
-  const res = context.cleanupUnusedSheets(token, ['Students', 'Settings', 'Clubs', 'Registrations', '學生名冊', '社團設定', '導師名單']);
+  const res = context.cleanupUnusedSheets(token, ['Students', 'Settings', 'Clubs', 'Registrations', '學生名單', '社團設定', '導師名單']);
   assert.equal(res.status, 'success');
   assert.deepEqual(Array.from(res.deleted).sort(), ['Clubs', 'Registrations', 'Settings', 'Students'].sort());
-  assert.deepEqual(Array.from(res.skippedProtected).sort(), ['導師名單', '社團設定', '學生名冊'].sort());
-  assert.deepEqual(Array.from(res.remaining).sort(), ['導師名單', '社團設定', '學生名冊', '管理者名單', '系統設定'].sort());
+  assert.deepEqual(Array.from(res.skippedProtected).sort(), ['導師名單', '社團設定', '學生名單'].sort());
+  assert.deepEqual(Array.from(res.remaining).sort(), ['導師名單', '社團設定', '學生名單', '管理者名單', '系統設定'].sort());
 });
 
 test('14. 後台統一管理網頁標題與 Google 試算表檔名，並防呆空白與未授權請求', () => {
@@ -747,8 +742,14 @@ test('16. 從成績查詢系統唯讀複製學生與導師名單（不動來源�
   // 未授權不得觸發同步
   assert.throws(() => context.syncUsersFromScoreSystem('bad-token'), /403/);
 
-  // 預先模擬社團系統已有學生「1130002」的選社與已在社團系統修改的新密碼
-  sheets['學生名冊'].appendRow([
+  // 預先模擬社團系統舊版遺留「學生名冊」，已有學生「1130002」的選社與密碼
+  const legacy = context.getSpreadsheet().insertSheet('學生名冊');
+  legacy.appendRow([
+    '班級', '座號', '姓名', '身分證字號', '學生Email',
+    '第一志願', '第二志願', '第三志願', '錄取社團', '選填時間',
+    '分發備註', '保障身分鎖定', '健康安全提醒', '學號', '出生月日', '登入密碼'
+  ]);
+  legacy.appendRow([
     '701', '02', '林小華', '8901', 'lin@example.com',
     'AI機器人創客社', '', '', 'AI機器人創客社', '2026-09-27 10:00:00',
     '即時選填成功', '', '', '1130002', '0912', 'sha256$localchanged'
@@ -761,15 +762,21 @@ test('16. 從成績查詢系統唯讀複製學生與導師名單（不動來源�
   assert.equal(syncRes.teachersCount, 2);
   assert.equal(syncRes.preservedSelections, 1);
 
-  const copiedStudents = sheets['學生名冊'].getDataRange().getValues();
+  // 舊「學生名冊」分頁必須被徹底刪除
+  assert.equal(sheets['學生名冊'], undefined, '舊學生名冊分頁應在同步後被刪除');
+
+  const copiedStudents = sheets['學生名單'].getDataRange().getValues();
   // Demo 假學生已被取代清理，剩標頭 + 2 名真實學生
   assert.equal(copiedStudents.length, 3);
-  assert.equal(copiedStudents[1][13], '1130001');
-  assert.equal(copiedStudents[1][14], '0105'); // 前置 0 完整保留
-  assert.equal(copiedStudents[1][15], 'sha256$fromscorehash'); // 沿用成績系統雜湊密碼
+  assert.equal(copiedStudents[1][0], '1130001'); // 學號在第 1 欄 (0-based)
+  assert.equal(copiedStudents[1][1], '陳小明'); // 姓名
+  assert.equal(copiedStudents[1][4], '4567'); // 身分證後四碼
+  assert.equal(copiedStudents[1][5], '0105'); // 出生月日 前置 0 完整保留
+  assert.equal(copiedStudents[1][6], 'sha256$fromscorehash'); // 密碼 沿用成績系統雜湊密碼
   // 既有選社成果與社團內已修改的新密碼均被保留
-  assert.equal(copiedStudents[2][8], 'AI機器人創客社');
-  assert.equal(copiedStudents[2][15], 'sha256$localchanged');
+  assert.equal(copiedStudents[2][0], '1130002');
+  assert.equal(copiedStudents[2][6], 'sha256$localchanged');
+  assert.equal(copiedStudents[2][11], 'AI機器人創客社'); // 錄取社團在第 12 欄 (col index 11)
 
   // 驗證新複製過來的學生「1130002」無法用預設密碼，可用空白欄位回退或本地密碼；驗證新導師 tf90001 可用預設密碼登入並觸發首次改密
   const tLogin = context.loginTeacher('tf90001', '701701');

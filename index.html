@@ -976,7 +976,7 @@
             • <strong>舉例說明</strong>：若身分證字號末四碼為 <code style="background:#e2e8f0; padding:1px 5px; border-radius:4px; font-family:monospace; color:#0f172a; font-weight:700;">5678</code>，出生月日為 5 月 9 日請填寫四碼 <code style="background:#e2e8f0; padding:1px 5px; border-radius:4px; font-family:monospace; color:#0f172a; font-weight:700;">0509</code>，完整預設密碼即為 <code style="background:#e2e8f0; padding:1px 5px; border-radius:4px; font-family:monospace; color:#0f172a; font-weight:700;">56780509</code>。
           </div>
           <div style="margin-top: 3px; color: #64748b; font-size: 12px;">
-            • 登入後可自行變更個人密碼；密碼連續輸入錯誤達 5 次將鎖定 15 分鐘。若忘記密碼請洽<strong>教務處註冊組</strong>。
+            • 學生密碼與成績查詢系統同步由教務處統一管理；密碼連續輸入錯誤達 5 次將鎖定 15 分鐘。若忘記密碼請洽<strong>教務處註冊組</strong>。
           </div>
         </div>
       </div>
@@ -1005,7 +1005,6 @@
           <span id="displayClassSeat" style="font-size: 13px; color: var(--text-muted); margin-left: 4px;"></span>
         </div>
         <div style="display: flex; gap: 6px; align-items: center;">
-          <button class="nav-btn" id="btnStudentChangePwd" style="padding: 4px 10px; font-size: 12px;" onclick="openStudentChangePwdModal()">🔑 修改密碼</button>
           <button class="nav-btn" style="padding: 4px 10px; font-size: 12px;" onclick="logoutStudent()">登出</button>
         </div>
       </div>
@@ -1607,13 +1606,11 @@
           changeStudentPassword: function(token, curPwd, newPwd) {
             var self = this;
             setTimeout(function(){
-              if (token !== 'mock-stu-token') { self._success({ status: 'error', message: '登入已逾時，請重新登入！' }); return; }
-              if (String(curPwd).toUpperCase() !== String(mockStudentPwd).toUpperCase()) { self._success({ status: 'error', message: '目前密碼不正確！' }); return; }
-              if (String(newPwd || '').length < 6) { self._success({ status: 'error', message: '新密碼長度至少需 6 個字元！' }); return; }
-              if (newPwd === curPwd) { self._success({ status: 'error', message: '新密碼不可與目前密碼相同！' }); return; }
-              mockStudentPwd = newPwd;
-              self._success({ status: 'success', message: '密碼變更成功！下次請使用新密碼登入。' });
-            }, 220);
+              self._success({
+                status: 'error',
+                message: '本系統學生密碼由教務處註冊組統一管理，不開放線上自行變更；若忘記密碼請洽教務處註冊組。'
+              });
+            }, 100);
           },
           aiConsultantRecommend: function(input) {
             var self = this;
@@ -1871,7 +1868,7 @@
                 sheets: (mockSheets = mockSheets || [
                   { name: 'Students', usedByApp: false, dataRows: 0, headers: [] },
                   { name: '社團設定', usedByApp: true, dataRows: mockClubs.length, headers: ['社團名稱', '人數上限', '已錄取人數'] },
-                  { name: '學生名冊', usedByApp: true, dataRows: 720, headers: ['班級', '座號', '姓名', '身分證字號'] },
+                  { name: '學生名單', usedByApp: true, dataRows: 720, headers: ['學號', '姓名', '班級', '座號', '身分證後四碼', '出生月日', '密碼'] },
                   { name: '導師名單', usedByApp: true, dataRows: 29, headers: ['教師帳號', '教師姓名', '負責班級', '密碼'] },
                   { name: '系統設定', usedByApp: true, dataRows: 8, headers: ['設定項目', '設定值', '說明'] },
                   { name: 'Settings', usedByApp: false, dataRows: 0, headers: [] },
@@ -1901,7 +1898,7 @@
             var self = this;
             var current = (mockSheets || [
               { name: '社團設定' },
-              { name: '學生名冊' },
+              { name: '學生名單' },
               { name: '導師名單' },
               { name: '系統設定' },
               { name: '社團點名簽到冊' }
@@ -2686,31 +2683,7 @@
   }
 
   function openStudentChangePwdModal() {
-    if (!appState.studentToken || !appState.currentStudent) {
-      showModal('請先登入', '請先以 7 碼學號與密碼登入後再變更密碼。');
-      return;
-    }
-    var formHtml = '<div style="font-size:13px; color:#475569; margin-bottom:10px;">帳號：<strong>' + escapeHtml(appState.currentStudent.studentId || '') + '</strong>（' + escapeHtml(appState.currentStudent.name) + '）</div>' +
-      '<div class="form-group"><label style="font-size:12px;">目前密碼</label><input type="password" id="stuModalOldPwd" class="form-control" autocomplete="current-password"></div>' +
-      '<div class="form-group"><label style="font-size:12px;">新密碼（至少 6 個字元）</label><input type="password" id="stuModalNewPwd1" class="form-control" autocomplete="new-password"></div>' +
-      '<div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">再次確認新密碼</label><input type="password" id="stuModalNewPwd2" class="form-control" autocomplete="new-password"></div>';
-
-    showConfirmModal('🔑 變更學生登入密碼', formHtml, '確認修改密碼', function() {
-      var o = document.getElementById('stuModalOldPwd').value || '';
-      var n1 = document.getElementById('stuModalNewPwd1').value || '';
-      var n2 = document.getElementById('stuModalNewPwd2').value || '';
-      if (!o || !n1) { showModal('資料不完整', '請完整填寫目前密碼與新密碼！'); return; }
-      if (n1.length < 6) { showModal('格式不符', '新密碼長度至少需 6 個字元！'); return; }
-      if (n1 !== n2) { showModal('輸入不一致', '兩次輸入的新密碼不一致！'); return; }
-      setLoading(true, '正在加密更新學生密碼...');
-      callGas('changeStudentPassword', [appState.studentToken, o, n1], function(res) {
-        if (!res || res.status === 'error') {
-          showModal('變更失敗', escapeHtml((res && res.message) || '密碼修改失敗'));
-          return;
-        }
-        showModal('密碼已更新', escapeHtml(res.message));
-      });
-    });
+    showModal('密碼管理說明', '本系統學生密碼由教務處註冊組統一管理，不開放線上自行變更；若忘記密碼請洽教務處註冊組。');
   }
 
   // ==================== 導師班級專區（比照成績查詢系統帳號密碼與首次強制改密） ====================
