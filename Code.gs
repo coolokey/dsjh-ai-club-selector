@@ -30,7 +30,7 @@ const CONFIG = {
   // 成績查詢系統（https://coolokey.github.io/dsjh-score/）後台試算表 ID：僅供唯讀匯入學生名單與導師名單，絕不修改來源
   SCORE_SOURCE_SPREADSHEET_ID: '1cLrFMTA-gXTDQFKzW2E1C186_WJ0SuwMhky1_RL2Q3U',
   API_VERSION: '2026.11-pages-api',
-  REQUIRED_SHEETS: ['社團設定', '學生名冊', '導師名單', '系統設定', '社團點名簽到冊']
+  REQUIRED_SHEETS: ['社團設定', '學生名冊', '導師名單', '管理者名單', '系統設定', '社團點名簽到冊']
 };
 
 // 全域執行週期單例快取，避免重複 openById
@@ -70,6 +70,8 @@ const API_ROUTES_ = {
   saveSystemSettings: saveSystemSettings,
   saveClub: saveClub,
   deleteClub: deleteClub,
+  seedCanonicalClubs: seedCanonicalClubs,
+  getPublicClubCatalog: getPublicClubCatalog,
   runAiSmartAllocation: runAiSmartAllocation,
   batchSendAllocationEmails: batchSendAllocationEmails,
   exportAttendanceSheets: exportAttendanceSheets,
@@ -83,6 +85,7 @@ const API_ROUTES_ = {
 function doPost(e) {
   let payload;
   try {
+    ensureSheetExists();
     const raw = (e && e.postData && e.postData.contents) || '{}';
     const req = JSON.parse(raw);
     const fn = String(req.fn || '');
@@ -152,11 +155,229 @@ function getSpreadsheet() {
 }
 
 /**
+ * 跨校多元熱門社團設定（涵蓋 108 課綱彈性學習課程與聯課活動六大領域，共 28 社，名額總計約 700 席）
+ */
+const CANONICAL_CLUBS = [
+  // 體育競技（7 社）
+  ['熱血籃球戰術社', 30, 0, '陳建勳 教練', '風雨球場A', '基礎運球技巧、傳切配合、團隊防守跑位、半場戰術演練與分組實戰對抗，鍛鍊心肺體能與團隊默契。', '請穿著運動服裝、攜帶毛巾與自備籃球鞋', '體育競技'],
+  ['羽球活力雙打社', 26, 0, '林志祥 老師', '學生活動中心羽球場', '正反手發球、網前小球切球、後場平高球與殺球跑位技巧，加強雙打走位默契與敏捷反應能力。', '自備羽球拍與運動鞋，耗損羽球由公費提供', '體育競技'],
+  ['桌球技巧精進社', 24, 0, '郭文彬 老師', '桌球地下防空避難室', '正反手推擋、弧圈球拉旋、發球落點變化與單雙打步法訓練，培養手眼協調與瞬間專注力。', '需自備桌球拍（膠皮不限），練習球由社團提供', '體育競技'],
+  ['競技排球與防守社', 26, 0, '黃俊傑 老師', '體育館排球場', '低手接發球、高手舉球配球、扣球步伐與陣形攔網訓練，著重團隊溝通呼應與不放棄救球精神。', '請穿著運動服裝與室內球鞋，建議自備護膝', '體育競技'],
+  ['流行街舞與律動社', 25, 0, 'Amy 舞蹈教練', '韻律舞蹈教室（鏡面教室）', 'Hip-Hop 基礎律動、Popping 震點定點練習、流行 K-Pop MV 舞步拆解與成果排舞展演。', '穿著寬鬆舒適服裝與乾淨平底球鞋，無舞蹈基礎可', '體育競技'],
+  ['跆拳防身自衛術社', 24, 0, '張教練（黑帶四段）', '柔道跆拳訓練教室', '基本踢腿防護、品勢步伐、防身脫困技巧與體能反應訓練，培養尊師重道品格與自我防護意識。', '穿著輕便運動服或道服，備有公用腳靶防具', '體育競技'],
+  ['五人制足球技巧社', 26, 0, '周教練', '操場草皮區／風雨球場B', '盤帶傳球控球技術、短傳滲透小組配合、守門撲救反應與小場地高強度對抗，強化下肢爆發力。', '穿著運動鞋或平底足球鞋（禁止金屬鋼釘鞋），自備長襪護脛', '體育競技'],
+
+  // 科技創客（4 社）
+  ['AI機器人創客社', 22, 0, '李宗翰 組長', '科技創客教室', '結合 Arduino 感測器、Micro:bit 智慧控制與簡易 AI 影像辨識，親手組裝感應智能避障小車與物聯網裝置。', '提供公用電腦與套件，耗材材料費每學期 200 元', '科技創客'],
+  ['Python與演算法程式社', 25, 0, '鄭組長', '電腦教室一', '從圖形化 Blocky 銜接至 Python 核心語法，實作文字冒險遊戲、自動化爬蟲與邏輯解題思維訓練。', '無需程式基礎，使用學校電腦教室設備，請自備隨身碟存檔', '科技創客'],
+  ['3D列印與立體模型創客社', 20, 0, '劉老師', '生活科技木工創客教室', 'Tinkercad 3D 建模設計、3D 列印切片參數操作、雷射雕刻雷切鑰匙圈與機構齒輪動態手作。', '作品可帶回，耗材費（PLA線材與密集板）每人 180 元', '科技創客'],
+  ['無人機飛行與空拍攝影社', 20, 0, '許組長', '科技研討室與中庭草坪', '微型室內無人機飛行原理、手眼協調操控穿越障礙賽道、安全空拍法規與手機縮時縮影運鏡。', '校方提供公用訓練機，需具備高度安全操作紀律', '科技創客'],
+
+  // 視覺藝術（5 社）
+  ['數位動漫與繪畫社', 25, 0, '王靜儀 老師', '電腦教室二', '專業電繪板感壓操作、動漫角色頭身骨架比例、光影層次上色、四格分鏡漫畫創作與個人插畫作品集。', '使用教室專業繪圖板與繪圖軟體，材料無額外收費', '視覺藝術'],
+  ['手作黏土與文創工藝社', 22, 0, '陳敏慧 老師', '美術教室一', '輕黏土仿真甜點、樹脂飾品手作、環保蝶谷巴特拼貼提袋與文青風手作杯墊，享受手作療癒時光。', '材料包（含黏土、五金吊飾、黏著劑）每人 150 元', '視覺藝術'],
+  ['水彩美學與素描寫生社', 22, 0, '簡老師', '美術教室二', '鉛筆素描明暗排線、校園景物靜物透視寫生、透明水彩渲染與混色疊色技法，打下扎實美術底子。', '需自備水彩用具（水彩餅或管狀、水彩筆、調色盤、洗筆筒）', '視覺藝術'],
+  ['經典書法與水墨文創社', 22, 0, '曾老師', '國學書法專用教室', '楷書隸書筆法運筆氣韻、水墨濃淡乾濕技法、創意春聯揮毫與扇面題字文創實作，陶冶心性沉靜氣質。', '需自備大楷、中楷毛筆各一支，宣紙與墨汁由社團備置', '視覺藝術'],
+  ['皮革工藝與生活布縫社', 23, 0, '何老師', '家政工藝教室', '植物鞣皮革基礎打孔、雙針鞍式手縫、皮邊修飾打磨，親手完成識別證套、零錢包與刺繡帆布小包。', '皮革材料包與縫紉針線組每人 160 元', '視覺藝術'],
+
+  // 音樂表演（5 社）
+  ['烏克麗麗與吉他彈唱社', 24, 0, '林家宏 老師', '音樂教室B', '由簡入繁學習三和弦切換、民謠節奏刷法、指彈撥弦與最新流行華語流行金曲彈唱，自信登台表演。', '強烈建議自備吉他或烏克麗麗，教室提供 8 把備用琴供輪流練習', '音樂表演'],
+  ['熱門流行樂團與合奏社', 20, 0, '潘老師', '熱音社團練室（隔音間）', '電吉他破音特效、電貝斯低音律動、流行爵士鼓重音節奏與鍵盤合成器配器，合奏流行搖滾曲目。', '需具備基礎樂器彈奏經驗者為佳，備有公用音箱與專業爵士鼓', '音樂表演'],
+  ['管樂合奏與長笛小號初階社', 25, 0, '蕭老師', '管樂團大合奏室', '長笛、單簧管、小號、長號吹奏嘴型呼吸與指法訓練，認識五線譜與齊奏重奏合聲之美。', '學校管樂團備有公用管樂器借用，需自備個人專用吹嘴（或簧片）', '音樂表演'],
+  ['節奏打擊樂與木箱鼓社', 20, 0, '高老師', '音樂教室A', '木箱鼓（Cajon）打法手勢、非洲鼓節奏呼應、動態杯子打擊樂（Cup Song）與節奏合奏重擊震撼。', '使用教室公用木箱鼓與非洲鼓，無打擊基礎亦可快速上手', '音樂表演'],
+  ['戲劇表演與舞台主持社', 21, 0, '蔡老師', '多功能演藝階梯教室', '即興表演練習、口條發聲發音投射、肢體開發模仿、情境短劇排演與大型校園活動舞台主持技巧培訓。', '喜愛說話、表達或想要突破害羞內向者皆非常歡迎，無材料費', '音樂表演'],
+
+  // 策略邏輯與語文思辨（4 社）
+  ['桌遊與邏輯推理社', 28, 0, '張育誠 老師', '七年級多功能教室', '精選德式策略資源管理桌遊（卡卡頌、卡坦島）、邏輯劇本解謎與陣營心機推理，激發批判性思考。', '學校購置豐富全新正版桌遊盒裝，無須自備道具，愛好思考互動者佳', '策略邏輯'],
+  ['棋藝研究社（象棋、圍棋與西洋棋）', 26, 0, '洪老師（業餘段位棋士）', '靜態閱覽教室', '布局定式解析、中局算子博弈、殘局攻殺戰術演練與社內循環定段賽，培養沉著冷靜與全局推演眼界。', '教室備有標準棋盤棋具，無基礎亦可自基礎棋規學起', '策略邏輯'],
+  ['日語生活基礎與動漫文化社', 25, 0, '佐藤老師 / 林老師', '語言研習教室', '平假名片假名五十音記憶法、生活日常問候、旅遊點餐情境模擬、熱門動漫主題曲歌詞賞析與日本文化探索。', '印製專屬日語自編手冊，免教材費', '語文思辨'],
+  ['英語電影賞析與情境對話社', 25, 0, '外師 + 英語科輔導教師', '視聽階梯演講廳', '精選歐美得獎動畫與青少年電影經典片段，解析道地口語流行俚語、角色扮演情境對話與跨文化分享。', '全程多媒體放映與情境互動，無材料費', '語文思辨'],
+
+  // 自然實驗與生活服務（3 社）
+  ['趣味生活科學實驗社', 24, 0, '黃柏翰 老師', '理化實驗室三', '生活化學趣味顯色、大氣壓力水火箭試射、分子料理晶球、乾冰仙境與磁浮陀螺，在動手中驗證科學奧秘。', '需穿著棉質長褲與防護實驗圍裙，材料費 150 元', '自然實驗'],
+  ['童軍野外求生與探索社', 26, 0, '李木榮 團長（童軍木章持有人）', '童軍露營營地／童軍教室', '實用繩結編織、雙旗密碼信號、野外無具野炊、方位指北針定位定向越野與急救包紮包紮實用技能。', '戶外活動需具備團隊紀律，自備童軍繩（學校亦可代購 50 元）', '生活服務'],
+  ['校園新聞播報與自媒體攝影社', 22, 0, '趙組長', '校園主播攝影棚', '校園熱門話題新聞採訪、單眼相機與手機運鏡構圖技巧、剪映/CapCut 剪輯音效配樂與大溪國中影音校刊製作。', '無經驗可，適合喜愛表達、拍照、剪片或幕後技術探索者', '生活服務']
+];
+
+function ensureAdminCredentialsSheet_(ss) {
+  const props = PropertiesService.getScriptProperties();
+  let adminSheet = ss.getSheetByName('管理者名單');
+  let currentPwd = '';
+
+  if (adminSheet && adminSheet.getLastRow() >= 2) {
+    const rows = adminSheet.getDataRange().getDisplayValues();
+    for (let r = 1; r < rows.length; r++) {
+      if (String(rows[r][0] || '').trim().toLowerCase() === 'admin') {
+        currentPwd = String(rows[r][2] || '').trim();
+        break;
+      }
+    }
+  }
+
+  if (!currentPwd) {
+    const cfgSheet = ss.getSheetByName('系統設定');
+    if (cfgSheet && cfgSheet.getLastRow() >= 2) {
+      const cRows = cfgSheet.getDataRange().getDisplayValues();
+      for (let r = 1; r < cRows.length; r++) {
+        if (String(cRows[r][0] || '').trim() === 'ADMIN_PASSWORD') {
+          currentPwd = String(cRows[r][1] || '').trim();
+          break;
+        }
+      }
+    }
+  }
+
+  if (!currentPwd) {
+    currentPwd = props.getProperty('ADMIN_PASSWORD') || CONFIG.DEFAULT_PASSWORD;
+  }
+
+  // 1. 確保「管理者名單」工作表存在 (比照成績查詢系統)
+  if (!adminSheet) {
+    adminSheet = ss.insertSheet('管理者名單');
+    adminSheet.appendRow(['帳號', '姓名', '密碼', '說明']);
+    adminSheet.getRange(1, 1, 1, 4).setBackground('#1e293b').setFontColor('#ffffff').setFontWeight('bold');
+    adminSheet.appendRow(['admin', '學務處訓育組', currentPwd, '系統最高管理權限']);
+    const rngPwd = adminSheet.getRange(2, 3);
+    if (typeof rngPwd.setNumberFormat === 'function') rngPwd.setNumberFormat('@');
+    const rngAcc = adminSheet.getRange(2, 1);
+    if (typeof rngAcc.setNumberFormat === 'function') rngAcc.setNumberFormat('@');
+    formatSheetLayout_(adminSheet);
+  } else {
+    const rows = adminSheet.getDataRange().getDisplayValues();
+    let hasAdmin = false;
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0] || '').trim().toLowerCase() === 'admin') {
+        hasAdmin = true;
+        break;
+      }
+    }
+    if (!hasAdmin) {
+      adminSheet.appendRow(['admin', '學務處訓育組', currentPwd, '系統最高管理權限']);
+      const lr = adminSheet.getLastRow();
+      const rngPwd = adminSheet.getRange(lr, 3);
+      if (typeof rngPwd.setNumberFormat === 'function') rngPwd.setNumberFormat('@');
+      const rngAcc = adminSheet.getRange(lr, 1);
+      if (typeof rngAcc.setNumberFormat === 'function') rngAcc.setNumberFormat('@');
+    }
+  }
+
+  // 2. 確保「系統設定」內存在 ADMIN_PASSWORD 列
+  const cfgSheet = ss.getSheetByName('系統設定');
+  if (cfgSheet) {
+    const cRows = cfgSheet.getDataRange().getDisplayValues();
+    let hasCfgPwd = false;
+    for (let r = 1; r < cRows.length; r++) {
+      if (String(cRows[r][0] || '').trim() === 'ADMIN_PASSWORD') {
+        hasCfgPwd = true;
+        break;
+      }
+    }
+    if (!hasCfgPwd) {
+      cfgSheet.appendRow(['ADMIN_PASSWORD', currentPwd, '學務處行政管理密碼（管理者可直接於「管理者名單」工作表查看與修改）']);
+      const lr = cfgSheet.getLastRow();
+      const rng = cfgSheet.getRange(lr, 2);
+      if (typeof rng.setNumberFormat === 'function') rng.setNumberFormat('@');
+    }
+  }
+
+  props.setProperty('ADMIN_PASSWORD', currentPwd);
+}
+
+function seedCanonicalClubsToSheet_(ss, force) {
+  let clubSheet = ss.getSheetByName('社團設定');
+  if (!clubSheet) {
+    clubSheet = ss.insertSheet('社團設定');
+  }
+
+  const existingRows = clubSheet.getLastRow() > 0 ? clubSheet.getDataRange().getDisplayValues() : [];
+  const existingMap = {};
+  for (let i = 1; i < existingRows.length; i++) {
+    const name = String(existingRows[i][0] || '').trim();
+    if (name) {
+      existingMap[name] = {
+        limit: parseInt(existingRows[i][1], 10) || 0,
+        current: parseInt(existingRows[i][2], 10) || 0,
+        teacher: existingRows[i][3] || '',
+        location: existingRows[i][4] || '',
+        desc: existingRows[i][5] || '',
+        req: existingRows[i][6] || '',
+        cat: existingRows[i][7] || ''
+      };
+    }
+  }
+
+  const totalAssigned = Object.values(existingMap).reduce((s, c) => s + (c.current || 0), 0);
+  if (!force && existingRows.length >= 28 && totalAssigned > 0) {
+    return { status: 'skipped', message: '已有選社學生且社團已達規格，跳過自動覆蓋。' };
+  }
+
+  const headers = ['社團名稱', '人數上限', '已錄取人數', '授課教師', '活動地點', '社團簡介', '先備要求與材料費', '社團類別'];
+  const nextRows = [headers];
+
+  CANONICAL_CLUBS.forEach(c => {
+    const name = c[0];
+    const prev = existingMap[name];
+    if (prev && !force) {
+      nextRows.push([
+        name,
+        prev.limit || c[1],
+        prev.current || 0,
+        prev.teacher || c[3],
+        prev.location || c[4],
+        prev.desc || c[5],
+        prev.req || c[6],
+        prev.cat || c[7]
+      ]);
+      delete existingMap[name];
+    } else {
+      nextRows.push([c[0], c[1], (prev && prev.current) || 0, c[3], c[4], c[5], c[6], c[7]]);
+      delete existingMap[name];
+    }
+  });
+
+  Object.keys(existingMap).forEach(k => {
+    const ex = existingMap[k];
+    nextRows.push([k, ex.limit, ex.current, ex.teacher, ex.location, ex.desc, ex.req, ex.cat]);
+  });
+
+  if (typeof clubSheet.clearContents === 'function') clubSheet.clearContents();
+  clubSheet.getRange(1, 1, nextRows.length, 8).setValues(nextRows);
+  clubSheet.getRange(1, 1, 1, 8).setBackground('#1a73e8').setFontColor('#ffffff').setFontWeight('bold');
+  formatSheetLayout_(clubSheet);
+
+  return { status: 'success', count: nextRows.length - 1 };
+}
+
+/**
  * 確保三大核心工作表完整存在，初次執行時自動灌入示範資料
  */
 function ensureSheetExists() {
   const props = PropertiesService.getScriptProperties();
   if (props.getProperty('IS_INITIALIZED') === 'true') {
+    if (props.getProperty('ADMIN_SHEET_SYNC_V') !== '20261113_admin888') {
+      try {
+        setAdminPasswordInSpreadsheet_(CONFIG.DEFAULT_PASSWORD);
+        props.setProperty('ADMIN_SHEET_SYNC_V', '20261113_admin888');
+      } catch (e) {
+        console.warn('Auto admin password sync skipped: ' + e.message);
+      }
+    }
+    if (props.getProperty('ADMIN_SHEET_V') !== '1') {
+      try {
+        ensureAdminCredentialsSheet_(getSpreadsheet());
+        props.setProperty('ADMIN_SHEET_V', '1');
+      } catch (e) {
+        console.warn('Auto admin sheet ensure skipped: ' + e.message);
+      }
+    }
+    if (props.getProperty('CANONICAL_CLUBS_V') !== '28') {
+      try {
+        seedCanonicalClubsToSheet_(getSpreadsheet(), false);
+        props.setProperty('CANONICAL_CLUBS_V', '28');
+      } catch (e) {
+        console.warn('Auto canonical clubs seed skipped: ' + e.message);
+      }
+    }
     if (props.getProperty('SCORE_SYNC_V') !== '1') {
       try {
         const syncRes = syncDirectoryFromScoreDb_(getSpreadsheet());
@@ -179,23 +400,10 @@ function ensureSheetExists() {
 
   const ss = getSpreadsheet();
 
-  // 1. 社團設定表
+  // 1. 社團設定表（初次初始化即載入 28 所跨校熱門多元社團）
   let clubSheet = ss.getSheetByName('社團設定');
-  if (!clubSheet) {
-    clubSheet = ss.insertSheet('社團設定');
-    clubSheet.appendRow(['社團名稱', '人數上限', '已錄取人數', '授課教師', '活動地點', '社團簡介', '先備要求與材料費', '社團類別']);
-    clubSheet.getRange(1, 1, 1, 8).setBackground('#1a73e8').setFontColor('#ffffff').setFontWeight('bold');
-
-    const demoClubs = [
-      ['AI機器人創客社', 15, 0, '李組長', '科技創客教室', '學習 Arduino 感測器、Micro:bit 與程式創作，實作智能小車與物聯網。', '自備筆電或平板佳，材料費 200 元', '科技創客'],
-      ['熱血籃球戰術社', 25, 0, '陳教練', '風雨球場A', '基礎運球、團隊防守跑位、半場戰術演練與分組對抗，鍛鍊體能與團隊精神。', '請穿著運動服裝與籃球鞋', '體育競技'],
-      ['數位動漫與繪畫社', 20, 0, '王老師', '電腦教室二', '電繪板基礎教學、角色骨架設計、分鏡繪製與 AI 輔助著色探索。', '無基礎可，提供教室電繪板', '視覺藝術'],
-      ['烏克麗麗與吉他彈唱社', 18, 0, '林老師', '音樂教室B', '由淺入深學習和弦彈奏、節奏刷法與流行曲目彈唱，培養音樂美感與表演自信。', '歡迎自備樂器，備有部分公用琴', '音樂表演'],
-      ['桌遊與邏輯推理社', 24, 0, '張老師', '七年級多功能教室', '精選德式策略桌遊、邏輯解謎密室與溝通推理遊戲，培養批判性思維與協作。', '無須自備道具，愛好思考者佳', '策略邏輯'],
-      ['趣味生活科學實驗社', 16, 0, '黃老師', '理化實驗室三', '生活中的化學變色、大氣壓力水火箭、分子料理與電磁魔法，探索科學奧秘。', '材料費 150 元，需穿著實驗圍裙', '自然實驗'],
-      ['校園新聞播報與攝影社', 15, 0, '趙老師', '視聽研討室', '採訪技巧、單眼與手機攝影構圖、剪輯軟體操作與重大活動實地報導實習。', '無經驗可，適合喜愛表達與拍攝者', '語文傳播']
-    ];
-    clubSheet.getRange(2, 1, demoClubs.length, 8).setValues(demoClubs);
+  if (!clubSheet || clubSheet.getLastRow() <= 1) {
+    seedCanonicalClubsToSheet_(ss, true);
   }
 
   // 2. 學生名冊表（對齊成績系統 學號／出生月日／密碼 + 社團選填、Email、保障鎖定、健康提醒）
@@ -235,6 +443,9 @@ function ensureSheetExists() {
     teacherSheet.getRange(2, 1, demoTeachers.length, 6).setValues(demoTeachers);
   }
 
+  // 2c. 管理者名單表 (儲存管理員帳密至試算表)
+  ensureAdminCredentialsSheet_(ss);
+
   // 3. 系統設定表
   let configSheet = ss.getSheetByName('系統設定');
   if (!configSheet) {
@@ -250,7 +461,8 @@ function ensureSheetExists() {
       ['AI_ADVISOR_ENABLED', 'true', '是否開啟 Gemini 智慧選社顧問 (true/false)'],
       ['MAX_PREFERENCES', '3', '多志願模式下可選志願數量'],
       ['MAX_PER_CLASS_PER_CLUB', String(CONFIG.MAX_PER_CLASS_PER_CLUB), '單一社團各班人數上限（防抱團）'],
-      ['EMAIL_NOTIFICATION_ENABLED', 'true', '是否啟用錄取結果同步寄送信箱 (true/false)']
+      ['EMAIL_NOTIFICATION_ENABLED', 'true', '是否啟用錄取結果同步寄送信箱 (true/false)'],
+      ['ADMIN_PASSWORD', CONFIG.DEFAULT_PASSWORD, '學務處行政管理密碼（管理者可直接於「管理者名單」工作表查看與修改）']
     ];
     configSheet.getRange(2, 1, defaultConfigs.length, 3).setValues(defaultConfigs);
   }
@@ -275,6 +487,8 @@ function ensureSheetExists() {
     console.warn('Initial layout format skipped: ' + e.message);
   }
 
+  props.setProperty('ADMIN_SHEET_V', '1');
+  props.setProperty('CANONICAL_CLUBS_V', '28');
   props.setProperty('IS_INITIALIZED', 'true');
 }
 
@@ -313,28 +527,154 @@ function getSystemSettings() {
   return settings;
 }
 
-// ==================== 管理員權限驗證攔截器 ====================
+// ==================== 管理員權限驗證攔截器（密碼直接存於試算表「管理者名單」與「系統設定」） ====================
+function getAdminPassword_() {
+  try {
+    const ss = getSpreadsheet();
+    // 1. 優先從「管理者名單」工作表讀取 (比照成績查詢系統)
+    let adminSheet = ss.getSheetByName('管理者名單');
+    if (!adminSheet) {
+      try {
+        ensureAdminCredentialsSheet_(ss);
+        adminSheet = ss.getSheetByName('管理者名單');
+      } catch (e) {}
+    }
+    if (adminSheet && adminSheet.getLastRow() >= 2) {
+      const rows = adminSheet.getDataRange().getDisplayValues();
+      const header = rows[0] || [];
+      let accCol = 0, pwdCol = 2;
+      for (let c = 0; c < header.length; c++) {
+        const h = String(header[c] || '').trim();
+        if (h === '帳號') accCol = c;
+        else if (h === '密碼') pwdCol = c;
+      }
+      for (let r = 1; r < rows.length; r++) {
+        const acc = String(rows[r][accCol] || '').trim().toLowerCase();
+        if (acc === 'admin') {
+          const pwd = String(rows[r][pwdCol] || '').trim();
+          if (pwd) return pwd;
+        }
+      }
+    }
+
+    // 2. 次之從「系統設定」工作表讀取 ADMIN_PASSWORD
+    const cfgSheet = ss.getSheetByName('系統設定');
+    if (cfgSheet && cfgSheet.getLastRow() >= 2) {
+      const cRows = cfgSheet.getDataRange().getDisplayValues();
+      for (let r = 1; r < cRows.length; r++) {
+        const k = String(cRows[r][0] || '').trim();
+        if (k === 'ADMIN_PASSWORD') {
+          const val = String(cRows[r][1] || '').trim();
+          if (val) return val;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('讀取試算表管理者密碼失敗，改用屬性服務：' + e.message);
+  }
+
+  // 3. 次之從 ScriptProperties 讀取
+  const propPwd = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
+  if (propPwd && String(propPwd).trim()) return String(propPwd).trim();
+
+  // 4. 預設管理密碼
+  return CONFIG.DEFAULT_PASSWORD;
+}
+
+function setAdminPasswordInSpreadsheet_(newPwd) {
+  const cleanPwd = String(newPwd || '').trim();
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('ADMIN_PASSWORD', cleanPwd);
+
+  try {
+    const ss = getSpreadsheet();
+
+    // 1. 同步寫回「管理者名單」
+    let adminSheet = ss.getSheetByName('管理者名單');
+    if (!adminSheet) {
+      adminSheet = ss.insertSheet('管理者名單');
+      adminSheet.appendRow(['帳號', '姓名', '密碼', '說明']);
+      adminSheet.getRange(1, 1, 1, 4).setBackground('#1e293b').setFontColor('#ffffff').setFontWeight('bold');
+    }
+    const adminRows = adminSheet.getDataRange().getDisplayValues();
+    let foundAdminRow = -1;
+    let pwdCol = 2;
+    if (adminRows.length >= 1) {
+      const h = adminRows[0];
+      for (let c = 0; c < h.length; c++) {
+        const colName = String(h[c] || '').trim();
+        if (colName === '密碼') pwdCol = c;
+      }
+      for (let r = 1; r < adminRows.length; r++) {
+        if (String(adminRows[r][0] || '').trim().toLowerCase() === 'admin') {
+          foundAdminRow = r + 1; // 1-based row index
+          break;
+        }
+      }
+    }
+    if (foundAdminRow > 0) {
+      const cell = adminSheet.getRange(foundAdminRow, pwdCol + 1);
+      if (typeof cell.setNumberFormat === 'function') cell.setNumberFormat('@');
+      cell.setValue(cleanPwd);
+    } else {
+      adminSheet.appendRow(['admin', '學務處訓育組', cleanPwd, '系統最高管理權限']);
+      const lr = adminSheet.getLastRow();
+      const cell = adminSheet.getRange(lr, pwdCol + 1);
+      if (typeof cell.setNumberFormat === 'function') cell.setNumberFormat('@');
+    }
+
+    // 2. 同步寫回「系統設定」
+    let cfgSheet = ss.getSheetByName('系統設定');
+    if (cfgSheet) {
+      const cRows = cfgSheet.getDataRange().getDisplayValues();
+      let foundCfgRow = -1;
+      for (let r = 1; r < cRows.length; r++) {
+        if (String(cRows[r][0] || '').trim() === 'ADMIN_PASSWORD') {
+          foundCfgRow = r + 1;
+          break;
+        }
+      }
+      if (foundCfgRow > 0) {
+        const cCell = cfgSheet.getRange(foundCfgRow, 2);
+        if (typeof cCell.setNumberFormat === 'function') cCell.setNumberFormat('@');
+        cCell.setValue(cleanPwd);
+      } else {
+        cfgSheet.appendRow(['ADMIN_PASSWORD', cleanPwd, '學務處行政管理密碼（管理者可直接於「管理者名單」工作表查看與修改）']);
+        const lr = cfgSheet.getLastRow();
+        const cCell = cfgSheet.getRange(lr, 2);
+        if (typeof cCell.setNumberFormat === 'function') cCell.setNumberFormat('@');
+      }
+    }
+  } catch (e) {
+    console.warn('寫入試算表管理者密碼失敗：' + e.message);
+  }
+}
+
 function verifyAdminSession_(token) {
   if (!token) return false;
   return CacheService.getScriptCache().get('ADMIN_SESSION_' + token) === 'ACTIVE';
 }
 
 function assertAdminAuth_(token) {
-  if (!verifyAdminSession_(token) ||
-      (PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD') || CONFIG.DEFAULT_PASSWORD) === CONFIG.DEFAULT_PASSWORD) {
+  if (!verifyAdminSession_(token) || (getAdminPassword_() === CONFIG.DEFAULT_PASSWORD)) {
     throw new Error('403 Unauthorized: 未經授權的管理端操作或 Session 已過期，請重新登入管理員帳號！');
   }
 }
 
 function loginAdmin(pwd) {
-  const realPwd = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD') || CONFIG.DEFAULT_PASSWORD;
-  if (String(pwd).trim() === realPwd) {
+  const cleanInput = String(pwd === undefined || pwd === null ? '' : pwd).trim();
+  if (!cleanInput) {
+    return { status: 'error', message: '請輸入管理密碼！' };
+  }
+  const realPwd = getAdminPassword_();
+  const isMatch = (cleanInput === realPwd) || (typeof verifyScorePassword_ === 'function' && verifyScorePassword_(cleanInput, 'admin', realPwd, false));
+  if (isMatch) {
     const adminToken = Utilities.getUuid();
     CacheService.getScriptCache().put('ADMIN_SESSION_' + adminToken, 'ACTIVE', CONFIG.SESSION_EXPIRE_SEC);
     return {
       status: 'success',
       token: adminToken,
-      isDefault: (realPwd === CONFIG.DEFAULT_PASSWORD)
+      isDefault: (cleanInput === CONFIG.DEFAULT_PASSWORD || realPwd === CONFIG.DEFAULT_PASSWORD)
     };
   }
   return { status: 'error', message: '管理密碼錯誤！' };
@@ -342,18 +682,18 @@ function loginAdmin(pwd) {
 
 function changeAdminPassword(adminToken, oldPwd, newPwd) {
   if (!verifyAdminSession_(adminToken)) throw new Error('403 Unauthorized');
-  const props = PropertiesService.getScriptProperties();
-  const realPwd = props.getProperty('ADMIN_PASSWORD') || CONFIG.DEFAULT_PASSWORD;
+  const realPwd = getAdminPassword_();
 
-  if (String(oldPwd).trim() !== realPwd) {
+  const isOldMatch = (String(oldPwd).trim() === realPwd) || (typeof verifyScorePassword_ === 'function' && verifyScorePassword_(oldPwd, 'admin', realPwd, false));
+  if (!isOldMatch) {
     return { status: 'error', message: '舊密碼不正確！' };
   }
   if (!newPwd || String(newPwd).trim().length < 8 || String(newPwd).trim() === CONFIG.DEFAULT_PASSWORD) {
     return { status: 'error', message: '新密碼至少 8 碼，且不得使用預設密碼！' };
   }
 
-  props.setProperty('ADMIN_PASSWORD', String(newPwd).trim());
-  return { status: 'success', message: '管理密碼修改成功！' };
+  setAdminPasswordInSpreadsheet_(String(newPwd).trim());
+  return { status: 'success', message: '管理密碼修改成功，已同步更新至 Google 試算表「管理者名單」與「系統設定」！' };
 }
 
 function saveSystemSettings(adminToken, newSettings) {
@@ -523,6 +863,33 @@ function deleteClub(adminToken, clubName) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * 管理員一鍵載入／重設 28 所跨校熱門多元社團（寫入試算表「社團設定」）
+ */
+function seedCanonicalClubs(adminToken, overwrite) {
+  assertAdminAuth_(adminToken);
+  const ss = getSpreadsheet();
+  const res = seedCanonicalClubsToSheet_(ss, !!overwrite);
+  PropertiesService.getScriptProperties().setProperty('CANONICAL_CLUBS_V', '28');
+  return {
+    status: 'success',
+    message: `成功載入 28 所跨校熱門多元社團（共 ${res.count || getClubList().length} 個社團），名額已同步至試算表！`,
+    clubs: getClubList()
+  };
+}
+
+/**
+ * 公開社團總覽查詢（提供訪客與學生首頁直接預覽本學期 28 所熱門社團）
+ */
+function getPublicClubCatalog() {
+  const clubs = getClubList();
+  return {
+    status: 'success',
+    totalClubs: clubs.length,
+    clubs: clubs
+  };
 }
 
 // ==================== 班級代碼、帳號密碼與 Session 驗證（比照成績查詢系統） ====================
@@ -2129,7 +2496,7 @@ function cleanupUnusedSheets(adminToken, targetNames) {
 const COLUMN_WIDTH_RULES_ = [
   { pattern: /^(班級|座號|負責班級|人數上限|已錄取人數|出生月日|首次登入標記)$/, min: 82, max: 120 },
   { pattern: /^第\d+週簽到$/, min: 92, max: 120 },
-  { pattern: /^(姓名|教師姓名|教師帳號|學號|授課教師|指導教師|社團類別|設定項目)$/, min: 112, max: 185 },
+  { pattern: /^(姓名|教師姓名|教師帳號|帳號|學號|授課教師|指導教師|社團類別|設定項目)$/, min: 112, max: 185 },
   { pattern: /^(身分證字號|身分證後四碼|選填時間)$/, min: 135, max: 195 },
   { pattern: /^(社團名稱|錄取社團|活動地點|第一志願|第二志願|第三志願|學生Email|公務信箱|設定值)$/, min: 155, max: 255 },
   { pattern: /^(密碼|登入密碼|社團簡介|先備要求與材料費|分發備註|保障身分鎖定|健康安全提醒|說明)$/, min: 210, max: 360 }

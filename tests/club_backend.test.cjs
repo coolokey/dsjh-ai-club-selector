@@ -10,6 +10,7 @@ function createGasMockEnvironment(options) {
   const scriptProperties = new Map();
   scriptProperties.set('ADMIN_PASSWORD', 'test-password');
   scriptProperties.set('SCORE_SYNC_V', '1');
+  scriptProperties.set('ADMIN_SHEET_SYNC_V', '20261113_admin888');
 
   const cacheStore = new Map();
 
@@ -626,9 +627,10 @@ test('13. 試算表分頁健檢與多餘分頁清理（保護必要分頁，僅�
 
   const audit = context.getSpreadsheetAudit(token);
   assert.equal(audit.status, 'success');
-  assert.equal(audit.sheets.length, 8);
+  assert.equal(audit.sheets.length, 9);
   assert.equal(audit.sheets.find(s => s.name === '學生名冊').usedByApp, true);
   assert.equal(audit.sheets.find(s => s.name === '導師名單').usedByApp, true);
+  assert.equal(audit.sheets.find(s => s.name === '管理者名單').usedByApp, true);
   assert.equal(audit.sheets.find(s => s.name === '社團設定').usedByApp, true);
   assert.equal(audit.sheets.find(s => s.name === '系統設定').usedByApp, true);
   assert.equal(audit.sheets.find(s => s.name === 'Students').usedByApp, false);
@@ -641,7 +643,7 @@ test('13. 試算表分頁健檢與多餘分頁清理（保護必要分頁，僅�
   assert.equal(res.status, 'success');
   assert.deepEqual(Array.from(res.deleted).sort(), ['Clubs', 'Registrations', 'Settings', 'Students'].sort());
   assert.deepEqual(Array.from(res.skippedProtected).sort(), ['導師名單', '社團設定', '學生名冊'].sort());
-  assert.deepEqual(Array.from(res.remaining).sort(), ['導師名單', '社團設定', '學生名冊', '系統設定'].sort());
+  assert.deepEqual(Array.from(res.remaining).sort(), ['導師名單', '社團設定', '學生名冊', '管理者名單', '系統設定'].sort());
 });
 
 test('14. 後台統一管理網頁標題與 Google 試算表檔名，並防呆空白與未授權請求', () => {
@@ -701,7 +703,7 @@ test('15. 試算表每一分頁每一欄皆套用適當欄寬與自動換列（�
   // 執行全分頁一鍵欄寬與自動換列
   const res = context.formatAllSheetsLayout(token);
   assert.equal(res.status, 'success');
-  assert.equal(res.sheets.length, 5);
+  assert.equal(res.sheets.length, 6);
 
   // 逐分頁檢查：所有欄都有正數寬度、整頁啟用 setWrap(true)、長文字欄位受限寬度以便換列
   Object.keys(sheets).forEach(name => {
@@ -775,3 +777,85 @@ test('16. 從成績查詢系統唯讀複製學生與導師名單（不動來源�
   assert.equal(tLogin.teacher.mustChangePassword, true);
   assert.equal(tLogin.teacher.assignedClass, '701');
 });
+
+test('17. 管理者密碼存於試算表（管理者名單與系統設定）：手動改試算表、後台改密碼同步雙向生效，且保護分頁不被刪除', () => {
+  const { context, sheets } = createGasMockEnvironment();
+
+  // (1) 確保「管理者名單」工作表已自動建立，且內含 admin 帳號與密碼
+  context.ensureSheetExists();
+  assert.ok(sheets['管理者名單'], '管理者名單工作表必須存在');
+  const adminValues = sheets['管理者名單'].getDataRange().getValues();
+  assert.equal(adminValues[0][0], '帳號');
+  assert.equal(adminValues[0][2], '密碼');
+  assert.equal(adminValues[1][0], 'admin');
+
+  // (2) 學校承辦人直接在試算表 C2 格修改密碼為「sheetAdmin#888」
+  sheets['管理者名單'].getRange(2, 3).setValue('sheetAdmin#888');
+
+  // 網站後台立即能以「sheetAdmin#888」登入成功
+  const loginRes = context.loginAdmin('sheetAdmin#888');
+  assert.equal(loginRes.status, 'success');
+  assert.equal(loginRes.isDefault, false);
+  const token = loginRes.token;
+
+  // 錯誤密碼遭拒
+  assert.equal(context.loginAdmin('wrongpwd').status, 'error');
+
+  // (3) 管理者於網站後台變更密碼為「newCloudPass#999」
+  const changeRes = context.changeAdminPassword(token, 'sheetAdmin#888', 'newCloudPass#999');
+  assert.equal(changeRes.status, 'success');
+
+  // 驗證「管理者名單」與「系統設定」試算表格位皆已同步寫入新密碼
+  const updatedAdminRows = sheets['管理者名單'].getDataRange().getValues();
+  assert.equal(updatedAdminRows[1][2], 'newCloudPass#999');
+
+  const cfgRows = sheets['系統設定'].getDataRange().getValues();
+  const cfgPwdRow = cfgRows.find(r => r[0] === 'ADMIN_PASSWORD');
+  assert.ok(cfgPwdRow, '系統設定中必須有 ADMIN_PASSWORD');
+  assert.equal(cfgPwdRow[1], 'newCloudPass#999');
+
+  // (4) 健檢分頁清單：管理者名單必須受系統保護 (usedByApp = true)，不可被清理
+  const audit = context.getSpreadsheetAudit(token);
+  const adminAudit = audit.sheets.find(s => s.name === '管理者名單');
+  assert.ok(adminAudit, '健檢報告必須包含管理者名單');
+  assert.equal(adminAudit.usedByApp, true, '管理者名單必須被標記為 usedByApp');
+
+  const cleanRes = context.cleanupUnusedSheets(token, ['管理者名單']);
+  assert.equal(cleanRes.deleted.includes('管理者名單'), false, '受保護分頁不可被刪除');
+});
+
+test('18. 跨校 28 所多元熱門社團（涵蓋體能、創客、藝術、音樂、邏輯、服務六大領域）：初始化自動擴充、一鍵重設與公開社團總覽 API', () => {
+  const { context, sheets } = createGasMockEnvironment();
+  const token = context.loginAdmin('test-password').token;
+
+  // (1) 一鍵匯入 28 所多元熱門社團
+  const seedRes = context.seedCanonicalClubs(token, true);
+  assert.equal(seedRes.status, 'success');
+  assert.ok(seedRes.clubs.length >= 28, '社團數量需至少 28 所');
+
+  // 驗證六大主要領域皆有涵蓋
+  const categories = new Set(seedRes.clubs.map(c => c.category));
+  assert.ok(categories.has('體育競技'), '需包含體育競技');
+  assert.ok(categories.has('科技創客'), '需包含科技創客');
+  assert.ok(categories.has('視覺藝術'), '需包含視覺藝術');
+  assert.ok(categories.has('音樂表演'), '需包含音樂表演');
+  assert.ok(categories.has('策略邏輯'), '需包含策略邏輯');
+  assert.ok(categories.has('自然實驗'), '需包含自然實驗');
+
+  // 驗證總名額充分支援全校 30 班約 720 人規模
+  const totalCapacity = seedRes.clubs.reduce((sum, c) => sum + c.limit, 0);
+  assert.ok(totalCapacity >= 650, `總名額應足夠（目前 ${totalCapacity} 席）`);
+
+  // (2) 公開社團目錄 API：免登入即可預覽全校社團
+  const pubCatalog = context.getPublicClubCatalog();
+  assert.equal(pubCatalog.status, 'success');
+  assert.equal(pubCatalog.totalClubs, seedRes.clubs.length);
+
+  // (3) doPost 路由白名單檢查
+  const postPub = JSON.parse(context.doPost({
+    postData: { contents: JSON.stringify({ fn: 'getPublicClubCatalog', args: [] }) }
+  }).getContent());
+  assert.equal(postPub.ok, true);
+  assert.equal(postPub.result.totalClubs, seedRes.clubs.length);
+});
+

@@ -988,6 +988,12 @@
           <span>驗證身分，進入適性選社</span> →
         </button>
       </div>
+
+      <div style="margin-top: 14px; text-align: center;">
+        <button type="button" class="nav-btn" style="background: #f8fafc; border: 1px solid #cbd5e1; font-size: 13px; font-weight: 700; color: #334155; padding: 7px 15px; border-radius: 9px;" onclick="openPublicCatalogModal()">
+          ✨ 免登入預覽本學期 28 所跨校多元熱門社團 ↗
+        </button>
+      </div>
     </div>
 
     <!-- 步驟 2: 社團瀏覽、Gemini AI 適性顧問、選填 -->
@@ -1323,6 +1329,14 @@
         </div>
       </div>
 
+      <!-- 管理者帳密存於試算表提醒條 -->
+      <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div style="font-size: 13px; color: #1e40af; line-height: 1.5;">
+          <strong>🔑 管理者帳號與密碼已存於 Google 試算表：</strong>您可直接在試算表<strong>「管理者名單」</strong>工作表查看或手動修改管理密碼（亦同步更新於「系統設定」工作表）。
+        </div>
+        <a href="#" target="_blank" rel="noopener noreferrer" onclick="return openSpreadsheetDirectly(event)" style="font-size: 12px; font-weight: 800; color: #1d4ed8; text-decoration: none; background: #fff; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px;">📋 開啟試算表查看 ↗</a>
+      </div>
+
       <!-- 統計數據 -->
       <div class="admin-stats-grid">
         <div class="admin-stat-card">
@@ -1358,7 +1372,10 @@
       <div style="background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 22px;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
           <label style="margin: 0; font-size: 14px;">🗂️ 社團資料管理 <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">（修改後即時寫入試算表）</span></label>
-          <button type="button" class="nav-btn" onclick="openClubEditor(-1)">＋ 新增社團</button>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button type="button" class="nav-btn" style="background: #f0fdf4; border-color: #86efac; color: #166534; font-weight: 700;" onclick="triggerSeedCanonicalClubs()">🔄 匯入跨校多元熱門社團 (28社)</button>
+            <button type="button" class="nav-btn" onclick="openClubEditor(-1)">＋ 新增社團</button>
+          </div>
         </div>
         <div style="overflow-x: auto;">
           <table class="club-admin-table">
@@ -1507,13 +1524,45 @@
   var mockGoogle, mockSheets;
   if (isMock) {
     var mockClubs = [
-      { name: 'AI機器人創客社', limit: 15, current: 8, classCount: 1, teacher: '李組長', location: '科技創客教室', desc: '學習 Arduino 感測器、Micro:bit 與程式創作，實作智能小車與物聯網。', requirement: '自備筆電或平板佳，材料費 200 元', category: '科技創客' },
-      { name: '熱血籃球戰術社', limit: 25, current: 21, classCount: 3, teacher: '陳教練', location: '風雨球場A', desc: '基礎運球、團隊防守跑位、半場戰術演練與分組對抗，鍛鍊體能與團隊精神。', requirement: '請穿著運動服裝與自備籃球鞋', category: '體育競技' },
-      { name: '數位動漫與繪畫社', limit: 20, current: 14, classCount: 2, teacher: '王老師', location: '電腦教室二', desc: '電繪板基礎教學、角色骨架設計、分鏡繪製與 AI 輔助著色探索。', requirement: '無基礎可，提供教室電繪板', category: '視覺藝術' },
-      { name: '烏克麗麗與吉他彈唱社', limit: 18, current: 11, classCount: 1, teacher: '林老師', location: '音樂教室B', desc: '由淺入深學習和弦彈奏、節奏刷法與流行曲目彈唱，培養音樂美感與表演自信。', requirement: '歡迎自備樂器，備有部分公用琴', category: '音樂表演' },
-      { name: '桌遊與邏輯推理社', limit: 24, current: 16, classCount: 2, teacher: '張老師', location: '七年級多功能教室', desc: '精選德式策略桌遊、邏輯解謎密室與溝通推理遊戲，培養批判性思維與協作。', requirement: '無須自備道具，愛好思考者佳', category: '策略邏輯' },
-      { name: '趣味生活科學實驗社', limit: 16, current: 9, classCount: 1, teacher: '黃老師', location: '理化實驗室三', desc: '生活中的化學變色、大氣壓力水火箭、分子料理與電磁魔法，探索科學奧秘。', requirement: '材料費 150 元，需穿著實驗圍裙', category: '自然實驗' },
-      { name: '校園新聞播報與攝影社', limit: 15, current: 10, classCount: 0, teacher: '趙老師', location: '視聽研討室', desc: '採訪技巧、單眼與手機攝影構圖、剪輯軟體操作與重大活動實地報導實習。', requirement: '無經驗可，適合喜愛表達與拍攝者', category: '語文傳播' }
+      // 體育競技（7 社）
+      { name: '熱血籃球戰術社', limit: 30, current: 18, classCount: 2, teacher: '陳建勳 教練', location: '風雨球場A', desc: '基礎運球技巧、傳切配合、團隊防守跑位、半場戰術演練與分組實戰對抗，鍛鍊心肺體能與團隊默契。', requirement: '請穿著運動服裝、攜帶毛巾與自備籃球鞋', category: '體育競技' },
+      { name: '羽球活力雙打社', limit: 26, current: 20, classCount: 3, teacher: '林志祥 老師', location: '學生活動中心羽球場', desc: '正反手發球、網前小球切球、後場平高球與殺球跑位技巧，加強雙打走位默契與敏捷反應能力。', requirement: '自備羽球拍與運動鞋，耗損羽球由公費提供', category: '體育競技' },
+      { name: '桌球技巧精進社', limit: 24, current: 15, classCount: 1, teacher: '郭文彬 老師', location: '桌球地下防空避難室', desc: '正反手推擋、弧圈球拉旋、發球落點變化與單雙打步法訓練，培養手眼協調與瞬間專注力。', requirement: '需自備桌球拍（膠皮不限），練習球由社團提供', category: '體育競技' },
+      { name: '競技排球與防守社', limit: 26, current: 14, classCount: 2, teacher: '黃俊傑 老師', location: '體育館排球場', desc: '低手接發球、高手舉球配球、扣球步伐與陣形攔網訓練，著重團隊溝通呼應與不放棄救球精神。', requirement: '請穿著運動服裝與室內球鞋，建議自備護膝', category: '體育競技' },
+      { name: '流行街舞與律動社', limit: 25, current: 19, classCount: 2, teacher: 'Amy 舞蹈教練', location: '韻律舞蹈教室（鏡面教室）', desc: 'Hip-Hop 基礎律動、Popping 震點定點練習、流行 K-Pop MV 舞步拆解與成果排舞展演。', requirement: '穿著寬鬆舒適服裝與乾淨平底球鞋，無舞蹈基礎可', category: '體育競技' },
+      { name: '跆拳防身自衛術社', limit: 24, current: 12, classCount: 1, teacher: '張教練（黑帶四段）', location: '柔道跆拳訓練教室', desc: '基本踢腿防護、品勢步伐、防身脫困技巧與體能反應訓練，培養尊師重道品格與自我防護意識。', requirement: '穿著輕便運動服或道服，備有公用腳靶防具', category: '體育競技' },
+      { name: '五人制足球技巧社', limit: 26, current: 16, classCount: 2, teacher: '周教練', location: '操場草皮區／風雨球場B', desc: '盤帶傳球控球技術、短傳滲透小組配合、守門撲救反應與小場地高強度對抗，強化下肢爆發力。', requirement: '穿著運動鞋或平底足球鞋（禁止金屬鋼釘鞋），自備長襪護脛', category: '體育競技' },
+
+      // 科技創客（4 社）
+      { name: 'AI機器人創客社', limit: 22, current: 17, classCount: 2, teacher: '李宗翰 組長', location: '科技創客教室', desc: '結合 Arduino 感測器、Micro:bit 智慧控制與簡易 AI 影像辨識，親手組裝感應智能避障小車與物聯網裝置。', requirement: '提供公用電腦與套件，材料費每學期 200 元', category: '科技創客' },
+      { name: 'Python與演算法程式社', limit: 25, current: 16, classCount: 1, teacher: '鄭組長', location: '電腦教室一', desc: '從圖形化 Blocky 銜接至 Python 核心語法，實作文字冒險遊戲、自動化爬蟲與邏輯解題思維訓練。', requirement: '無需程式基礎，使用學校電腦教室設備，請自備隨身碟存檔', category: '科技創客' },
+      { name: '3D列印與立體模型創客社', limit: 20, current: 15, classCount: 2, teacher: '劉老師', location: '生活科技木工創客教室', desc: 'Tinkercad 3D 建模設計、3D 列印切片參數操作、雷射雕刻雷切鑰匙圈與機構齒輪動態手作。', requirement: '作品可帶回，耗材費（PLA線材與密集板）每人 180 元', category: '科技創客' },
+      { name: '無人機飛行與空拍攝影社', limit: 20, current: 14, classCount: 1, teacher: '許組長', location: '科技研討室與中庭草坪', desc: '微型室內無人機飛行原理、手眼協調操控穿越障礙賽道、安全空拍法規與手機縮時縮影運鏡。', requirement: '校方提供公用訓練機，需具備高度安全操作紀律', category: '科技創客' },
+
+      // 視覺藝術（5 社）
+      { name: '數位動漫與繪畫社', limit: 25, current: 21, classCount: 3, teacher: '王靜儀 老師', location: '電腦教室二', desc: '專業電繪板感壓操作、動漫角色頭身骨架比例、光影層次上色、四格分鏡漫畫創作與個人插畫作品集。', requirement: '使用教室專業繪圖板與繪圖軟體，材料無額外收費', category: '視覺藝術' },
+      { name: '手作黏土與文創工藝社', limit: 22, current: 15, classCount: 1, teacher: '陳敏慧 老師', location: '美術教室一', desc: '輕黏土仿真甜點、樹脂飾品手作、環保蝶谷巴特拼貼提袋與文青風手作杯墊，享受手作療癒時光。', requirement: '材料包（含黏土、五金吊飾、黏著劑）每人 150 元', category: '視覺藝術' },
+      { name: '水彩美學與素描寫生社', limit: 22, current: 13, classCount: 1, teacher: '簡老師', location: '美術教室二', desc: '鉛筆素描明暗排線、校園景物靜物透視寫生、透明水彩渲染與混色疊色技法，打下扎實美術底子。', requirement: '需自備水彩用具（水彩餅或管狀、水彩筆、調色盤、洗筆筒）', category: '視覺藝術' },
+      { name: '經典書法與水墨文創社', limit: 22, current: 11, classCount: 1, teacher: '曾老師', location: '國學書法專用教室', desc: '楷書隸書筆法運筆氣韻、水墨濃淡乾濕技法、創意春聯揮毫與扇面題字文創實作，陶冶心性沉靜氣質。', requirement: '需自備大楷、中楷毛筆各一支，宣紙與墨汁由社團備置', category: '視覺藝術' },
+      { name: '皮革工藝與生活布縫社', limit: 23, current: 17, classCount: 2, teacher: '何老師', location: '家政工藝教室', desc: '植物鞣皮革基礎打孔、雙針鞍式手縫、皮邊修飾打磨，親手完成識別證套、零錢包與刺繡帆布小包。', requirement: '皮革材料包與縫紉針線組每人 160 元', category: '視覺藝術' },
+
+      // 音樂表演（5 社）
+      { name: '烏克麗麗與吉他彈唱社', limit: 24, current: 18, classCount: 2, teacher: '林家宏 老師', location: '音樂教室B', desc: '由簡入繁學習三和弦切換、民謠節奏刷法、指彈撥弦與最新流行華語流行金曲彈唱，自信登台表演。', requirement: '強烈建議自備吉他或烏克麗麗，教室提供 8 把備用琴供輪流練習', category: '音樂表演' },
+      { name: '熱門流行樂團與合奏社', limit: 20, current: 16, classCount: 1, teacher: '潘老師', location: '熱音社團練室（隔音間）', desc: '電吉他破音特效、電貝斯低音律動、流行爵士鼓重音節奏與鍵盤合成器配器，合奏流行搖滾曲目。', requirement: '需具備基礎樂器彈奏經驗者為佳，備有公用音箱與專業爵士鼓', category: '音樂表演' },
+      { name: '管樂合奏與長笛小號初階社', limit: 25, current: 19, classCount: 2, teacher: '蕭老師', location: '管樂團大合奏室', desc: '長笛、單簧管、小號、長號吹奏嘴型呼吸與指法訓練，認識五線譜與齊奏重奏合聲之美。', requirement: '學校管樂團備有公用管樂器借用，需自備個人專用吹嘴（或簧片）', category: '音樂表演' },
+      { name: '節奏打擊樂與木箱鼓社', limit: 20, current: 15, classCount: 1, teacher: '高老師', location: '音樂教室A', desc: '木箱鼓（Cajon）打法手勢、非洲鼓節奏呼應、動態杯子打擊樂（Cup Song）與節奏合奏重擊震撼。', requirement: '使用教室公用木箱鼓與非洲鼓，無打擊基礎亦可快速上手', category: '音樂表演' },
+      { name: '戲劇表演與舞台主持社', limit: 21, current: 14, classCount: 1, teacher: '蔡老師', location: '多功能演藝階梯教室', desc: '即興表演練習、口條發聲發音投射、肢體開發模仿、情境短劇排演與大型校園活動舞台主持技巧培訓。', requirement: '喜愛說話、表達或想要突破害羞內向者皆非常歡迎，無材料費', category: '音樂表演' },
+
+      // 策略邏輯與語文思辨（4 社）
+      { name: '桌遊與邏輯推理社', limit: 28, current: 24, classCount: 3, teacher: '張育誠 老師', location: '七年級多功能教室', desc: '精選德式策略資源管理桌遊（卡卡頌、卡坦島）、邏輯劇本解謎與陣營心機推理，激發批判性思考。', requirement: '學校購置豐富全新正版桌遊盒裝，無須自備道具，愛好思考互動者佳', category: '策略邏輯' },
+      { name: '棋藝研究社（象棋、圍棋與西洋棋）', limit: 26, current: 18, classCount: 2, teacher: '洪老師（業餘段位棋士）', location: '靜態閱覽教室', desc: '布局定式解析、中局算子博弈、殘局攻殺戰術演練與社內循環定段賽，培養沉著冷靜與全局推演眼界。', requirement: '教室備有標準棋盤棋具，無基礎亦可自基礎棋規學起', category: '策略邏輯' },
+      { name: '日語生活基礎與動漫文化社', limit: 25, current: 20, classCount: 2, teacher: '佐藤老師 / 林老師', location: '語言研習教室', desc: '平假名片假名五十音記憶法、生活日常問候、旅遊點餐情境模擬、熱門動漫主題曲歌詞賞析與日本文化探索。', requirement: '印製專屬日語自編手冊，免教材費', category: '語文思辨' },
+      { name: '英語電影賞析與情境對話社', limit: 25, current: 17, classCount: 2, teacher: '外師 + 英語科輔導教師', location: '視聽階梯演講廳', desc: '精選歐美得獎動畫與青少年電影經典片段，解析道地口語流行俚語、角色扮演情境對話與跨文化分享。', requirement: '全程多媒體放映與情境互動，無材料費', category: '語文思辨' },
+
+      // 自然實驗與生活服務（3 社）
+      { name: '趣味生活科學實驗社', limit: 24, current: 18, classCount: 2, teacher: '黃柏翰 老師', location: '理化實驗室三', desc: '生活化學趣味顯色、大氣壓力水火箭試射、分子料理晶球、乾冰仙境與磁浮陀螺，在動手中驗證科學奧秘。', requirement: '需穿著棉質長褲與防護實驗圍裙，材料費 150 元', category: '自然實驗' },
+      { name: '童軍野外求生與探索社', limit: 26, current: 19, classCount: 2, teacher: '李木榮 團長（童軍木章持有人）', location: '童軍露營營地／童軍教室', desc: '實用繩結編織、雙旗密碼信號、野外無具野炊、方位指北針定位定向越野與急救包紮包紮實用技能。', requirement: '戶外活動需具備團隊紀律，自備童軍繩（學校亦可代購 50 元）', category: '生活服務' },
+      { name: '校園新聞播報與自媒體攝影社', limit: 22, current: 15, classCount: 1, teacher: '趙組長', location: '校園主播攝影棚', desc: '校園熱門話題新聞採訪、單眼相機與手機運鏡構圖技巧、剪映/CapCut 剪輯音效配樂與大溪國中影音校刊製作。', requirement: '無經驗可，適合喜愛表達、拍照、剪片或幕後技術探索者', category: '生活服務' }
     ];
 
     var mockSettings = {
@@ -1674,6 +1723,26 @@
               mockClubs.splice(idx, 1);
               self._success({ status: 'success', message: '社團【' + clubName + '】已刪除（展示資料庫）。', clubs: mockClubs.slice() });
             }, 300);
+          },
+          seedCanonicalClubs: function(t, overwrite) {
+            var self = this;
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                message: '成功載入 28 所跨校熱門多元社團（展示資料庫）。',
+                clubs: mockClubs.slice()
+              });
+            }, 300);
+          },
+          getPublicClubCatalog: function() {
+            var self = this;
+            setTimeout(function(){
+              self._success({
+                status: 'success',
+                totalClubs: mockClubs.length,
+                clubs: mockClubs.slice()
+              });
+            }, 150);
           },
           runAiSmartAllocation: function(t, previewToken) {
             var self = this;
@@ -2988,6 +3057,49 @@
         renderClubHeatmap(appState.adminClubs);
         showModal('已刪除', escapeHtml(res.message));
       });
+    });
+  }
+
+  function triggerSeedCanonicalClubs() {
+    showConfirmModal('載入 28 所跨校熱門多元社團',
+      '本動作將比照其他國中開設之多元彈性學習與聯課活動，匯入涵蓋<strong>體育競技、科技創客、視覺藝術、音樂表演、策略邏輯、自然實驗與生活服務</strong>等 6 大領域共 28 所優質社團（總名額約 700 席，充分支援全校 30 班選填需求）。<br><br><span style="font-size:12px; color:var(--text-muted);">💡 提示：既有自訂社團或已有學生錄取之社團名額將獲得安全保留。</span>',
+      '確認載入 28 社',
+      function() {
+        setLoading(true, '正在寫入 Google 試算表...');
+        callGas('seedCanonicalClubs', [appState.adminToken, false], function(res) {
+          if (res.status === 'error') { showModal('載入失敗', escapeHtml(res.message)); return; }
+          appState.adminClubs = res.clubs || [];
+          renderClubAdminTable(appState.adminClubs);
+          renderClubHeatmap(appState.adminClubs);
+          showModal('載入成功', escapeHtml(res.message));
+        });
+      }
+    );
+  }
+
+  function openPublicCatalogModal() {
+    setLoading(true, '載入社團總覽...');
+    callGas('getPublicClubCatalog', [], function(res) {
+      setLoading(false);
+      var clubs = (res && res.clubs) || mockClubs;
+      var html = '<div style="max-height: 480px; overflow-y: auto; text-align: left; padding-right: 4px;">';
+      html += '<p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">本學期共開設 ' + clubs.length + ' 所跨校熱門多元社團，涵蓋體育競技、科技創客、視覺藝術、音樂表演、策略邏輯、自然實驗與生活服務等六大領域：</p>';
+      html += '<div style="display: grid; gap: 10px;">';
+      clubs.forEach(function(c, i) {
+        html += '<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px;">';
+        html += '  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:4px;">';
+        html += '    <strong style="font-size:14px; color:#1e293b;">' + (i+1) + '. ' + escapeHtml(c.name) + '</strong>';
+        html += '    <span class="club-category-tag">' + escapeHtml(c.category || '綜合興趣') + '</span>';
+        html += '  </div>';
+        html += '  <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">📍 地點：' + escapeHtml(c.location || '校內教室') + ' ｜ 👨‍🏫 指導：' + escapeHtml(c.teacher || '專業指導') + ' ｜ 👥 名額：' + c.limit + ' 人</div>';
+        html += '  <div style="font-size:12px; color:#475569; line-height:1.4;">' + escapeHtml(c.desc || '') + '</div>';
+        if (c.requirement) {
+          html += '  <div style="font-size:11px; color:#d97706; margin-top:4px;">⚠️ ' + escapeHtml(c.requirement) + '</div>';
+        }
+        html += '</div>';
+      });
+      html += '</div></div>';
+      showModal('本學期多元熱門社團總覽（共 ' + clubs.length + ' 社）', html);
     });
   }
 
