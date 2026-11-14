@@ -1068,4 +1068,18 @@ test('24. 試算表 AI_ADVISOR_ENABLED / EMAIL_NOTIFICATION_ENABLED 儲存為大
   assert.ok(Array.isArray(aiRes.data.recommendations) && aiRes.data.recommendations.length > 0);
 });
 
+test('25. ruleBasedRecommendFallback 涵蓋多元探索方向與避暑/免額外收費偏好', () => {
+  const { context } = createGasMockEnvironment();
+  context.seedCanonicalClubsToSheet_(context.SpreadsheetApp.getActiveSpreadsheet(), true);
+
+  const resJp = context.aiConsultantRecommend('想從五十音開始學日語日常對話與賞析日本文化，希望在室內冷氣教室上課，不想大量流汗曬太陽', '802');
+  assert.equal(resJp.status, 'success');
+  assert.equal(resJp.source, 'rule-fallback');
+  assert.equal(resJp.data.recommendations[0].clubName, '日語生活基礎與動漫文化社');
+
+  const resDrone = context.aiConsultantRecommend('對操控無人機穿越障礙與空拍攝影感興趣', '703');
+  assert.equal(resDrone.status, 'success');
+  assert.equal(resDrone.data.recommendations[0].clubName, '無人機飛行與空拍攝影社');
+});
+
 

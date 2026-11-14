@@ -1854,53 +1854,87 @@ function aiConsultantRecommend(studentInput, studentGrade) {
 }
 
 function ruleBasedRecommendFallback(input, clubs) {
-  const text = input.toLowerCase();
-  const scoredClubs = clubs.map(club => {
-    let score = 55;
-    const cName = club.name.toLowerCase();
-    const cDesc = club.desc.toLowerCase();
-    const cCat = (club.category || '').toLowerCase();
+  const text = String(input || '').toLowerCase();
+  const avoidOutdoor = /不[想愛喜歡要].*(曬太陽|跑步|流汗|戶外)|室內冷氣|怕熱|討厭跑步/.test(text);
+  const wantQuiet = /安靜|沉靜|專注|個人創作|不愛吵/.test(text);
+  const wantSocial = /熱鬧|交朋友|團隊|分組|合作|互動|表達|主持/.test(text);
+  const wantZeroFee = /免額外|免材料費|不要錢|免費/.test(text);
+  const wantNoGear = /免自備|沒有器材|學校提供|公用/.test(text);
+  const wantTakeHome = /帶回家|做成品|紀念品|手作/.test(text);
+  const wantBeginner = /零基礎|新手|沒經驗|不會/.test(text);
 
-    if (text.includes('程式') || text.includes('電腦') || text.includes('ai') || text.includes('機器人') || text.includes('創客') || text.includes('科技')) {
-      if (cName.includes('機器人') || cName.includes('創客') || cDesc.includes('程式') || cCat.includes('創客')) score += 40;
+  const keywordRules = [
+    { re: /機器人|arduino|micro:bit|感測|智慧小車|物聯網|創客|ai/, clubRe: /機器人|創客/, catRe: /科技創客/, boost: 42 },
+    { re: /python|程式|演算法|電腦|寫code|寫程式|邏輯解題|爬蟲/, clubRe: /python|程式|演算法/, catRe: /科技創客/, boost: 45 },
+    { re: /3d|列印|建模|雷射|雷切|齒輪|模型/, clubRe: /3d列印|立體模型/, catRe: /科技創客/, boost: 45 },
+    { re: /無人機|空拍|飛行|飛機|縮時/, clubRe: /無人機|空拍/, catRe: /科技創客/, boost: 48 },
+    { re: /科學|實驗|化學|水火箭|乾冰|理化|自然/, clubRe: /科學|實驗/, catRe: /自然實驗/, boost: 44 },
+    { re: /電繪|動漫|插畫|漫畫|二次元|畫畫|繪畫/, clubRe: /動漫|繪畫/, catRe: /視覺藝術/, boost: 44 },
+    { re: /黏土|甜點|樹脂|蝶谷巴特|文創|療癒手作/, clubRe: /黏土|文創工藝/, catRe: /視覺藝術/, boost: 45 },
+    { re: /水彩|素描|寫生|畫景|美術底子/, clubRe: /水彩|素描/, catRe: /視覺藝術/, boost: 45 },
+    { re: /書法|水墨|國畫|毛筆|春聯|寫字/, clubRe: /書法|水墨/, catRe: /視覺藝術/, boost: 46 },
+    { re: /皮革|布縫|縫紉|皮包|零錢包|證件套/, clubRe: /皮革|布縫/, catRe: /視覺藝術/, boost: 46 },
+    { re: /吉他|烏克麗麗|彈唱|和弦|民謠|自彈/, clubRe: /吉他|烏克麗麗/, catRe: /音樂表演/, boost: 45 },
+    { re: /樂團|熱音|電吉他|貝斯|爵士鼓|搖滾|木箱鼓|非洲鼓|打擊樂/, clubRe: /樂團|打擊|木箱鼓/, catRe: /音樂表演/, boost: 45 },
+    { re: /管樂|長笛|單簧管|小號|長號|吹奏/, clubRe: /管樂|長笛|小號/, catRe: /音樂表演/, boost: 48 },
+    { re: /街舞|舞|k-pop|hip-hop|律動/, clubRe: /街舞|律動/, catRe: /體育競技|音樂表演/, boost: 46 },
+    { re: /戲劇|演戲|主持|口條|短劇|舞台|說話/, clubRe: /戲劇|舞台|主持/, catRe: /音樂表演/, boost: 46 },
+    { re: /籃球|排球|足球|球類|團隊對抗/, clubRe: /籃球|排球|足球/, catRe: /體育競技/, boost: 42 },
+    { re: /羽球|桌球|揮拍|乒乓/, clubRe: /羽球|桌球/, catRe: /體育競技/, boost: 44 },
+    { re: /跆拳|防身|自衛|踢腿|武術/, clubRe: /跆拳|防身/, catRe: /體育競技/, boost: 48 },
+    { re: /童軍|露營|野外|求生|繩結|定向|野炊|戶外/, clubRe: /童軍|野外|求生/, catRe: /生活服務/, boost: 48 },
+    { re: /新聞|主播|採訪|攝影|拍照|剪輯|剪片|自媒體|影片/, clubRe: /新聞|播報|攝影|自媒體/, catRe: /生活服務/, boost: 46 },
+    { re: /桌遊|推理|劇本|解謎|策略/, clubRe: /桌遊|推理/, catRe: /策略邏輯/, boost: 45 },
+    { re: /棋|象棋|圍棋|西洋棋|博弈/, clubRe: /棋藝|象棋|圍棋/, catRe: /策略邏輯/, boost: 48 },
+    { re: /日語|日文|五十音|日本/, clubRe: /日語/, catRe: /語文思辨/, boost: 48 },
+    { re: /英語|英文|電影|美劇|外師/, clubRe: /英語|電影/, catRe: /語文思辨/, boost: 46 }
+  ];
+
+  const scoredClubs = clubs.map(club => {
+    let score = 52;
+    const cName = String(club.name || '').toLowerCase();
+    const cDesc = String(club.desc || '').toLowerCase();
+    const cReq = String(club.requirement || '').toLowerCase();
+    const cLoc = String(club.location || '').toLowerCase();
+    const cCat = String(club.category || '').toLowerCase();
+    const combined = cName + ' ' + cDesc;
+
+    keywordRules.forEach(rule => {
+      if (rule.re.test(text)) {
+        if (rule.clubRe.test(combined)) score += rule.boost;
+        else if (rule.catRe.test(cCat)) score += Math.round(rule.boost * 0.45);
+      }
+    });
+
+    const isOutdoorOrCardio = /操場|球場|草皮|露營|營地|籃球|足球|排球|童軍/.test(cLoc + ' ' + cName);
+    if (avoidOutdoor) {
+      score += isOutdoorOrCardio ? -25 : 10;
     }
-    if (text.includes('運動') || text.includes('球') || text.includes('籃球') || text.includes('跑步') || text.includes('體能') || text.includes('活潑')) {
-      if (cName.includes('球') || cDesc.includes('體能') || cCat.includes('體育')) score += 40;
-    }
-    if (text.includes('畫') || text.includes('動漫') || text.includes('設計') || text.includes('插畫') || text.includes('美術') || text.includes('二次元')) {
-      if (cName.includes('繪畫') || cName.includes('動漫') || cDesc.includes('著色') || cCat.includes('藝術')) score += 40;
-    }
-    if (text.includes('音樂') || text.includes('唱歌') || text.includes('吉他') || text.includes('琴') || text.includes('樂器') || text.includes('彈唱')) {
-      if (cName.includes('吉他') || cName.includes('烏克麗麗') || cDesc.includes('彈唱') || cCat.includes('音樂')) score += 40;
-    }
-    if (text.includes('思考') || text.includes('遊戲') || text.includes('桌遊') || text.includes('推理') || text.includes('解謎') || text.includes('安靜')) {
-      if (cName.includes('桌遊') || cName.includes('推理') || cDesc.includes('策略') || cCat.includes('邏輯')) score += 40;
-    }
-    if (text.includes('科學') || text.includes('實驗') || text.includes('好奇') || text.includes('化學') || text.includes('自然')) {
-      if (cName.includes('科學') || cDesc.includes('實驗') || cCat.includes('自然')) score += 40;
-    }
-    if (text.includes('採訪') || text.includes('攝影') || text.includes('拍照') || text.includes('影片') || text.includes('新聞') || text.includes('表達')) {
-      if (cName.includes('新聞') || cName.includes('攝影') || cDesc.includes('採訪')) score += 40;
-    }
+    if (wantQuiet && /書法|棋藝|水彩|素描|動漫|python|黏土|皮革|英語電影|日語/.test(combined)) score += 12;
+    if (wantSocial && /桌遊|戲劇|熱音|管樂|籃球|排球|童軍|街舞|新聞/.test(combined)) score += 12;
+    if (wantZeroFee && (/無材料費|免教材費|無額外收費/.test(cReq) || !/元/.test(cReq))) score += 10;
+    if (wantNoGear && (/公用|備有|無須自備/.test(cReq) || !/自備/.test(cReq))) score += 8;
+    if (wantTakeHome && /帶回|完成|手作|作品|製作/.test(cDesc + ' ' + cReq)) score += 10;
+    if (wantBeginner && /無.*基礎|無經驗|從.*學起|簡入繁/.test(cDesc + ' ' + cReq)) score += 8;
 
     return {
       clubName: club.name,
       matchScore: score,
-      reason: `此社團著重於${club.desc.slice(0, 32)}...，能充分發揮你在${club.category}領域的多元潛能！`
+      reason: `此社團屬於「${club.category}」領域，著重${club.desc.slice(0, 34)}...，能契合你的探索方向與上課期待！`
     };
   });
 
   scoredClubs.sort((a, b) => b.matchScore - a.matchScore);
   const topRecommendations = scoredClubs.slice(0, 3).map((item, idx) => ({
     ...item,
-    matchScore: Math.max(70, Math.min(98, item.matchScore - idx * 5))
+    matchScore: Math.max(70, Math.min(99, item.matchScore - idx * 4))
   }));
 
   return {
     status: 'success',
     data: {
       recommendations: topRecommendations,
-      encouragement: '國中階段是探索多元智能與培養終身興趣的黃金時期！勇敢嘗試不同領域，每一堂社團課都會成為你珍貴的成長歷程。'
+      encouragement: '國中階段是探索多元智能與培養終身興趣的黃金時期！結合你的興趣與上課偏好來選社，每一堂社團課都會成為珍貴的成長歷程。'
     },
     source: 'rule-fallback'
   };

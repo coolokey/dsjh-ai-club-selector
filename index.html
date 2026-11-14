@@ -530,14 +530,50 @@
       display: flex;
       gap: 8px;
     }
+    .ai-domain-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .ai-domain-tab {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid var(--primary-border);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ai-domain-tab:hover {
+      background: var(--primary-soft);
+      color: var(--primary-deep);
+    }
+    .ai-domain-tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(30, 64, 175, 0.22);
+    }
+    .ai-chips-group-label {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-muted);
+      margin: 8px 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
     .ai-chips-wrap {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .ai-chip {
-      background: white;
+      background: #ffffff;
       border: 1px solid #cbd5e1;
       padding: 5px 11px;
       border-radius: 20px;
@@ -546,12 +582,63 @@
       color: #334155;
       font-weight: 600;
       transition: all 0.15s;
+      user-select: none;
     }
     .ai-chip:hover {
       background: var(--primary-soft);
       border-color: var(--primary-light);
       color: var(--primary);
       transform: translateY(-1px);
+    }
+    .ai-chip.selected {
+      background: var(--primary-soft);
+      border-color: var(--primary);
+      color: var(--primary-deep);
+      font-weight: 800;
+      box-shadow: 0 0 0 1px var(--primary-border);
+    }
+    .ai-chip.pref-chip {
+      background: #fffdf5;
+      border: 1px dashed #fbbf24;
+      color: #92400e;
+    }
+    .ai-chip.pref-chip:hover {
+      background: #fef3c7;
+      border-style: solid;
+      border-color: #d97706;
+    }
+    .ai-chip.pref-chip.selected {
+      background: #fef3c7;
+      border: 1px solid #d97706;
+      color: #78350f;
+      font-weight: 800;
+      box-shadow: 0 0 0 1px #fde68a;
+    }
+    .ai-chips-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 6px 0 10px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+    .ai-mini-btn {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ai-mini-btn:hover {
+      background: var(--primary-soft);
+      border-color: var(--primary-light);
+      color: var(--primary);
     }
 
     /* 骨架屏與打字效果 */
@@ -1342,21 +1429,32 @@
           <span style="font-size: 11px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-weight: 800;">108課綱適性導航</span>
         </div>
         <p style="font-size: 13px; color: #475569; margin-bottom: 10px;">
-          不知道選什麼？輸入口語興趣（如「我喜歡做模型但討厭跑步」）或點擊探索標籤，讓 AI 為你分析契合社團！
+          不知道選什麼？可複選下方<strong>「探索方向」</strong>與<strong>「上課偏好」</strong>，或直接輸入口語想法（如「想做立體作品但不想曬太陽」），讓 AI 為你精準配對！
         </p>
-        
-        <div class="ai-chips-wrap">
-          <div class="ai-chip" onclick="addInterestTag('喜歡動手組裝機器人與寫程式')">🤖 機器人創客</div>
-          <div class="ai-chip" onclick="addInterestTag('熱愛籃球運動與體能鍛鍊')">🏀 籃球運動</div>
-          <div class="ai-chip" onclick="addInterestTag('喜愛動漫插畫與電繪二次元創作')">🎨 動漫電繪</div>
-          <div class="ai-chip" onclick="addInterestTag('想學吉他彈唱與流行歌曲')">🎸 吉他音樂</div>
-          <div class="ai-chip" onclick="addInterestTag('熱愛推理密室與策略桌遊')">🎲 桌遊推理</div>
-          <div class="ai-chip" onclick="addInterestTag('好奇化學變色與動手做生活實驗')">🔬 科學實驗</div>
+
+        <div class="ai-domain-tabs" id="aiDomainTabs" role="tablist" aria-label="AI 探索方向分類">
+          <button type="button" class="ai-domain-tab active" data-domain="all" onclick="setAiDomainFilter('all')">🌟 全部方向 (26)</button>
+          <button type="button" class="ai-domain-tab" data-domain="tech" onclick="setAiDomainFilter('tech')">🤖 科技科學</button>
+          <button type="button" class="ai-domain-tab" data-domain="art" onclick="setAiDomainFilter('art')">🎨 美學手作</button>
+          <button type="button" class="ai-domain-tab" data-domain="music" onclick="setAiDomainFilter('music')">🎸 音樂舞台</button>
+          <button type="button" class="ai-domain-tab" data-domain="sport" onclick="setAiDomainFilter('sport')">🏀 運動戶外</button>
+          <button type="button" class="ai-domain-tab" data-domain="logic" onclick="setAiDomainFilter('logic')">♟️ 策略語文</button>
+          <button type="button" class="ai-domain-tab" data-domain="pref" onclick="setAiDomainFilter('pref')">🧭 上課偏好</button>
+        </div>
+
+        <div id="aiChipsContainer"></div>
+
+        <div class="ai-chips-toolbar">
+          <span id="aiSelectedCountLabel" style="font-weight: 700;">💡 點擊上方標籤可複選搭配，也可直接手動輸入</span>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button type="button" class="ai-mini-btn" onclick="pickRandomAiCombo()">🎲 隨機靈感盲盒</button>
+            <button type="button" class="ai-mini-btn" onclick="clearAiInterests()">🧹 清空條件</button>
+          </div>
         </div>
 
         <div class="ai-input-row">
-          <input type="text" id="aiInterestInput" class="form-control" style="font-size: 13px; padding: 10px 12px;" placeholder="例如：我想學動手操作，不想大量跑步曬太陽...">
-          <button class="btn btn-primary" style="width: auto; padding: 10px 16px; font-size: 13px; white-space: nowrap;" onclick="triggerAiAdvisor()">
+          <input type="text" id="aiInterestInput" class="form-control" style="font-size: 13px; padding: 10px 12px;" placeholder="例如：我想學動手做作品帶回家，不想大量跑步曬太陽..." onkeydown="if(event.key==='Enter'){event.preventDefault();triggerAiAdvisor();}">
+          <button type="button" class="btn btn-primary" style="width: auto; padding: 10px 16px; font-size: 13px; white-space: nowrap;" onclick="triggerAiAdvisor()">
             <span>✨ AI 分析</span>
           </button>
         </div>
@@ -2014,20 +2112,40 @@
           },
           aiConsultantRecommend: function(input) {
             var self = this;
+            var txt = String(input || '').toLowerCase();
             setTimeout(function(){
+              var tokens = txt.split(/[\s，,、。；;!！?？]+/).filter(function(k) { return k.length >= 2; });
+              var avoidOutdoor = /不[想愛喜歡要].*(曬太陽|跑步|流汗|戶外)|室內冷氣/.test(txt);
+              var scored = mockClubs.map(function(c) {
+                var s = 60;
+                var hay = (c.name + ' ' + c.category + ' ' + c.desc + ' ' + c.requirement).toLowerCase();
+                tokens.forEach(function(tk) {
+                  if (hay.indexOf(tk) !== -1) s += 16;
+                });
+                if (/吉他|烏克麗麗|彈唱/.test(txt) && /吉他|烏克麗麗/.test(hay)) s += 30;
+                if (/程式|python/.test(txt) && /python|程式/.test(hay)) s += 30;
+                if (/3d|列印|雷射/.test(txt) && /3d|列印/.test(hay)) s += 30;
+                if (/無人機|空拍/.test(txt) && /無人機|空拍/.test(hay)) s += 30;
+                if (/桌遊|棋|推理/.test(txt) && /桌遊|棋|推理/.test(hay)) s += 30;
+                if (/日語|英語|電影|新聞|攝影/.test(txt) && /日語|英語|電影|新聞|攝影/.test(hay)) s += 30;
+                if (/黏土|水彩|素描|書法|皮革|電繪|動漫/.test(txt) && /黏土|水彩|素描|書法|皮革|動漫|繪畫/.test(hay)) s += 30;
+                if (/籃球|排球|足球|羽球|桌球|跆拳|童軍/.test(txt) && /籃球|排球|足球|羽球|桌球|跆拳|童軍/.test(hay)) s += 30;
+                if (avoidOutdoor && /操場|球場|籃球|足球|排球|童軍/.test(hay + ' ' + c.location)) s -= 25;
+                return {
+                  clubName: c.name,
+                  matchScore: Math.min(99, Math.max(72, s)),
+                  reason: '結合「' + c.category + '」特色與你的探索方向：' + c.desc.slice(0, 36) + '…（108課綱適性素養培育）'
+                };
+              }).sort(function(a, b) { return b.matchScore - a.matchScore; }).slice(0, 3);
               self._success({
                 status: 'success',
                 source: 'gemini',
                 data: {
-                  recommendations: [
-                    { clubName: 'AI機器人創客社', matchScore: 96, reason: '深度契合你對動手實作與程式的探索渴望，能學習感測器與智能小車（108課綱：科技資訊與媒體素養）！' },
-                    { clubName: '數位動漫與繪畫社', matchScore: 90, reason: '電繪板結合 AI 著色輔助，能激發出無限視覺創意靈感（108課綱：藝術涵養與美感素養）！' },
-                    { clubName: '趣味生活科學實驗社', matchScore: 85, reason: '透過動手做化學與水火箭實驗，滿足好奇心並培養科學探究力（108課綱：系統思考與解決問題）！' }
-                  ],
-                  encouragement: '國中階段是發掘自我天賦的最佳起點！勇敢嘗試不同領域，社團生活將讓你收穫滿滿的成就感！'
+                  recommendations: scored,
+                  encouragement: '國中階段是發掘多元興趣的最佳起點！善用多面向探索方向搭配上課偏好，選出最適合自己的社團！'
                 }
               });
-            }, 600);
+            }, 450);
           },
           submitSelection: function(token, club) {
             var self = this;
@@ -2599,6 +2717,7 @@
   // 初始化
   window.onload = function() {
     renderThemeSwitcherState_();
+    renderAiExplorerChips_();
     detectTransport(initApp);
   };
 
@@ -2995,8 +3114,148 @@
     }
   }
 
+  var AI_EXPLORATION_TAGS = [
+    // tech (5)
+    { id: 'robotics', domain: 'tech', label: '🤖 機器人與AI創客', prompt: '喜歡動手組裝 AI 機器人、Arduino 與感測器' },
+    { id: 'python', domain: 'tech', label: '💻 Python 程式設計', prompt: '想學 Python 寫程式、做冒險遊戲與邏輯訓練' },
+    { id: 'print3d', domain: 'tech', label: '🖨️ 3D列印與雷射切割', prompt: '想用 3D 建模列印齒輪與雷射雕刻做立體作品' },
+    { id: 'drone', domain: 'tech', label: '🚁 無人機飛行與空拍', prompt: '對操控無人機穿越障礙與空拍攝影感興趣' },
+    { id: 'science', domain: 'tech', label: '🔬 趣味科學實驗', prompt: '好奇化學顯色、水火箭與乾冰等生活科學實驗' },
+    // art (4)
+    { id: 'anime', domain: 'art', label: '🎨 數位動漫與電繪', prompt: '喜愛電繪板插畫、動漫角色設計與四格漫畫創作' },
+    { id: 'clay', domain: 'art', label: '🧶 黏土甜點與文創手作', prompt: '喜歡輕黏土、樹脂飾品與文青拼貼手作療癒時光' },
+    { id: 'watercolor', domain: 'art', label: '🖌️ 水彩素描與書法水墨', prompt: '想練習水彩素描寫生或書法水墨沉靜筆法' },
+    { id: 'leather', domain: 'art', label: '👜 皮革工藝與布縫手作', prompt: '想親手縫製植物鞣皮革證件套與帆布小包' },
+    // music (4)
+    { id: 'guitar', domain: 'music', label: '🎸 吉他與烏克麗麗彈唱', prompt: '想從基礎和弦學吉他或烏克麗麗自彈自唱' },
+    { id: 'band', domain: 'music', label: '🥁 熱音樂團與打擊節奏', prompt: '喜歡爵士鼓、電吉他或木箱鼓節奏合奏震撼感' },
+    { id: 'wind', domain: 'music', label: '🎺 管樂合奏吹奏體驗', prompt: '想體驗長笛、單簧管或小號管樂團合奏和聲' },
+    { id: 'stage', domain: 'music', label: '💃 街舞律動與戲劇主持', prompt: '喜歡 K-Pop 流行街舞，或戲劇表演與舞台主持' },
+    // sport (4)
+    { id: 'team_ball', domain: 'sport', label: '🏀 籃排足團隊球類', prompt: '熱愛籃球、排球或五人制足球的熱血團隊對抗' },
+    { id: 'racket', domain: 'sport', label: '🏸 羽球桌球敏捷揮拍', prompt: '喜歡羽球雙打或桌球敏捷反應練習' },
+    { id: 'taekwondo', domain: 'sport', label: '🥋 跆拳防身與體能', prompt: '想學跆拳防身自衛技巧並鍛鍊反應體能' },
+    { id: 'scout', domain: 'sport', label: '⛺ 童軍露營與戶外探索', prompt: '想學野外繩結、定向越野與露營求生技能' },
+    // logic (3)
+    { id: 'boardgame', domain: 'logic', label: '🎲 桌遊推理與棋藝博弈', prompt: '熱愛策略桌遊推理、劇本解謎或象棋圍棋西洋棋' },
+    { id: 'japanese', domain: 'logic', label: '🇯🇵 日語會話與日本文化', prompt: '想從五十音開始學日語日常對話與賞析日本文化' },
+    { id: 'media_lang', domain: 'logic', label: '🎬 英語電影與新聞攝影', prompt: '喜歡看英語電影練口語，或校園新聞採訪攝影剪輯' },
+    // pref (6)
+    { id: 'pref_indoor', domain: 'pref', isPref: true, label: '❄️ 室內冷氣不曬太陽', prompt: '希望在室內冷氣教室上課，不想大量流汗曬太陽' },
+    { id: 'pref_takehome', domain: 'pref', isPref: true, label: '🤲 想做成品帶回家', prompt: '希望可以動手實作並把專屬成品帶回家' },
+    { id: 'pref_beginner', domain: 'pref', isPref: true, label: '🌱 零基礎新手友善', prompt: '目前沒有相關經驗，希望有零基礎入門指導' },
+    { id: 'pref_nofee', domain: 'pref', isPref: true, label: '🆓 免額外材料費', prompt: '希望使用學校現有器材，盡量免額外材料費' },
+    { id: 'pref_social', domain: 'pref', isPref: true, label: '🤝 想多交朋友團隊互動', prompt: '喜歡熱鬧溝通與分組合作認識新朋友' },
+    { id: 'pref_quiet', domain: 'pref', isPref: true, label: '🧘 偏好安靜專注沉浸', prompt: '喜歡比較安靜、專注個人步調與創作的環境' }
+  ];
+
+  var aiActiveDomain_ = 'all';
+  var aiSelectedTagIds_ = [];
+
+  function findAiTagById_(id) {
+    for (var i = 0; i < AI_EXPLORATION_TAGS.length; i++) {
+      if (AI_EXPLORATION_TAGS[i].id === id) return AI_EXPLORATION_TAGS[i];
+    }
+    return null;
+  }
+
+  function renderAiExplorerChips_() {
+    var container = document.getElementById('aiChipsContainer');
+    if (!container) return;
+
+    var visibleTags = AI_EXPLORATION_TAGS.filter(function(t) {
+      return aiActiveDomain_ === 'all' || t.domain === aiActiveDomain_;
+    });
+
+    var interestHtml = '';
+    var prefHtml = '';
+    visibleTags.forEach(function(t) {
+      var isSel = aiSelectedTagIds_.indexOf(t.id) !== -1;
+      var cls = 'ai-chip' + (t.isPref ? ' pref-chip' : '') + (isSel ? ' selected' : '');
+      var btn = '<button type="button" class="' + cls + '" onclick="toggleAiTag(\'' + t.id + '\')">' +
+        (isSel ? '✓ ' : '') + escapeHtml(t.label) + '</button>';
+      if (t.isPref) prefHtml += btn;
+      else interestHtml += btn;
+    });
+
+    var html = '';
+    if (interestHtml) {
+      if (aiActiveDomain_ === 'all') {
+        html += '<div class="ai-chips-group-label">🎯 興趣與技能方向（可複選）</div>';
+      }
+      html += '<div class="ai-chips-wrap">' + interestHtml + '</div>';
+    }
+    if (prefHtml) {
+      if (aiActiveDomain_ === 'all') {
+        html += '<div class="ai-chips-group-label">🧭 上課環境與條件偏好（可搭配複選）</div>';
+      }
+      html += '<div class="ai-chips-wrap">' + prefHtml + '</div>';
+    }
+    container.innerHTML = html;
+
+    var countEl = document.getElementById('aiSelectedCountLabel');
+    if (countEl) {
+      countEl.innerText = aiSelectedTagIds_.length > 0
+        ? ('✅ 已選 ' + aiSelectedTagIds_.length + ' 個探索方向（可繼續點選或補充文字）')
+        : '💡 點擊上方標籤可複選搭配，也可直接手動輸入';
+    }
+  }
+
+  function setAiDomainFilter(domain) {
+    aiActiveDomain_ = domain || 'all';
+    var tabs = document.querySelectorAll('#aiDomainTabs .ai-domain-tab');
+    tabs.forEach(function(tab) {
+      tab.classList.toggle('active', tab.getAttribute('data-domain') === aiActiveDomain_);
+    });
+    renderAiExplorerChips_();
+  }
+
+  function toggleAiTag(tagId) {
+    var tag = findAiTagById_(tagId);
+    if (!tag) return;
+    var input = document.getElementById('aiInterestInput');
+    var idx = aiSelectedTagIds_.indexOf(tagId);
+    if (idx === -1) {
+      aiSelectedTagIds_.push(tagId);
+      if (input) {
+        var cur = input.value.trim();
+        if (cur.indexOf(tag.prompt) === -1) {
+          input.value = cur ? (cur + '，' + tag.prompt) : tag.prompt;
+        }
+      }
+    } else {
+      aiSelectedTagIds_.splice(idx, 1);
+      if (input) {
+        var parts = input.value.split(/[，,]+/).map(function(s) { return s.trim(); }).filter(function(s) {
+          return s && s !== tag.prompt;
+        });
+        input.value = parts.join('，');
+      }
+    }
+    renderAiExplorerChips_();
+  }
+
+  function clearAiInterests() {
+    aiSelectedTagIds_ = [];
+    var input = document.getElementById('aiInterestInput');
+    if (input) input.value = '';
+    renderAiExplorerChips_();
+  }
+
+  function pickRandomAiCombo() {
+    var interests = AI_EXPLORATION_TAGS.filter(function(t) { return !t.isPref; });
+    var prefs = AI_EXPLORATION_TAGS.filter(function(t) { return !!t.isPref; });
+    var pick1 = interests[Math.floor(Math.random() * interests.length)];
+    var pick2 = prefs[Math.floor(Math.random() * prefs.length)];
+    aiSelectedTagIds_ = [pick1.id, pick2.id];
+    var input = document.getElementById('aiInterestInput');
+    if (input) input.value = pick1.prompt + '，' + pick2.prompt;
+    setAiDomainFilter('all');
+  }
+
   function addInterestTag(tagText) {
     var input = document.getElementById('aiInterestInput');
+    if (!input) return;
     if (input.value) input.value += '，' + tagText;
     else input.value = tagText;
   }
