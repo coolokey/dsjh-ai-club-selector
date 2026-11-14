@@ -375,14 +375,17 @@ test('5. 多志願 2D 批次分發與管理 Token 安全驗證', () => {
     context.runAiSmartAllocation('invalid-token');
   }, /403/);
 
-  // 正確登入取得 token
+  // 正確登入取得 token 並將制度設為三志願適性分發制
   const loginRes = context.loginAdmin('test-password');
   assert.equal(loginRes.status, 'success');
   const token = loginRes.token;
   assert.ok(token);
+  assert.equal(context.saveSystemSettings(token, { mode: 'preferences' }).status, 'success');
 
   // 學生以 Token 填寫志願
   const stuToken = context.verifyAndGetClubs('11470101', '67890101').token;
+  // 在三志願模式下呼叫即時搶額 API 應被拒絕
+  assert.equal(context.submitSelection(stuToken, 'AI機器人創客社').status, 'error');
   const prefRes = context.submitPreferences(stuToken, 'AI機器人創客社', '熱血籃球戰術社', '數位動漫與繪畫社');
   assert.equal(prefRes.status, 'success');
 
@@ -996,6 +999,55 @@ test('20. 核心管理擴充（人工轉社與退選、超額特案、名額重�
   assert.equal(roster.students.length, 1);
   assert.equal(roster.healthCount, 1);
   assert.equal(roster.students[0].healthNotice, '氣喘，劇烈運動注意');
+});
+
+test('21. exportAttendanceSheets 保留班級座號補零與試算表公式跳脫防護', () => {
+  const { context, sheets } = createGasMockEnvironment();
+  const token = context.loginAdmin('test-password').token;
+
+  // 新增具 formula-injection 風險名字與健康警示、座號數字 1 的學生
+  const stuSheet = sheets['學生名單'];
+  stuSheet.appendRow([
+    '11470109', '=CMD()', '701', 1, '1234', '0101', '12340101',
+    'p@test.edu.tw', '', '', '', 'AI機器人創客社', '', '', '', '+1+1'
+  ]);
+
+  const res = context.exportAttendanceSheets(token);
+  assert.equal(res.status, 'success');
+  assert.ok(res.sheetUrl && res.sheetUrl.includes('spreadsheets'));
+  const exportSheet = sheets['社團點名簽到冊'];
+  assert.ok(exportSheet);
+  const rows = exportSheet.getDataRange().getValues();
+  const stuRow = rows.find(r => r[3] === '701' && r[4] === '01' && String(r[5]).includes('CMD'));
+  assert.ok(stuRow, '座號數字 1 必須保留補零為 01');
+  assert.ok(String(stuRow[5]).startsWith("'="), '姓名欄開頭 = 必須經 sanitizeCell_ 跳脫');
+  assert.ok(String(stuRow[6]).startsWith("'+"), '健康提醒開頭 + 必須經 sanitizeCell_ 跳脫');
+});
+
+test('22. resolveTeacherOrAdminAuth_ 與導師跨班查詢須拒絕仍使用預設密碼的管理員連線', () => {
+  const { context, scriptProperties } = createGasMockEnvironment();
+  scriptProperties.set('ADMIN_PASSWORD', 'admin888');
+  const defaultLogin = context.loginAdmin('admin888');
+  assert.equal(defaultLogin.status, 'success');
+  assert.equal(defaultLogin.isDefault, true);
+  assert.throws(() => {
+    context.getHomeroomClassData('701', defaultLogin.token);
+  }, /PasswordChangeRequired|403/);
+});
+
+test('23. 已完成初始化且管理員已自訂密碼時 ensureSheetExists 不得將密碼重置回 admin888', () => {
+  const { context, sheets, scriptProperties } = createGasMockEnvironment();
+  scriptProperties.delete('ADMIN_SHEET_SYNC_V');
+  scriptProperties.set('IS_INITIALIZED', 'true');
+  scriptProperties.set('ADMIN_PASSWORD', 'CustomStrongPassword123');
+  sheets['系統設定'].appendRow(['ADMIN_PASSWORD', 'CustomStrongPassword123', '管理密碼']);
+
+  context.ensureSheetExists();
+  assert.equal(scriptProperties.get('ADMIN_PASSWORD'), 'CustomStrongPassword123');
+  const cfgRows = sheets['系統設定'].getDataRange().getValues();
+  const pwdRow = cfgRows.find(r => r[0] === 'ADMIN_PASSWORD');
+  assert.ok(pwdRow);
+  assert.equal(pwdRow[1], 'CustomStrongPassword123');
 });
 
 

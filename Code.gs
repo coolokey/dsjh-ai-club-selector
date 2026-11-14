@@ -91,6 +91,9 @@ function doPost(e) {
     ensureSheetExists();
     const raw = (e && e.postData && e.postData.contents) || '{}';
     const req = JSON.parse(raw);
+    if (!req || typeof req !== 'object' || Array.isArray(req)) {
+      throw new Error('400 Invalid JSON request object');
+    }
     const fn = String(req.fn || '');
     if (!Object.prototype.hasOwnProperty.call(API_ROUTES_, fn)) {
       throw new Error('404 Unknown API: ' + fn.slice(0, 40));
@@ -357,14 +360,6 @@ function seedCanonicalClubsToSheet_(ss, force) {
 function ensureSheetExists() {
   const props = PropertiesService.getScriptProperties();
   if (props.getProperty('IS_INITIALIZED') === 'true') {
-    if (props.getProperty('ADMIN_SHEET_SYNC_V') !== '20261113_admin888') {
-      try {
-        setAdminPasswordInSpreadsheet_(CONFIG.DEFAULT_PASSWORD);
-        props.setProperty('ADMIN_SHEET_SYNC_V', '20261113_admin888');
-      } catch (e) {
-        console.warn('Auto admin password sync skipped: ' + e.message);
-      }
-    }
     if (props.getProperty('ADMIN_SHEET_V') !== '1') {
       try {
         ensureAdminCredentialsSheet_(getSpreadsheet());
@@ -521,6 +516,7 @@ function ensureSheetExists() {
     console.warn('Initial layout format skipped: ' + e.message);
   }
 
+  props.setProperty('ADMIN_SHEET_SYNC_V', '20261113_admin888');
   props.setProperty('ADMIN_SHEET_V', '1');
   props.setProperty('CANONICAL_CLUBS_V', '28');
   props.setProperty('GEMINI_KEY_ROW_V', '20261114_v25');
@@ -579,7 +575,6 @@ function getSystemSettings() {
   ensureSheetExists();
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName('系統設定');
-  const data = sheet.getDataRange().getValues();
 
   const settings = {
     title: CONFIG.DEFAULT_TITLE,
@@ -594,19 +589,24 @@ function getSystemSettings() {
     geminiModel: CONFIG.GEMINI_MODEL
     // 🛡️ 資安修復：絕不在公開 API 中包含 spreadsheetUrl 或真實 GEMINI_API_KEY！
   };
+  if (!sheet) {
+    settings.hasGeminiApiKey = Boolean(PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY'));
+    return settings;
+  }
 
+  const data = sheet.getDataRange().getDisplayValues();
   for (let i = 1; i < data.length; i++) {
-    const key = data[i][0];
-    const val = String(data[i][1]);
-    if (key === 'SYSTEM_TITLE') settings.title = val;
-    else if (key === 'SELECTION_MODE') settings.mode = val;
+    const key = String(data[i][0] || '').trim();
+    const val = String(data[i][1] === undefined || data[i][1] === null ? '' : data[i][1]).trim();
+    if (key === 'SYSTEM_TITLE' && val) settings.title = val;
+    else if (key === 'SELECTION_MODE') settings.mode = (val === 'preferences' ? 'preferences' : 'instant');
     else if (key === 'OPEN_TIME') settings.openTime = val;
     else if (key === 'CLOSE_TIME') settings.closeTime = val;
     else if (key === 'AI_ADVISOR_ENABLED') settings.aiAdvisorEnabled = (val === 'true');
     else if (key === 'MAX_PREFERENCES') settings.maxPreferences = parseInt(val, 10) || 3;
     else if (key === 'MAX_PER_CLASS_PER_CLUB') settings.maxPerClass = parseInt(val, 10) || CONFIG.MAX_PER_CLASS_PER_CLUB;
     else if (key === 'EMAIL_NOTIFICATION_ENABLED') settings.emailNotificationEnabled = (val === 'true');
-    else if (key === 'GEMINI_API_KEY' && val.trim()) settings.hasGeminiApiKey = true;
+    else if (key === 'GEMINI_API_KEY' && val) settings.hasGeminiApiKey = true;
   }
 
   if (!settings.hasGeminiApiKey) {
@@ -755,9 +755,14 @@ function loginAdmin(pwd) {
   if (!cleanInput) {
     return { status: 'error', message: '請輸入管理密碼！' };
   }
+  const rateCheck = checkLoginRateLimit_('admin', 'admin');
+  if (!rateCheck.allowed) {
+    return { status: 'error', message: rateCheck.message };
+  }
   const realPwd = getAdminPassword_();
   const isMatch = (cleanInput === realPwd) || (typeof verifyScorePassword_ === 'function' && verifyScorePassword_(cleanInput, 'admin', realPwd, false));
   if (isMatch) {
+    clearLoginFailures_('admin', 'admin');
     const adminToken = Utilities.getUuid();
     CacheService.getScriptCache().put('ADMIN_SESSION_' + adminToken, 'ACTIVE', CONFIG.SESSION_EXPIRE_SEC);
     return {
@@ -766,7 +771,7 @@ function loginAdmin(pwd) {
       isDefault: (cleanInput === CONFIG.DEFAULT_PASSWORD || realPwd === CONFIG.DEFAULT_PASSWORD)
     };
   }
-  return { status: 'error', message: '管理密碼錯誤！' };
+  return { status: 'error', message: recordLoginFailure_('admin', 'admin', '管理密碼錯誤') };
 }
 
 function changeAdminPassword(adminToken, oldPwd, newPwd) {
@@ -789,93 +794,122 @@ function saveSystemSettings(adminToken, newSettings) {
   assertAdminAuth_(adminToken);
   newSettings = newSettings || {};
 
-  // 網頁與試算表統一名稱驗證：若提供 title 欄位，不可為空白
+  // 網頁與試算表統一名稱驗證：不可為空白，且不得以試算表公式前綴符號開頭
   let cleanTitle = null;
   if (newSettings.title !== undefined) {
     cleanTitle = String(newSettings.title).replace(/[\r\n\t]+/g, ' ').trim().slice(0, 100);
     if (!cleanTitle) {
       return { status: 'error', message: '系統與試算表統一名稱不可為空白！' };
     }
-  }
-
-  const ss = getSpreadsheet();
-  const sheet = ss.getSheetByName('系統設定');
-  const data = sheet.getDataRange().getValues();
-  let titleUpdated = false;
-
-  const cleanGeminiKey = (newSettings.geminiApiKey !== undefined && String(newSettings.geminiApiKey).trim() !== '')
-    ? String(newSettings.geminiApiKey).trim()
-    : null;
-  let geminiKeyUpdated = false;
-
-  for (let i = 1; i < data.length; i++) {
-    const key = data[i][0];
-    if (key === 'SYSTEM_TITLE' && cleanTitle !== null) {
-      sheet.getRange(i + 1, 2).setValue(cleanTitle);
-      titleUpdated = true;
-    }
-    else if (key === 'SELECTION_MODE' && newSettings.mode !== undefined) sheet.getRange(i + 1, 2).setValue(newSettings.mode);
-    else if (key === 'OPEN_TIME' && newSettings.openTime !== undefined) sheet.getRange(i + 1, 2).setValue(newSettings.openTime);
-    else if (key === 'CLOSE_TIME' && newSettings.closeTime !== undefined) sheet.getRange(i + 1, 2).setValue(newSettings.closeTime);
-    else if (key === 'AI_ADVISOR_ENABLED' && newSettings.aiAdvisorEnabled !== undefined) sheet.getRange(i + 1, 2).setValue(String(newSettings.aiAdvisorEnabled));
-    else if (key === 'MAX_PER_CLASS_PER_CLUB' && newSettings.maxPerClass !== undefined) sheet.getRange(i + 1, 2).setValue(newSettings.maxPerClass);
-    else if (key === 'EMAIL_NOTIFICATION_ENABLED' && newSettings.emailNotificationEnabled !== undefined) sheet.getRange(i + 1, 2).setValue(String(newSettings.emailNotificationEnabled));
-    else if (key === 'GEMINI_API_KEY' && cleanGeminiKey !== null) {
-      const kCell = sheet.getRange(i + 1, 2);
-      if (typeof kCell.setNumberFormat === 'function') kCell.setNumberFormat('@');
-      kCell.setValue(cleanGeminiKey);
-      geminiKeyUpdated = true;
+    if (/^[=+\-@]/.test(cleanTitle)) {
+      return { status: 'error', message: '系統名稱不可使用 =、+、- 或 @ 開頭！' };
     }
   }
 
-  if (cleanTitle !== null && !titleUpdated) {
-    sheet.appendRow(['SYSTEM_TITLE', cleanTitle, '系統與試算表統一名稱']);
+  let cleanMode;
+  if (newSettings.mode !== undefined) {
+    cleanMode = String(newSettings.mode).trim();
+    if (cleanMode !== 'instant' && cleanMode !== 'preferences') {
+      return { status: 'error', message: '選社制度模式必須為 instant 或 preferences！' };
+    }
   }
 
-  if (cleanGeminiKey !== null) {
-    PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', cleanGeminiKey);
-    if (!geminiKeyUpdated) {
-      sheet.appendRow([
+  let cleanMaxPerClass;
+  if (newSettings.maxPerClass !== undefined) {
+    cleanMaxPerClass = parseInt(newSettings.maxPerClass, 10);
+    if (!(cleanMaxPerClass >= 1 && cleanMaxPerClass <= 20)) {
+      return { status: 'error', message: '各班每社人數上限必須介於 1～20 人之間！' };
+    }
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) {
+      return { status: 'error', message: '系統忙碌中，請稍候再試！' };
+    }
+
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName('系統設定');
+    if (!sheet) return { status: 'error', message: '查無系統設定工作表！' };
+    const data = sheet.getDataRange().getDisplayValues();
+    const rowByKey = {};
+    for (let i = 1; i < data.length; i++) {
+      const k = String(data[i][0] || '').trim();
+      if (k) rowByKey[k] = i + 1;
+    }
+
+    const upsertConfigRow_ = (key, val, desc, asText) => {
+      const r = rowByKey[key];
+      if (r) {
+        const cell = sheet.getRange(r, 2);
+        if (asText && typeof cell.setNumberFormat === 'function') cell.setNumberFormat('@');
+        cell.setValue(val);
+      } else {
+        sheet.appendRow([key, val, desc]);
+        const lr = sheet.getLastRow();
+        rowByKey[key] = lr;
+        const cell = sheet.getRange(lr, 2);
+        if (asText && typeof cell.setNumberFormat === 'function') cell.setNumberFormat('@');
+      }
+    };
+
+    if (cleanTitle !== null) upsertConfigRow_('SYSTEM_TITLE', cleanTitle, '系統與試算表統一名稱', true);
+    if (cleanMode !== undefined) upsertConfigRow_('SELECTION_MODE', cleanMode, '選社模式 (instant/preferences)', true);
+    if (newSettings.openTime !== undefined) upsertConfigRow_('OPEN_TIME', String(newSettings.openTime || '').trim(), '開放選社時間', true);
+    if (newSettings.closeTime !== undefined) upsertConfigRow_('CLOSE_TIME', String(newSettings.closeTime || '').trim(), '截止選社時間', true);
+    if (newSettings.aiAdvisorEnabled !== undefined) upsertConfigRow_('AI_ADVISOR_ENABLED', String(Boolean(newSettings.aiAdvisorEnabled)), '是否啟用 Gemini AI 選社顧問', true);
+    if (cleanMaxPerClass !== undefined) upsertConfigRow_('MAX_PER_CLASS_PER_CLUB', String(cleanMaxPerClass), '單一社團各班人數上限（防抱團機制）', true);
+    if (newSettings.emailNotificationEnabled !== undefined) upsertConfigRow_('EMAIL_NOTIFICATION_ENABLED', String(Boolean(newSettings.emailNotificationEnabled)), '選社成功後自動寄發通知信', true);
+
+    const cleanGeminiKey = (newSettings.geminiApiKey !== undefined && String(newSettings.geminiApiKey).trim() !== '')
+      ? String(newSettings.geminiApiKey).trim()
+      : null;
+
+    if (cleanGeminiKey !== null) {
+      PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', cleanGeminiKey);
+      upsertConfigRow_(
         'GEMINI_API_KEY',
         cleanGeminiKey,
-        'Google Gemini API 金鑰（可於此直接貼上儲存，供 Gemini 2.5 Flash 智慧選社顧問使用；留空則自動啟用規則推薦備援）'
-      ]);
-      const lr = sheet.getLastRow();
-      const kCell = sheet.getRange(lr, 2);
-      if (typeof kCell.setNumberFormat === 'function') kCell.setNumberFormat('@');
+        'Google Gemini API 金鑰（可於此直接貼上儲存，供 Gemini 2.5 Flash 智慧選社顧問使用；留空則自動啟用規則推薦備援）',
+        true
+      );
+    } else {
+      ensureGeminiKeyRowInConfigSheet_(ss);
     }
-  } else {
-    ensureGeminiKeyRowInConfigSheet_(ss);
-  }
 
-  try { formatSheetLayout_(sheet); } catch (e) {}
+    try { formatSheetLayout_(sheet); } catch (e) {}
 
-  let spreadsheetRenamed = false;
-  let spreadsheetName = ss.getName();
-  if (cleanTitle !== null && spreadsheetName !== cleanTitle) {
-    try {
-      ss.rename(cleanTitle);
-      spreadsheetName = ss.getName();
-      spreadsheetRenamed = true;
-    } catch (renameErr) {
-      return {
-        status: 'error',
-        message: '系統設定已寫入，但同步更名 Google 試算表失敗：' + renameErr.message
-      };
+    let spreadsheetRenamed = false;
+    let spreadsheetName = ss.getName();
+    if (cleanTitle !== null && spreadsheetName !== cleanTitle) {
+      try {
+        ss.rename(cleanTitle);
+        spreadsheetName = ss.getName();
+        spreadsheetRenamed = true;
+      } catch (renameErr) {
+        return {
+          status: 'error',
+          message: '系統設定已寫入，但同步更名 Google 試算表失敗：' + renameErr.message
+        };
+      }
     }
-  }
 
-  const effectiveTitle = cleanTitle !== null ? cleanTitle : getSystemSettings().title;
-  return {
-    status: 'success',
-    title: effectiveTitle,
-    spreadsheetName: spreadsheetName,
-    spreadsheetRenamed: spreadsheetRenamed,
-    hasGeminiApiKey: Boolean(getGeminiApiKey_(ss)),
-    message: spreadsheetRenamed
-      ? `系統設定已儲存，並同步將 Google 試算表更名為「${spreadsheetName}」！`
-      : '系統設定已儲存並即時生效！'
-  };
+    appendAuditLog_(ss, '管理者(訓育組)', '更新系統設定', cleanTitle || spreadsheetName, '-', cleanMode || '維持原制', cleanGeminiKey ? '已更新系統參數與 Gemini 金鑰' : '已更新系統參數');
+
+    const effectiveTitle = cleanTitle !== null ? cleanTitle : getSystemSettings().title;
+    return {
+      status: 'success',
+      title: effectiveTitle,
+      spreadsheetName: spreadsheetName,
+      spreadsheetRenamed: spreadsheetRenamed,
+      hasGeminiApiKey: Boolean(getGeminiApiKey_(ss)),
+      message: spreadsheetRenamed
+        ? `系統設定已儲存，並同步將 Google 試算表更名為「${spreadsheetName}」！`
+        : '系統設定已儲存並即時生效！'
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ==================== 學生端 API ====================
@@ -1378,7 +1412,15 @@ function submitSelection(studentToken, selectedClub) {
     return { status: 'error', message: '登入階段已逾時，請重新以學號與密碼登入！' };
   }
 
+  const cleanClubName = String(selectedClub || '').trim();
+  if (!cleanClubName) {
+    return { status: 'error', message: '請先選擇一個有效的社團！' };
+  }
+
   const settings = getSystemSettings();
+  if (settings.mode === 'preferences') {
+    return { status: 'error', message: '目前系統採「三志願適性分發制」，請填寫志願序並送出！' };
+  }
   const now = new Date();
   if (settings.openTime && now < new Date(settings.openTime)) {
     return { status: 'error', message: '目前非開放選社時段，尚未開始！' };
@@ -1397,7 +1439,7 @@ function submitSelection(studentToken, selectedClub) {
     const ss = getSpreadsheet();
     const studentSheet = getStudentSheet_(ss);
     const clubSheet = ss.getSheetByName('社團設定');
-    if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
+    if (!studentSheet || !clubSheet) return { status: 'error', message: '查無學生名單或社團設定工作表！' };
 
     const sData = studentSheet.getDataRange().getDisplayValues();
     const cols = getStudentColIndex_(sData[0]);
@@ -1422,11 +1464,11 @@ function submitSelection(studentToken, selectedClub) {
           locked: String(sData[i][cols.lockedClub] || '').trim()
         };
 
-        if (studentObj.assigned === selectedClub) {
+        if (studentObj.assigned && studentObj.assigned === cleanClubName) {
           return {
             status: 'success',
-            message: '您已成功報名錄取【' + selectedClub + '】（先前已確認）！',
-            clubName: selectedClub,
+            message: '您已成功報名錄取【' + cleanClubName + '】（先前已確認）！',
+            clubName: cleanClubName,
             timestamp: studentObj.time || Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss'),
             isDuplicateConfirm: true
           };
@@ -1447,18 +1489,19 @@ function submitSelection(studentToken, selectedClub) {
       return { status: 'error', message: '查無該學生資料！' };
     }
 
-    // 2. 驗證社團與名額
+    // 2. 驗證社團與名額（以學生名單實際人數核對，防計數漂移）
     let clubRowIndex = -1;
+    let matchedClubName = cleanClubName;
     let limit = 0;
-    let current = 0;
     let teacher = '';
     let location = '';
 
     for (let j = 1; j < cData.length; j++) {
-      if (String(cData[j][0]).trim() === String(selectedClub).trim()) {
+      const rowClubName = String(cData[j][0] || '').trim();
+      if (rowClubName === cleanClubName) {
         clubRowIndex = j + 1;
+        matchedClubName = rowClubName;
         limit = parseInt(cData[j][1], 10) || 0;
-        current = parseInt(cData[j][2], 10) || 0;
         teacher = cData[j][3];
         location = cData[j][4];
         break;
@@ -1469,41 +1512,45 @@ function submitSelection(studentToken, selectedClub) {
       return { status: 'error', message: '所選社團不存在！' };
     }
 
-    if (current >= limit) {
-      return { status: 'error', message: '抱歉！【' + selectedClub + '】名額剛剛已額滿，請返回選擇其他社團。' };
+    let actualClubCount = 0;
+    let classCountInClub = 0;
+    for (let i = 1; i < sData.length; i++) {
+      if (String(sData[i][cols.assignedClub] || '').trim() === matchedClubName) {
+        actualClubCount++;
+        if (isClassMatch_(sData[i][cols.className], studentObj.className)) {
+          classCountInClub++;
+        }
+      }
+    }
+
+    if (actualClubCount >= limit) {
+      clubSheet.getRange(clubRowIndex, 3).setValue(actualClubCount);
+      return { status: 'error', message: '抱歉！【' + matchedClubName + '】名額剛剛已額滿，請返回選擇其他社團。' };
     }
 
     // 3. 👥 班級人數上限（防抱團檢核）
     const maxPerClass = settings.maxPerClass || CONFIG.MAX_PER_CLASS_PER_CLUB;
-    let classCountInClub = 0;
-    for (let i = 1; i < sData.length; i++) {
-      if (isClassMatch_(sData[i][cols.className], studentObj.className) &&
-          String(sData[i][cols.assignedClub]).trim() === String(selectedClub).trim()) {
-        classCountInClub++;
-      }
-    }
-
     if (classCountInClub >= maxPerClass) {
       return {
         status: 'error',
-        message: `為促進跨班交流，【${selectedClub}】貴班報名人數已達上限（${maxPerClass}人），請選擇其他社團！`
+        message: `為促進跨班交流，【${matchedClubName}】貴班報名人數已達上限（${maxPerClass}人），請選擇其他社團！`
       };
     }
 
     // 4. 原子寫入試算表
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
-    studentSheet.getRange(studentRowIndex, cols.assignedClub + 1).setValue(selectedClub);
+    studentSheet.getRange(studentRowIndex, cols.assignedClub + 1).setValue(sanitizeCell_(matchedClubName, 60));
     studentSheet.getRange(studentRowIndex, cols.selectedTime + 1).setValue(timestamp);
     studentSheet.getRange(studentRowIndex, cols.note + 1).setValue('即時選填成功');
 
-    clubSheet.getRange(clubRowIndex, 3).setValue(current + 1);
-    appendAuditLog_(ss, '學生本人', '即時搶額選社', `${studentObj.className}班 ${studentObj.seat}號 ${studentObj.name} (${studentObj.studentId})`, '', selectedClub, '即時選填成功');
+    clubSheet.getRange(clubRowIndex, 3).setValue(actualClubCount + 1);
+    appendAuditLog_(ss, '學生本人', '即時搶額選社', `${studentObj.className}班 ${studentObj.seat}號 ${studentObj.name} (${studentObj.studentId})`, '', matchedClubName, '即時選填成功');
 
     // 5. 📧 錄取通知信同步發送
     let emailSent = false;
     if (settings.emailNotificationEnabled && studentObj.email) {
       emailSent = sendAdmissionEmail_(studentObj, {
-        name: selectedClub,
+        name: matchedClubName,
         teacher: teacher,
         location: location
       }, timestamp);
@@ -1511,8 +1558,8 @@ function submitSelection(studentToken, selectedClub) {
 
     return {
       status: 'success',
-      message: '恭喜！您已成功報名錄取【' + selectedClub + '】！' + (emailSent ? '（錄取通知函已寄至您的信箱）' : ''),
-      clubName: selectedClub,
+      message: '恭喜！您已成功報名錄取【' + matchedClubName + '】！' + (emailSent ? '（錄取通知函已寄至您的信箱）' : ''),
+      clubName: matchedClubName,
       timestamp: timestamp,
       emailSent: emailSent
     };
@@ -1533,45 +1580,80 @@ function submitPreferences(studentToken, pref1, pref2, pref3) {
   }
 
   const settings = getSystemSettings();
+  if (settings.mode !== 'preferences') {
+    return { status: 'error', message: '目前系統採「即時搶額制」，請直接點選社團進行報名！' };
+  }
   const now = new Date();
   if (settings.openTime && now < new Date(settings.openTime)) return { status: 'error', message: '選填尚未開放！' };
   if (settings.closeTime && now > new Date(settings.closeTime)) return { status: 'error', message: '選填時間已截止！' };
 
-  if (!pref1) return { status: 'error', message: '第一志願為必填項目！' };
-  if (pref1 === pref2 || (pref2 && pref2 === pref3) || (pref3 && pref1 === pref3)) {
+  const p1 = String(pref1 || '').trim();
+  const p2 = String(pref2 || '').trim();
+  const p3 = String(pref3 || '').trim();
+  if (!p1) return { status: 'error', message: '第一志願為必填項目！' };
+  if (p1 === p2 || (p2 && p2 === p3) || (p3 && p1 === p3)) {
     return { status: 'error', message: '志願社團不可重複選擇！' };
   }
 
-  const ss = getSpreadsheet();
-  const sheet = getStudentSheet_(ss);
-  if (!sheet) return { status: 'error', message: '查無學生名單工作表！' };
-  const data = sheet.getDataRange().getDisplayValues();
-  const cols = getStudentColIndex_(data[0]);
-
-  let studentRowIndex = -1;
-  for (let i = 1; i < data.length; i++) {
-    const rowId = String(data[i][cols.studentId] || '').trim();
-    if (rowId && rowId.toLowerCase() === String(session.studentId).toLowerCase()) {
-      studentRowIndex = i + 1;
-      break;
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) {
+      return { status: 'error', message: '伺服器忙碌中，請稍候重試！' };
     }
+
+    const ss = getSpreadsheet();
+    const sheet = getStudentSheet_(ss);
+    const clubSheet = ss.getSheetByName('社團設定');
+    if (!sheet || !clubSheet) return { status: 'error', message: '查無學生名單或社團設定工作表！' };
+
+    const validClubNames = new Set(getClubList().map(c => c.name));
+    const chosen = [p1, p2, p3].filter(Boolean);
+    for (let k = 0; k < chosen.length; k++) {
+      if (!validClubNames.has(chosen[k])) {
+        return { status: 'error', message: '所選志願「' + chosen[k] + '」不存在於本社團清單中！' };
+      }
+    }
+
+    const data = sheet.getDataRange().getDisplayValues();
+    const cols = getStudentColIndex_(data[0]);
+
+    let studentRowIndex = -1;
+    let studentName = '';
+    let stuClass = '';
+    for (let i = 1; i < data.length; i++) {
+      const rowId = String(data[i][cols.studentId] || '').trim();
+      if (rowId && rowId.toLowerCase() === String(session.studentId).toLowerCase()) {
+        studentRowIndex = i + 1;
+        studentName = String(data[i][cols.name] || '').trim();
+        stuClass = normalizeClassCode_(data[i][cols.className]);
+        const curAssigned = String(data[i][cols.assignedClub] || '').trim();
+        const curLocked = String(data[i][cols.lockedClub] || '').trim();
+        if (curLocked) return { status: 'error', message: '您已被學務處設定為保障身分【' + curLocked + '】，無須再登記志願！' };
+        if (curAssigned) return { status: 'error', message: '您已錄取【' + curAssigned + '】，若需改選請先取消原社團！' };
+        break;
+      }
+    }
+
+    if (studentRowIndex === -1) return { status: 'error', message: '查無此學生資料！' };
+
+    const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
+    sheet.getRange(studentRowIndex, cols.pref1 + 1).setValue(sanitizeCell_(p1, 60));
+    sheet.getRange(studentRowIndex, cols.pref2 + 1).setValue(sanitizeCell_(p2, 60));
+    sheet.getRange(studentRowIndex, cols.pref3 + 1).setValue(sanitizeCell_(p3, 60));
+    sheet.getRange(studentRowIndex, cols.selectedTime + 1).setValue(timestamp);
+    sheet.getRange(studentRowIndex, cols.note + 1).setValue('志願已登記，待分發');
+
+    appendAuditLog_(ss, '學生本人', '登記志願序', `${stuClass}班 ${studentName} (${session.studentId})`, '-', chosen.join(' > '), '三志願登記');
+
+    return {
+      status: 'success',
+      message: '志願序儲存成功！學務處將於選填截止後進行公平適性分發。',
+      preferences: [p1, p2, p3],
+      timestamp: timestamp
+    };
+  } finally {
+    lock.releaseLock();
   }
-
-  if (studentRowIndex === -1) return { status: 'error', message: '查無此學生資料！' };
-
-  const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
-  sheet.getRange(studentRowIndex, cols.pref1 + 1).setValue(pref1);
-  sheet.getRange(studentRowIndex, cols.pref2 + 1).setValue(pref2 || '');
-  sheet.getRange(studentRowIndex, cols.pref3 + 1).setValue(pref3 || '');
-  sheet.getRange(studentRowIndex, cols.selectedTime + 1).setValue(timestamp);
-  sheet.getRange(studentRowIndex, cols.note + 1).setValue('志願已登記，待分發');
-
-  return {
-    status: 'success',
-    message: '志願序儲存成功！學務處將於選填截止後進行公平適性分發。',
-    preferences: [pref1, pref2, pref3],
-    timestamp: timestamp
-  };
 }
 
 // ==================== 學生開放期間重新改選（安全釋出原社團名額） ====================
@@ -1665,8 +1747,11 @@ function aiConsultantRecommend(studentInput, studentGrade) {
   }
 
   const sanitizedInput = scrubPII_(studentInput);
-  const gradeLevel = (studentGrade && /^[789七八九]/.test(String(studentGrade))) 
-    ? String(studentGrade).slice(0, 1) + '年級' 
+  const rawGrade = (studentGrade && typeof studentGrade === 'object')
+    ? (studentGrade.className || studentGrade.grade || '')
+    : studentGrade;
+  const gradeLevel = (rawGrade && /^[789七八九]/.test(String(rawGrade)))
+    ? String(rawGrade).slice(0, 1) + '年級'
     : '國中生';
 
   const validClubNames = new Set(clubs.map(c => c.name));
@@ -1736,11 +1821,18 @@ function aiConsultantRecommend(studentInput, studentGrade) {
       return ruleBasedRecommendFallback(sanitizedInput, clubs);
     }
 
-    let cleanText = candidate.content.parts[0].text.trim().replace(/^```json\s*|```$/gi, '');
+    let cleanText = candidate.content.parts[0].text.trim().replace(/^```(?:json)?\s*|\s*```$/gi, '');
     const result = JSON.parse(cleanText);
 
-    // 🛡️ 防幻覺落地校驗：過濾掉不在學校名單的假社團
-    result.recommendations = (result.recommendations || []).filter(r => validClubNames.has(r.clubName));
+    // 🛡️ 防幻覺落地校驗：過濾掉不在學校名單的假社團，並去重與確保結構安全
+    const seenRec = new Set();
+    const rawList = Array.isArray(result.recommendations) ? result.recommendations : [];
+    result.recommendations = rawList.filter(r => {
+      if (!r || typeof r !== 'object' || typeof r.clubName !== 'string') return false;
+      if (!validClubNames.has(r.clubName) || seenRec.has(r.clubName)) return false;
+      seenRec.add(r.clubName);
+      return true;
+    });
     if (result.recommendations.length === 0) {
       return ruleBasedRecommendFallback(sanitizedInput, clubs);
     }
@@ -1808,10 +1900,12 @@ function ruleBasedRecommendFallback(input, clubs) {
 
 // ==================== 📧 錄取通知信寄送核心 (HTML Email) ====================
 
-function sendAdmissionEmail_(student, club, timestamp) {
+function sendAdmissionEmail_(student, club, timestamp, systemTitleOpt) {
   if (!student.email || !student.email.includes('@')) return false;
 
-  const systemTitle = (getSystemSettings().title || CONFIG.DEFAULT_TITLE);
+  const esc = s => String(s === undefined || s === null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const systemTitle = systemTitleOpt || getSystemSettings().title || CONFIG.DEFAULT_TITLE;
   const subject = `【${systemTitle}】社團選社錄取通知函 - ${student.name} 同學`;
   const serialNo = `DX-${Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyyMMdd')}-${student.className}${student.seat}`;
 
@@ -1979,6 +2073,7 @@ function appendAuditLog_(ss, actor, action, target, beforeVal, afterVal, detail)
       logSheet = ss.insertSheet('異動紀錄');
       logSheet.appendRow(['異動時間', '操作角色', '動作類型', '學生／對象', '異動前社團', '異動後社團', '備註說明']);
       logSheet.getRange(1, 1, 1, 7).setBackground('#334155').setFontColor('#ffffff').setFontWeight('bold');
+      try { formatSheetLayout_(logSheet); } catch (e) {}
     }
     const ts = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
     logSheet.appendRow([
@@ -1996,7 +2091,7 @@ function appendAuditLog_(ss, actor, action, target, beforeVal, afterVal, detail)
 }
 
 /**
- * 依據「學生名單」實際錄取人數，精準重算並寫回「社團設定」已錄取人數（杜絕人數漂移）
+ * 依據「學生名單」實際錄取人數，精準重算並寫回「社團設定」已錄取人數（批次寫入，杜絕人數漂移）
  */
 function recalculateClubEnrollmentCounts_(ss) {
   const studentSheet = getStudentSheet_(ss);
@@ -2012,11 +2107,13 @@ function recalculateClubEnrollmentCounts_(ss) {
   }
 
   const cData = clubSheet.getDataRange().getValues();
+  if (cData.length <= 1) return;
+  const colValues = [];
   for (let j = 1; j < cData.length; j++) {
     const clubName = String(cData[j][0] || '').trim();
-    if (!clubName) continue;
-    clubSheet.getRange(j + 1, 3).setValue(counts[clubName] || 0);
+    colValues.push([clubName ? (counts[clubName] || 0) : (cData[j][2] || 0)]);
   }
+  clubSheet.getRange(2, 3, colValues.length, 1).setValues(colValues);
 }
 
 /**
@@ -2043,11 +2140,11 @@ function searchStudentForAdmin(adminToken, keyword) {
     const assignedClub = String(sData[i][cols.assignedClub] || '').trim();
     const lockedClub = String(sData[i][cols.lockedClub] || '').trim();
     const classSeat = cls + seat;
-    const combined = (sid + ' ' + name + ' ' + cls + ' ' + seat + ' ' + classSeat + ' ' + assignedClub).toLowerCase();
+    const combined = (sid + ' ' + name + ' ' + cls + ' ' + seat + ' ' + classSeat + ' ' + assignedClub + ' ' + lockedClub).toLowerCase();
 
     if (!kw) {
       // 未輸入關鍵字時優先顯示未選社／待分發學生，最多 20 筆
-      if (assignedClub) continue;
+      if (assignedClub || lockedClub) continue;
     } else if (combined.indexOf(kw) === -1) {
       continue;
     }
@@ -2108,12 +2205,17 @@ function adminTransferStudentClub(adminToken, studentId, newClubName, reason, fo
           name: String(sData[i][cols.name] || '').trim(),
           className: normalizeClassCode_(sData[i][cols.className]),
           seat: padSeatNo_(sData[i][cols.seat]),
-          prevClub: String(sData[i][cols.assignedClub] || '').trim()
+          prevClub: String(sData[i][cols.assignedClub] || '').trim(),
+          lockedClub: String(sData[i][cols.lockedClub] || '').trim()
         };
         break;
       }
     }
     if (stuRowIdx === -1) return { status: 'error', message: '查無學號「' + sidTarget + '」的學生資料！' };
+
+    if (targetClub === stuObj.prevClub && !stuObj.lockedClub && !cleanReason) {
+      return { status: 'error', message: '該生目前已在「' + (targetClub || '未錄取') + '」，無需異動。' };
+    }
 
     if (targetClub) {
       let targetLimit = -1;
@@ -2140,13 +2242,19 @@ function adminTransferStudentClub(adminToken, studentId, newClubName, reason, fo
     }
 
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
-    const noteText = cleanReason
-      ? `訓育組人工調整：${cleanReason}`
-      : (targetClub ? '訓育組人工轉社／補分發' : '訓育組人工退選清除');
+    const noteText = sanitizeCell_(
+      cleanReason
+        ? `訓育組人工調整：${cleanReason}`
+        : (targetClub ? '訓育組人工轉社／補分發' : '訓育組人工退選清除'),
+      120
+    );
 
-    studentSheet.getRange(stuRowIdx, cols.assignedClub + 1).setValue(targetClub);
+    studentSheet.getRange(stuRowIdx, cols.assignedClub + 1).setValue(sanitizeCell_(targetClub, 60));
     studentSheet.getRange(stuRowIdx, cols.selectedTime + 1).setValue(targetClub ? timestamp : '');
     studentSheet.getRange(stuRowIdx, cols.note + 1).setValue(noteText);
+    if (cols.lockedClub >= 0 && stuObj.lockedClub) {
+      studentSheet.getRange(stuRowIdx, cols.lockedClub + 1).setValue('');
+    }
 
     recalculateClubEnrollmentCounts_(ss);
     appendAuditLog_(
@@ -2242,9 +2350,9 @@ function runAiSmartAllocation(adminToken, previewToken) {
     const ss = getSpreadsheet();
     const studentSheet = getStudentSheet_(ss);
     const clubSheet = ss.getSheetByName('社團設定');
-    if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
+    if (!studentSheet || !clubSheet) return { status: 'error', message: '查無學生名單或社團設定工作表！' };
 
-    const sData = studentSheet.getDataRange().getValues();
+    const sData = studentSheet.getDataRange().getDisplayValues();
     const cols = getStudentColIndex_(sData[0]);
     const cData = clubSheet.getDataRange().getValues();
     const settings = getSystemSettings();
@@ -2262,8 +2370,27 @@ function runAiSmartAllocation(adminToken, previewToken) {
         return { status: 'error', message: '預覽已過期、名冊或設定已有變動，請重新預覽並確認。' };
       }
       cache.put(key, '0', 1);
-      studentSheet.getRange(1, 1, plan.sData.length, plan.sData[0].length).setValues(plan.sData);
-      clubSheet.getRange(1, 1, plan.cData.length, plan.cData[0].length).setValues(plan.cData);
+      // 僅批次更新錄取社團、選填時間與分發備註 3 欄＋社團人數 1 欄，絕不覆寫其餘原始資料與格式
+      const stuRowsCount = Math.max(0, plan.sData.length - 1);
+      if (stuRowsCount > 0) {
+        if (cols.assignedClub >= 0) {
+          studentSheet.getRange(2, cols.assignedClub + 1, stuRowsCount, 1)
+            .setValues(plan.sData.slice(1).map(r => [r[cols.assignedClub] || '']));
+        }
+        if (cols.selectedTime >= 0) {
+          studentSheet.getRange(2, cols.selectedTime + 1, stuRowsCount, 1)
+            .setValues(plan.sData.slice(1).map(r => [r[cols.selectedTime] || '']));
+        }
+        if (cols.note >= 0) {
+          studentSheet.getRange(2, cols.note + 1, stuRowsCount, 1)
+            .setValues(plan.sData.slice(1).map(r => [r[cols.note] || '']));
+        }
+      }
+      const clubRowsCount = Math.max(0, plan.cData.length - 1);
+      if (clubRowsCount > 0) {
+        clubSheet.getRange(2, 3, clubRowsCount, 1)
+          .setValues(plan.cData.slice(1).map(r => [r[2] || 0]));
+      }
       appendAuditLog_(
         ss,
         '管理者(訓育組)',
@@ -2290,10 +2417,14 @@ function runAiSmartAllocation(adminToken, previewToken) {
       };
     }
 
-    // 2. 🛡️ 先將「既有已錄取或保障」學生納入佔位，絕不覆蓋清零！
+    // 2. 🛡️ 先將「既有已錄取或保障」學生納入佔位，絕不覆蓋清零；並跳過空白列
     const pendingStudents = [];
     for (let i = 1; i < sData.length; i++) {
+      const sid = String(sData[i][cols.studentId] || '').trim();
+      const sName = String(sData[i][cols.name] || '').trim();
       const cls = normalizeClassCode_(sData[i][cols.className]);
+      if (!sid && !sName && !cls) continue;
+
       const currentAssigned = String(sData[i][cols.assignedClub] || '').trim();
       const lockedClub = String(sData[i][cols.lockedClub] || '').trim();
 
@@ -2301,7 +2432,7 @@ function runAiSmartAllocation(adminToken, previewToken) {
         rowIdx: i,
         className: cls,
         seat: padSeatNo_(sData[i][cols.seat]),
-        name: String(sData[i][cols.name]).trim(),
+        name: sName,
         email: String(sData[i][cols.email] || '').trim(),
         prefs: [sData[i][cols.pref1], sData[i][cols.pref2], sData[i][cols.pref3]].map(p => String(p || '').trim()),
         assigned: currentAssigned,
@@ -2309,14 +2440,18 @@ function runAiSmartAllocation(adminToken, previewToken) {
         lotteryNo: null
       };
 
-      // 若有保障鎖定，優先確保
-      if (lockedClub && clubMap[lockedClub]) {
-        studentObj.assigned = lockedClub;
-        studentObj.note = '身分優先保障錄取';
-        clubMap[lockedClub].assigned.push(studentObj);
-        clubMap[lockedClub].classCounts[cls] = (clubMap[lockedClub].classCounts[cls] || 0) + 1;
-        sData[i][cols.assignedClub] = lockedClub;
-        sData[i][cols.note] = studentObj.note;
+      // 若有保障鎖定，不論是否在一般社團清單內，皆不進入隨機分發
+      if (lockedClub) {
+        if (clubMap[lockedClub]) {
+          studentObj.assigned = lockedClub;
+          studentObj.note = '身分優先保障錄取';
+          clubMap[lockedClub].assigned.push(studentObj);
+          clubMap[lockedClub].classCounts[cls] = (clubMap[lockedClub].classCounts[cls] || 0) + 1;
+          sData[i][cols.assignedClub] = lockedClub;
+          sData[i][cols.note] = studentObj.note;
+        } else {
+          sData[i][cols.note] = studentObj.note || ('身分保障：' + lockedClub);
+        }
       } else if (currentAssigned && clubMap[currentAssigned]) {
         // 原本已錄取者保留
         clubMap[currentAssigned].assigned.push(studentObj);
@@ -2434,22 +2569,26 @@ function batchSendAllocationEmails(adminToken) {
   const ss = getSpreadsheet();
   const studentSheet = getStudentSheet_(ss);
   const clubSheet = ss.getSheetByName('社團設定');
-  if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
+  if (!studentSheet || !clubSheet) return { status: 'error', message: '查無學生名單或社團設定工作表！' };
 
-  const sData = studentSheet.getDataRange().getValues();
+  const sData = studentSheet.getDataRange().getDisplayValues();
   const cols = getStudentColIndex_(sData[0]);
-  const cData = clubSheet.getDataRange().getValues();
+  const cData = clubSheet.getDataRange().getDisplayValues();
+  const cachedTitle = (getSystemSettings().title || CONFIG.DEFAULT_TITLE);
 
   const clubInfoMap = {};
   for (let j = 1; j < cData.length; j++) {
-    clubInfoMap[String(cData[j][0]).trim()] = {
-      name: cData[j][0],
-      teacher: cData[j][3],
-      location: cData[j][4]
+    const cName = String(cData[j][0] || '').trim();
+    if (!cName) continue;
+    clubInfoMap[cName] = {
+      name: cName,
+      teacher: String(cData[j][3] || ''),
+      location: String(cData[j][4] || '')
     };
   }
 
   let sentCount = 0;
+  let failedCount = 0;
   const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
 
   for (let i = 1; i < sData.length; i++) {
@@ -2458,20 +2597,24 @@ function batchSendAllocationEmails(adminToken) {
 
     if (email && email.includes('@') && assigned && clubInfoMap[assigned]) {
       const student = {
-        className: sData[i][cols.className],
-        seat: sData[i][cols.seat],
-        name: sData[i][cols.name],
+        className: normalizeClassCode_(sData[i][cols.className]),
+        seat: padSeatNo_(sData[i][cols.seat]),
+        name: String(sData[i][cols.name] || '').trim(),
         email: email
       };
-      const ok = sendAdmissionEmail_(student, clubInfoMap[assigned], sData[i][cols.selectedTime] || timestamp);
+      const ok = sendAdmissionEmail_(student, clubInfoMap[assigned], sData[i][cols.selectedTime] || timestamp, cachedTitle);
       if (ok) sentCount++;
+      else failedCount++;
     }
   }
 
   return {
     status: 'success',
     sentCount: sentCount,
-    message: `已成功將錄取通知函寄送至 ${sentCount} 位學生的 Email 信箱！`
+    failedCount: failedCount,
+    message: failedCount > 0
+      ? `已成功寄送 ${sentCount} 封錄取通知信（另有 ${failedCount} 封因郵件配額或信箱格式未寄出）！`
+      : `已成功將錄取通知函寄送至 ${sentCount} 位學生的 Email 信箱！`
   };
 }
 
@@ -2480,81 +2623,107 @@ function batchSendAllocationEmails(adminToken) {
  */
 function exportAttendanceSheets(adminToken) {
   assertAdminAuth_(adminToken);
-  const ss = getSpreadsheet();
-  const studentSheet = getStudentSheet_(ss);
-  const clubSheet = ss.getSheetByName('社團設定');
-  if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
-
-  const sData = studentSheet.getDataRange().getValues();
-  const cols = getStudentColIndex_(sData[0]);
-  const cData = clubSheet.getDataRange().getValues();
-
-  const clubStudents = {};
-  for (let j = 1; j < cData.length; j++) {
-    const clubName = String(cData[j][0]).trim();
-    if (clubName) {
-      clubStudents[clubName] = {
-        teacher: cData[j][3],
-        location: cData[j][4],
-        list: []
-      };
+  const lock = LockService.getScriptLock();
+  try {
+    if (!lock.tryLock(CONFIG.LOCK_TIMEOUT_MS)) {
+      return { status: 'error', message: '系統忙碌中，請稍候再試！' };
     }
-  }
 
-  for (let i = 1; i < sData.length; i++) {
-    const assigned = String(sData[i][cols.assignedClub] || '').trim();
-    if (assigned && clubStudents[assigned]) {
-      clubStudents[assigned].list.push({
-        className: sData[i][cols.className],
-        seat: sData[i][cols.seat],
-        name: sData[i][cols.name],
-        health: sData[i][cols.healthNotice] || ''
-      });
+    const ss = getSpreadsheet();
+    const studentSheet = getStudentSheet_(ss);
+    const clubSheet = ss.getSheetByName('社團設定');
+    if (!studentSheet || !clubSheet) return { status: 'error', message: '查無學生名單或社團設定工作表！' };
+
+    const sData = studentSheet.getDataRange().getDisplayValues();
+    const cols = getStudentColIndex_(sData[0]);
+    const cData = clubSheet.getDataRange().getDisplayValues();
+
+    const clubStudents = {};
+    for (let j = 1; j < cData.length; j++) {
+      const clubName = String(cData[j][0] || '').trim();
+      if (clubName) {
+        clubStudents[clubName] = {
+          teacher: String(cData[j][3] || ''),
+          location: String(cData[j][4] || ''),
+          list: []
+        };
+      }
     }
-  }
 
-  // 🛡️ 修復：使用 clear() 保留工作表實體與 GID，避免外部參照與書籤失效
-  let attSheet = ss.getSheetByName('社團點名簽到冊');
-  if (!attSheet) {
-    attSheet = ss.insertSheet('社團點名簽到冊');
-  } else {
-    attSheet.clear();
-  }
+    for (let i = 1; i < sData.length; i++) {
+      const assigned = String(sData[i][cols.assignedClub] || '').trim();
+      if (assigned && clubStudents[assigned]) {
+        clubStudents[assigned].list.push({
+          className: normalizeClassCode_(sData[i][cols.className]),
+          seat: padSeatNo_(sData[i][cols.seat]),
+          name: String(sData[i][cols.name] || '').trim(),
+          health: String(sData[i][cols.healthNotice] || '').trim()
+        });
+      }
+    }
 
-  const rows = [];
-  rows.push(['桃園市立大溪國民中學 社團活動學生點名簽到表（學務處備查聯）', '', '', '', '', '', '', '', '', '', '']);
-  rows.push([
-    '產表日期：' + Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy年MM月dd日'),
-    '', '', '', '', '', '',
-    '【緊急通報分機】學務處訓育組:211、健康中心:215',
-    '', '', ''
-  ]);
-  rows.push(['社團名稱', '指導教師', '活動地點', '班級', '座號', '姓名', '健康與安全提醒', '第1週簽到', '第2週簽到', '第3週簽到', '第4週簽到']);
-
-  Object.keys(clubStudents).forEach(name => {
-    const c = clubStudents[name];
-    if (c.list.length === 0) {
-      rows.push([name, c.teacher, c.location, '（暫無錄取學生）', '', '', '', '', '', '', '']);
+    // 🛡️ 修復：使用 clear() 保留工作表實體與 GID，避免外部參照與書籤失效
+    let attSheet = ss.getSheetByName('社團點名簽到冊');
+    if (!attSheet) {
+      attSheet = ss.insertSheet('社團點名簽到冊');
     } else {
-      c.list.sort((a, b) => (a.className + a.seat).localeCompare(b.className + b.seat));
-      c.list.forEach(st => {
-        rows.push([name, c.teacher, c.location, st.className, st.seat, st.name, st.health, '', '', '', '']);
-      });
+      attSheet.clear();
     }
-  });
 
-  attSheet.getRange(1, 1, rows.length, 11).setValues(rows);
-  attSheet.getRange(1, 1, 1, 11).merge().setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center').setBackground('#e8f0fe');
-  attSheet.getRange(2, 1, 1, 7).merge();
-  attSheet.getRange(2, 8, 1, 4).merge().setHorizontalAlignment('right');
-  attSheet.getRange(3, 1, 1, 11).setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
-  try { formatSheetLayout_(attSheet); } catch (e) {}
+    const rows = [];
+    rows.push(['桃園市立大溪國民中學 社團活動學生點名簽到表（學務處備查聯）', '', '', '', '', '', '', '', '', '', '']);
+    rows.push([
+      '產表日期：' + Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy年MM月dd日'),
+      '', '', '', '', '', '',
+      '【緊急通報分機】學務處訓育組:211、健康中心:215',
+      '', '', ''
+    ]);
+    rows.push(['社團名稱', '指導教師', '活動地點', '班級', '座號', '姓名', '健康與安全提醒', '第1週簽到', '第2週簽到', '第3週簽到', '第4週簽到']);
 
-  return {
-    status: 'success',
-    sheetUrl: ss.getUrl() + '#gid=' + attSheet.getSheetId(),
-    message: '各社團點名簽到表（含健康安全警示標記）已成功產出於【社團點名簽到冊】分頁！'
-  };
+    Object.keys(clubStudents).forEach(name => {
+      const c = clubStudents[name];
+      if (c.list.length === 0) {
+        rows.push([
+          sanitizeCell_(name, 60), sanitizeCell_(c.teacher, 40), sanitizeCell_(c.location, 60),
+          '（暫無錄取學生）', '', '', '', '', '', '', ''
+        ]);
+      } else {
+        c.list.sort((a, b) => (a.className + '_' + a.seat).localeCompare(b.className + '_' + b.seat));
+        c.list.forEach(st => {
+          rows.push([
+            sanitizeCell_(name, 60),
+            sanitizeCell_(c.teacher, 40),
+            sanitizeCell_(c.location, 60),
+            st.className,
+            st.seat,
+            sanitizeCell_(st.name, 40),
+            sanitizeCell_(st.health, 150),
+            '', '', '', ''
+          ]);
+        });
+      }
+    });
+
+    // 先設定文字格式，確保班級／座號前置 0 絕不遭試算表轉型遺失
+    [4, 5].forEach(colNum => {
+      const rng = attSheet.getRange(1, colNum, rows.length, 1);
+      if (typeof rng.setNumberFormat === 'function') rng.setNumberFormat('@');
+    });
+    attSheet.getRange(1, 1, rows.length, 11).setValues(rows);
+    attSheet.getRange(1, 1, 1, 11).merge().setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center').setBackground('#e8f0fe');
+    attSheet.getRange(2, 1, 1, 7).merge();
+    attSheet.getRange(2, 8, 1, 4).merge().setHorizontalAlignment('right');
+    attSheet.getRange(3, 1, 1, 11).setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
+    try { formatSheetLayout_(attSheet); } catch (e) {}
+
+    return {
+      status: 'success',
+      sheetUrl: ss.getUrl() + '#gid=' + attSheet.getSheetId(),
+      message: '各社團點名簽到表（含健康安全警示標記）已成功產出於【社團點名簽到冊】分頁！'
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**
@@ -2740,7 +2909,7 @@ function changeTeacherPassword(teacherToken, currentPassword, newPassword) {
 }
 
 function resolveTeacherOrAdminAuth_(authToken, requestedClass) {
-  if (verifyAdminSession_(authToken)) {
+  if (verifyAdminSession_(authToken) && getAdminPassword_() !== CONFIG.DEFAULT_PASSWORD) {
     return { role: 'admin', targetClass: normalizeClassCode_(requestedClass) };
   }
   const tSession = verifyTeacherSession_(authToken);
@@ -3140,7 +3309,7 @@ function syncDirectoryFromScoreDb_(ss) {
         const birthMMDD = padBirthMMDD_(r[idxBirth]);
         const srcPwd = String(r[idxPwd] || '').trim();
 
-        const prev = (sid && existingById[sid.toLowerCase()]) || existingByClassSeat[cls + '_' + seat] || null;
+        const prev = (sid && existingById[sid.toLowerCase()]) || (!sid && existingByClassSeat[cls + '_' + seat]) || null;
         if (prev && (prev.assignedClub || prev.pref1 || prev.lockedClub)) {
           preservedSelections++;
         }
@@ -3151,41 +3320,43 @@ function syncDirectoryFromScoreDb_(ss) {
 
         nextRows.push([
           sid,
-          name,
+          sanitizeCell_(name, 40),
           cls,
           seat,
           idLast4,
           birthMMDD,
           effectivePassword,
-          prev ? prev.email : '',
-          prev ? prev.pref1 : '',
-          prev ? prev.pref2 : '',
-          prev ? prev.pref3 : '',
-          prev ? prev.assignedClub : '',
+          prev ? sanitizeCell_(prev.email, 80) : '',
+          prev ? sanitizeCell_(prev.pref1, 60) : '',
+          prev ? sanitizeCell_(prev.pref2, 60) : '',
+          prev ? sanitizeCell_(prev.pref3, 60) : '',
+          prev ? sanitizeCell_(prev.assignedClub, 60) : '',
           prev ? prev.selectedTime : '',
-          prev ? prev.note : '',
-          prev ? prev.lockedClub : '',
-          prev ? prev.healthNotice : ''
+          prev ? sanitizeCell_(prev.note, 120) : '',
+          prev ? sanitizeCell_(prev.lockedClub, 60) : '',
+          prev ? sanitizeCell_(prev.healthNotice, 150) : ''
         ]);
         studentsCount++;
       }
 
-      if (typeof targetStudentSheet.clearContents === 'function') {
-        targetStudentSheet.clearContents();
-      }
-      const textCols = [1, 3, 4, 5, 6, 7]; // 學號, 班級, 座號, 身分證後四碼, 出生月日, 密碼
-      textCols.forEach(c => {
-        const rng = targetStudentSheet.getRange(1, c, Math.max(nextRows.length, 1), 1);
-        if (typeof rng.setNumberFormat === 'function') rng.setNumberFormat('@');
-      });
-      targetStudentSheet.getRange(1, 1, nextRows.length, 16).setValues(nextRows);
-      targetStudentSheet.getRange(1, 1, 1, 16).setBackground('#0f9d58').setFontColor('#ffffff').setFontWeight('bold');
-      formatSheetLayout_(targetStudentSheet);
+      if (studentsCount > 0) {
+        if (typeof targetStudentSheet.clearContents === 'function') {
+          targetStudentSheet.clearContents();
+        }
+        const textCols = [1, 3, 4, 5, 6, 7]; // 學號, 班級, 座號, 身分證後四碼, 出生月日, 密碼
+        textCols.forEach(c => {
+          const rng = targetStudentSheet.getRange(1, c, Math.max(nextRows.length, 1), 1);
+          if (typeof rng.setNumberFormat === 'function') rng.setNumberFormat('@');
+        });
+        targetStudentSheet.getRange(1, 1, nextRows.length, 16).setValues(nextRows);
+        targetStudentSheet.getRange(1, 1, 1, 16).setBackground('#0f9d58').setFontColor('#ffffff').setFontWeight('bold');
+        formatSheetLayout_(targetStudentSheet);
 
-      // 若舊「學生名冊」分頁仍然存在且與新表不同，依使用者需求予以刪除
-      const legacySheetToDelete = ss.getSheetByName('學生名冊');
-      if (legacySheetToDelete && legacySheetToDelete !== targetStudentSheet) {
-        try { ss.deleteSheet(legacySheetToDelete); } catch (e) { console.warn('Could not delete 學生名冊: ' + e.message); }
+        // 若舊「學生名冊」分頁仍然存在且與新表不同，依使用者需求予以刪除
+        const legacySheetToDelete = ss.getSheetByName('學生名冊');
+        if (legacySheetToDelete && legacySheetToDelete !== targetStudentSheet) {
+          try { ss.deleteSheet(legacySheetToDelete); } catch (e) { console.warn('Could not delete 學生名冊: ' + e.message); }
+        }
       }
     }
   }
@@ -3248,19 +3419,22 @@ function syncDirectoryFromScoreDb_(ss) {
         teachersCount++;
       }
 
-      if (typeof targetTeacherSheet.clearContents === 'function') {
-        targetTeacherSheet.clearContents();
+      if (teachersCount > 0) {
+        if (typeof targetTeacherSheet.clearContents === 'function') {
+          targetTeacherSheet.clearContents();
+        }
+        [1, 3, 4].forEach(c => {
+          const rng = targetTeacherSheet.getRange(1, c, Math.max(nextRows.length, 1), 1);
+          if (typeof rng.setNumberFormat === 'function') rng.setNumberFormat('@');
+        });
+        targetTeacherSheet.getRange(1, 1, nextRows.length, 6).setValues(nextRows);
+        targetTeacherSheet.getRange(1, 1, 1, 6).setBackground('#334155').setFontColor('#ffffff').setFontWeight('bold');
+        formatSheetLayout_(targetTeacherSheet);
       }
-      [1, 3, 4].forEach(c => {
-        const rng = targetTeacherSheet.getRange(1, c, Math.max(nextRows.length, 1), 1);
-        if (typeof rng.setNumberFormat === 'function') rng.setNumberFormat('@');
-      });
-      targetTeacherSheet.getRange(1, 1, nextRows.length, 6).setValues(nextRows);
-      targetTeacherSheet.getRange(1, 1, 1, 6).setBackground('#334155').setFontColor('#ffffff').setFontWeight('bold');
-      formatSheetLayout_(targetTeacherSheet);
     }
   }
 
+  recalculateClubEnrollmentCounts_(ss);
   PropertiesService.getScriptProperties().setProperty('SCORE_SYNC_V', '20261113_student_list');
   return {
     status: 'success',

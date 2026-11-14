@@ -10,43 +10,110 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
   <!-- 粒子慶祝彩帶輕量庫 -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('DX_CLUB_THEME_V1');
+        if (t === 'indigo' || t === 'mint' || t === 'amber') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) {}
+    })();
+  </script>
   <style>
-    :root {
+    :root, html[data-theme="indigo"] {
       --primary: #1e40af;
+      --primary-deep: #1e3a8a;
       --primary-light: #3b82f6;
+      --primary-soft: #eff6ff;
+      --primary-border: #bfdbfe;
       --primary-glow: rgba(59, 130, 246, 0.25);
-      --accent: #7c3aed;
-      --accent-gradient: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #7c3aed 100%);
-      --gold: #f59e0b;
-      --emerald: #10b981;
-      --rose: #ef4444;
+      --accent: #6d28d9;
+      --accent-gradient: linear-gradient(135deg, #1e40af 0%, #3b82f6 52%, #6d28d9 100%);
+      --masthead-bg: #0F2537;
+      --masthead-bg-end: #16334c;
+      --masthead-border: #0D7A5F;
+      --masthead-sub: #93c5fd;
+      --crest-gradient: linear-gradient(135deg, #0D7A5F 0%, #0284c7 100%);
+      --ai-box-bg: linear-gradient(145deg, #f0fdf4 0%, #eff6ff 55%, #f5f3ff 100%);
+      --bg-mesh:
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.09) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(109, 40, 217, 0.07) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(13, 122, 95, 0.05) 0px, transparent 50%);
+      --gold: #d97706;
+      --emerald: #059669;
+      --rose: #dc2626;
       --bg: #f8fafc;
       --card-bg: #ffffff;
       --text-main: #0f172a;
-      --text-muted: #64748b;
+      --text-muted: #475569;
       --border: #e2e8f0;
       --border-focus: #3b82f6;
       --radius: 16px;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
-      --shadow-md: 0 4px 20px -2px rgba(0,0,0,0.06), 0 2px 6px -1px rgba(0,0,0,0.03);
-      --shadow-lg: 0 12px 36px -4px rgba(15, 23, 42, 0.1), 0 4px 12px -2px rgba(15, 23, 42, 0.05);
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+      --shadow-md: 0 4px 20px -2px rgba(15, 23, 42, 0.07), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+      --shadow-lg: 0 12px 36px -4px rgba(15, 23, 42, 0.11), 0 4px 12px -2px rgba(15, 23, 42, 0.05);
       --shadow-glow: 0 0 25px -5px rgba(59, 130, 246, 0.25);
     }
 
+    html[data-theme="mint"] {
+      --primary: #047857;
+      --primary-deep: #064e3b;
+      --primary-light: #0d9488;
+      --primary-soft: #ecfdf5;
+      --primary-border: #a7f3d0;
+      --primary-glow: rgba(16, 185, 129, 0.25);
+      --accent: #0284c7;
+      --accent-gradient: linear-gradient(135deg, #065f46 0%, #0d9488 55%, #0284c7 100%);
+      --masthead-bg: #082f28;
+      --masthead-bg-end: #0f463c;
+      --masthead-border: #10b981;
+      --masthead-sub: #6ee7b7;
+      --crest-gradient: linear-gradient(135deg, #10b981 0%, #0284c7 100%);
+      --ai-box-bg: linear-gradient(145deg, #ecfdf5 0%, #f0fdfa 55%, #eff6ff 100%);
+      --bg-mesh:
+        radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.09) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(2, 132, 199, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(13, 148, 136, 0.05) 0px, transparent 50%);
+      --bg: #f4fbf8;
+      --border-focus: #0d9488;
+    }
+
+    html[data-theme="amber"] {
+      --primary: #b45309;
+      --primary-deep: #78350f;
+      --primary-light: #d97706;
+      --primary-soft: #fffbeb;
+      --primary-border: #fde68a;
+      --primary-glow: rgba(217, 119, 6, 0.25);
+      --accent: #c2410c;
+      --accent-gradient: linear-gradient(135deg, #92400e 0%, #d97706 52%, #c2410c 100%);
+      --masthead-bg: #2d1810;
+      --masthead-bg-end: #432418;
+      --masthead-border: #f59e0b;
+      --masthead-sub: #fcd34d;
+      --crest-gradient: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+      --ai-box-bg: linear-gradient(145deg, #fffbeb 0%, #fff7ed 55%, #fef2f2 100%);
+      --bg-mesh:
+        radial-gradient(at 0% 0%, rgba(245, 158, 11, 0.09) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(194, 65, 12, 0.07) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(180, 83, 9, 0.05) 0px, transparent 50%);
+      --bg: #fcfaf6;
+      --border-focus: #d97706;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans TC', sans-serif; }
-    
+    :focus-visible { outline: 2.5px solid var(--primary); outline-offset: 2px; }
+
     body {
       background-color: var(--bg);
-      background-image: 
-        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
-        radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
-        radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.05) 0px, transparent 50%);
+      background-image: var(--bg-mesh);
       color: var(--text-main);
       min-height: 100vh;
       padding: 0;
       display: flex;
       flex-direction: column;
-      transition: all 0.3s ease;
+      transition: background-color 0.25s ease, color 0.2s ease;
     }
 
     .page-shell {
@@ -57,15 +124,19 @@
       padding: 20px 16px 84px;
     }
 
-    /* ===== 校務級頂部橫幅（對齊大溪國中成績系統風格） ===== */
+    /* ===== 校務級頂部橫幅（含質感網格與主題切換器） ===== */
     .school-masthead {
       position: sticky;
       top: 0;
       z-index: 60;
-      background: #0F2537;
+      background:
+        linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(135deg, var(--masthead-bg) 0%, var(--masthead-bg-end) 100%);
+      background-size: 24px 24px, 24px 24px, 100% 100%;
       color: #fff;
-      border-bottom: 4px solid #0D7A5F;
-      box-shadow: 0 4px 16px rgba(15, 37, 55, 0.25);
+      border-bottom: 4px solid var(--masthead-border);
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.22);
     }
     .masthead-inner {
       max-width: 1100px;
@@ -74,51 +145,64 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 12px 24px;
+      gap: 10px 20px;
       flex-wrap: wrap;
     }
-    .masthead-brand { display: flex; align-items: center; gap: 12px; }
+    .masthead-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .masthead-crest {
-      width: 44px; height: 44px;
+      width: 44px; height: 44px; flex-shrink: 0;
       border-radius: 12px;
-      background: linear-gradient(135deg, #0D7A5F 0%, #0284c7 100%);
+      background: var(--crest-gradient);
       display: flex; align-items: center; justify-content: center;
-      font-size: 24px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      font-size: 23px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.18);
     }
-    .masthead-school { font-size: 12px; letter-spacing: 2px; color: #7dd3fc; font-weight: 700; }
+    .masthead-school { font-size: 12px; letter-spacing: 2px; color: var(--masthead-sub); font-weight: 700; }
     .masthead-system { font-size: 18px; font-weight: 900; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .masthead-system .brand-badge { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25); color: #bae6fd; }
-    .role-nav { display: flex; gap: 6px; flex-wrap: wrap; }
-    .role-tab {
+    .masthead-system .brand-badge { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.28); color: #f8fafc; }
+    .role-nav {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
       background: rgba(255,255,255,0.08);
-      color: #cbd5e1;
-      border: 1px solid rgba(255,255,255,0.14);
-      padding: 8px 14px;
-      border-radius: 10px;
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .role-tab {
+      background: transparent;
+      color: #e2e8f0;
+      border: 1px solid transparent;
+      padding: 7px 13px;
+      border-radius: 9px;
       font-size: 13px;
       font-weight: 800;
       cursor: pointer;
       transition: all 0.2s;
     }
-    .role-tab:hover { background: rgba(255,255,255,0.18); color: #fff; }
-    .role-tab.active { background: #fff; color: #0F2537; border-color: #fff; }
+    .role-tab:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .role-tab.active { background: #fff; color: var(--masthead-bg); border-color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
     .masthead-status {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 0 16px 10px;
+      padding: 2px 16px 10px;
       display: flex;
       align-items: center;
-      gap: 8px 14px;
+      gap: 8px 12px;
       flex-wrap: wrap;
       font-size: 12px;
-      color: #cbd5e1;
+      color: #e2e8f0;
     }
-    .masthead-status .status-dot { width: 8px; height: 8px; }
+    .masthead-status .status-dot { width: 8px; height: 8px; animation: pulseDot 2.2s ease-in-out infinite; }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.25); }
+    }
     .conn-pill {
       border: 1px solid rgba(255,255,255,0.25);
       background: rgba(255,255,255,0.08);
-      color: #e2e8f0;
+      color: #f8fafc;
       padding: 3px 10px;
       border-radius: 999px;
       font-size: 11px;
@@ -130,10 +214,36 @@
     .conn-pill.live { background: rgba(16,185,129,0.22); border-color: rgba(52,211,153,0.6); color: #a7f3d0; }
     .conn-pill.demo { background: rgba(245,158,11,0.2); border-color: rgba(251,191,36,0.6); color: #fde68a; }
 
+    /* 校園佈景主題快速切換器 */
+    .theme-switcher {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+    .theme-switcher-label { font-size: 11px; color: #e2e8f0; font-weight: 700; }
+    .theme-dot {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.55);
+      cursor: pointer;
+      padding: 0;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .theme-dot:hover { transform: scale(1.15); }
+    .theme-dot.active { border-color: #ffffff; box-shadow: 0 0 0 2px rgba(255,255,255,0.45); transform: scale(1.12); }
+    .theme-dot.t-indigo { background: linear-gradient(135deg, #1e40af, #6d28d9); }
+    .theme-dot.t-mint { background: linear-gradient(135deg, #047857, #0284c7); }
+    .theme-dot.t-amber { background: linear-gradient(135deg, #b45309, #c2410c); }
+
     /* ===== 重要公告列 ===== */
     .system-notice {
-      background: linear-gradient(90deg, #eff6ff 0%, #f0fdf4 100%);
-      border-bottom: 1px solid #bfdbfe;
+      background: linear-gradient(90deg, var(--primary-soft) 0%, #f0fdf4 100%);
+      border-bottom: 1px solid var(--primary-border);
     }
     .system-notice-inner {
       max-width: 1100px;
@@ -148,7 +258,7 @@
     }
     .notice-label {
       flex-shrink: 0;
-      background: #0F2537;
+      background: var(--masthead-bg);
       color: #fff;
       padding: 2px 10px;
       border-radius: 999px;
@@ -164,7 +274,7 @@
     .school-footer {
       text-align: center;
       font-size: 12px;
-      color: #94a3b8;
+      color: #64748b;
       padding: 18px 16px 90px;
       display: flex;
       flex-direction: column;
@@ -344,9 +454,9 @@
 
     /* AI 顧問專區 */
     .ai-advisor-box {
-      background: linear-gradient(145deg, #f0fdf4 0%, #eff6ff 50%, #faf5ff 100%);
-      border: 1.5px solid #bfdbfe;
-      border-radius: 14px;
+      background: var(--ai-box-bg);
+      border: 1.5px solid var(--primary-border);
+      border-radius: 16px;
       padding: 20px;
       margin-bottom: 24px;
       box-shadow: var(--shadow-sm);
@@ -355,15 +465,21 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
       margin-bottom: 12px;
     }
     .ai-advisor-title {
       font-weight: 900;
       font-size: 15px;
-      color: #1e3a8a;
+      color: var(--primary-deep);
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+    .ai-input-row {
+      display: flex;
+      gap: 8px;
     }
     .ai-chips-wrap {
       display: flex;
@@ -378,15 +494,15 @@
       border-radius: 20px;
       font-size: 12px;
       cursor: pointer;
-      color: #475569;
-      font-weight: 500;
+      color: #334155;
+      font-weight: 600;
       transition: all 0.15s;
     }
     .ai-chip:hover {
-      background: #e0f2fe;
-      border-color: #38bdf8;
-      color: #0369a1;
-      transform: scale(0.98);
+      background: var(--primary-soft);
+      border-color: var(--primary-light);
+      color: var(--primary);
+      transform: translateY(-1px);
     }
 
     /* 骨架屏與打字效果 */
@@ -457,30 +573,38 @@
       padding: 16px;
       background: white;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
       position: relative;
     }
     .club-card:hover {
-      border-color: #93c5fd;
-      background: #f8faff;
+      border-color: var(--primary-light);
+      background: var(--primary-soft);
       transform: translateY(-2px);
       box-shadow: var(--shadow-md);
     }
     .club-card.selected {
-      border-color: var(--primary-light);
-      background: #eff6ff;
+      border-color: var(--primary);
+      background: var(--primary-soft);
       box-shadow: 0 0 0 2px var(--primary-light);
     }
     .club-card.full {
-      opacity: 0.6;
+      opacity: 0.65;
       background: #f8fafc;
       cursor: not-allowed;
       border-color: #e2e8f0;
     }
+    .club-card.full:hover {
+      transform: none;
+      box-shadow: none;
+      border-color: #e2e8f0;
+      background: #f8fafc;
+    }
     .club-card-top {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 6px;
       margin-bottom: 6px;
     }
     .club-name { font-size: 16px; font-weight: 900; color: var(--text-main); }
@@ -491,17 +615,53 @@
       font-weight: 700;
       background: #f1f5f9;
       color: #475569;
-      margin-left: 6px;
+      margin-left: 4px;
     }
     .club-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
-    .club-desc { font-size: 13px; color: #475569; line-height: 1.45; }
+    .club-desc { font-size: 13px; color: #334155; line-height: 1.5; }
+    .club-quota-bar {
+      width: 100%;
+      height: 5px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 8px 0 6px;
+    }
+    .club-quota-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.35s ease;
+    }
+    .club-req-free {
+      display: inline-block;
+      font-size: 11.5px;
+      color: #047857;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 6px;
+      padding: 2px 8px;
+      margin-top: 6px;
+      font-weight: 700;
+    }
+    .club-req-paid {
+      display: inline-block;
+      font-size: 11.5px;
+      color: #92400e;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 2px 8px;
+      margin-top: 6px;
+      font-weight: 700;
+    }
     .badge-quota {
       font-size: 12px;
       font-weight: 800;
       padding: 4px 10px;
       border-radius: 20px;
+      white-space: nowrap;
     }
-    .badge-avail { background: #dcfce7; color: #15803d; }
+    .badge-avail { background: #dcfce7; color: #166534; }
     .badge-full { background: #fee2e2; color: #b91c1c; }
 
     /* 文創票券風「錄取通知卡」 */
@@ -515,7 +675,7 @@
       position: relative;
     }
     .ticket-header {
-      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      background: linear-gradient(135deg, var(--primary-deep) 0%, var(--primary-light) 100%);
       color: white;
       padding: 20px;
       text-align: center;
@@ -523,7 +683,7 @@
     }
     .ticket-school { font-size: 13px; opacity: 0.9; letter-spacing: 1px; font-weight: 700; }
     .ticket-title { font-size: 20px; font-weight: 900; margin: 4px 0; }
-    .ticket-serial { font-family: monospace; font-size: 11px; color: #bfdbfe; font-weight: 700; }
+    .ticket-serial { font-family: monospace; font-size: 11px; color: #dbeafe; font-weight: 700; }
     .ticket-body {
       padding: 24px;
       background: #fff;
@@ -614,89 +774,128 @@
     .admin-stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 600; }
     
     .club-heatmap-item {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(140px, 180px) 1fr minmax(96px, 120px);
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      gap: 10px 12px;
       padding: 10px 0;
       border-bottom: 1px solid #f1f5f9;
       font-size: 13px;
     }
+    .heatmap-name { font-weight: 700; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .heatmap-stat { text-align: right; font-size: 12px; font-weight: 700; white-space: nowrap; }
     .progress-bar-bg {
-      flex: 1;
-      height: 8px;
+      width: 100%;
+      height: 9px;
       background: #e2e8f0;
-      border-radius: 4px;
+      border-radius: 999px;
       overflow: hidden;
     }
     .progress-bar-fill {
       height: 100%;
       background: var(--accent-gradient);
-      border-radius: 4px;
+      border-radius: 999px;
       transition: width 0.5s ease;
     }
 
+    .admin-action-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 6px;
+    }
+    .admin-form-grid-title {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 12px;
+    }
+    .admin-form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .admin-form-grid-title > div,
+    .admin-form-grid-2 > div {
+      min-width: 0;
+    }
+    .admin-footer-tools {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
     .admin-action-btn {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 10px;
       width: 100%;
-      padding: 14px 18px;
+      padding: 14px 16px;
       background: white;
-      border: 1px solid var(--border);
+      border: 1.5px solid var(--border);
       border-radius: 12px;
-      margin-bottom: 10px;
-      font-size: 14px;
+      margin-bottom: 0;
+      font-size: 13.5px;
       font-weight: 700;
-      color: #334155;
+      color: #1e293b;
+      text-align: left;
       cursor: pointer;
       transition: all 0.2s;
       box-shadow: var(--shadow-sm);
     }
-    .admin-action-btn:hover { background: #f8fafc; border-color: var(--primary-light); color: var(--primary-light); }
+    .admin-action-btn:hover { background: var(--primary-soft); border-color: var(--primary-light); color: var(--primary); transform: translateY(-1px); }
 
     /* Glass Modal 彈窗 */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(15, 23, 42, 0.6);
+      background: rgba(15, 23, 42, 0.62);
       backdrop-filter: blur(4px);
       display: none;
       justify-content: center;
       align-items: center;
       z-index: 1000;
-      padding: 20px;
+      padding: 16px;
     }
     .modal-box {
       background: white;
       border-radius: 16px;
       width: 100%;
-      max-width: 520px;
-      padding: 24px;
+      max-width: 560px;
+      max-height: 88dvh;
+      display: flex;
+      flex-direction: column;
+      padding: 22px;
       box-shadow: var(--shadow-lg);
-      animation: modalPop 0.25s ease-out;
+      animation: modalPop 0.22s ease-out;
     }
+    .modal-body-scroll {
+      overflow-y: auto;
+      padding-right: 4px;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+    #modalButtons .btn { width: auto; min-width: 100px; padding: 9px 18px; }
     @keyframes modalPop {
       from { transform: scale(0.95); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
 
     .loading-overlay {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(255,255,255,0.88);
-      backdrop-filter: blur(3px);
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.86);
+      backdrop-filter: blur(4px);
       display: none;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 200;
+      z-index: 1100;
     }
     .spinner {
       width: 44px;
       height: 44px;
       border: 4px solid #e2e8f0;
-      border-top-color: var(--primary-light);
+      border-top-color: var(--primary);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       margin-bottom: 14px;
@@ -721,7 +920,7 @@
       font-weight: 800;
       border-radius: 9px;
       cursor: pointer;
-      color: #64748b;
+      color: #475569;
       transition: all 0.2s;
       border: none;
       background: transparent;
@@ -731,9 +930,13 @@
       color: var(--primary);
       box-shadow: var(--shadow-sm);
     }
+    .mode-tab:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
     .pref-basket {
-      background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
-      border: 1.5px solid #bfdbfe;
+      background: linear-gradient(135deg, #f8fafc 0%, var(--primary-soft) 100%);
+      border: 1.5px solid var(--primary-border);
       border-radius: 14px;
       padding: 14px 16px;
       margin-bottom: 16px;
@@ -750,7 +953,7 @@
     }
     .pref-slot {
       background: white;
-      border: 1.5px dashed #93c5fd;
+      border: 1.5px dashed var(--primary-light);
       border-radius: 10px;
       padding: 10px;
       font-size: 12px;
@@ -764,9 +967,9 @@
     .pref-slot.filled {
       border-style: solid;
       border-color: var(--primary-light);
-      background: #eff6ff;
+      background: var(--primary-soft);
     }
-    .pref-slot-label { font-size: 11px; font-weight: 800; color: #1e40af; margin-bottom: 4px; }
+    .pref-slot-label { font-size: 11px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
     .pref-slot-val { font-size: 13px; font-weight: 900; color: #0f172a; }
     .pref-slot-remove {
       position: absolute;
@@ -895,8 +1098,33 @@
       display: none;
       box-shadow: var(--shadow-md);
     }
+    .showcase-close-btn {
+      position: sticky;
+      right: 0;
+      flex-shrink: 0;
+      background: rgba(244,63,94,0.32);
+      border-color: rgba(244,63,94,0.55);
+    }
+    @media (max-width: 640px) {
+      .page-shell { padding: 12px 10px 88px; }
+      .content-body { padding: 18px 14px; }
+      .masthead-system { font-size: 15.5px; }
+      .role-nav { width: 100%; justify-content: space-between; }
+      .role-tab { flex: 1; padding: 7px 6px; font-size: 12px; text-align: center; }
+      .theme-switcher { margin-left: 0; }
+      .ai-input-row { flex-direction: column; }
+      .ai-input-row .btn { width: 100% !important; }
+      .ticket-grid { grid-template-columns: 1fr; }
+      .ticket-footer { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .club-heatmap-item { grid-template-columns: 1fr auto; }
+      .club-heatmap-item .progress-bar-bg { grid-column: 1 / -1; order: 3; }
+      .admin-action-grid,
+      .admin-form-grid-title,
+      .admin-form-grid-2 { grid-template-columns: 1fr; }
+      .club-admin-table { font-size: 12px; }
+    }
     @media print {
-      .showcase-dock, .showcase-toggle-fab, .school-masthead, .system-notice, .school-footer, #mock-banner { display: none !important; }
+      .showcase-dock, .showcase-toggle-fab, .school-masthead, .system-notice, .school-footer, #mock-banner, .theme-switcher { display: none !important; }
     }
   </style>
 </head>
@@ -925,6 +1153,12 @@
     <span class="status-dot" id="statusDot"></span>
     <span id="timeStatusText">載入系統狀態中...</span>
     <button type="button" class="conn-pill demo" id="connPill" onclick="openConnectionModal()">⏳ 連線檢查中...</button>
+    <div class="theme-switcher" id="themeSwitcher" role="group" aria-label="校園佈景主題切換">
+      <span class="theme-switcher-label">佈景</span>
+      <button type="button" class="theme-dot t-indigo active" data-theme-id="indigo" title="學院湛藍（預設）" aria-label="學院湛藍主題" onclick="setTheme_('indigo')"></button>
+      <button type="button" class="theme-dot t-mint" data-theme-id="mint" title="森語青綠" aria-label="森語青綠主題" onclick="setTheme_('mint')"></button>
+      <button type="button" class="theme-dot t-amber" data-theme-id="amber" title="書院琥珀" aria-label="書院琥珀主題" onclick="setTheme_('amber')"></button>
+    </div>
   </div>
 </header>
 
@@ -1053,7 +1287,7 @@
           <div class="ai-chip" onclick="addInterestTag('好奇化學變色與動手做生活實驗')">🔬 科學實驗</div>
         </div>
 
-        <div style="display: flex; gap: 8px;">
+        <div class="ai-input-row">
           <input type="text" id="aiInterestInput" class="form-control" style="font-size: 13px; padding: 10px 12px;" placeholder="例如：我想學動手操作，不想大量跑步曬太陽...">
           <button class="btn btn-primary" style="width: auto; padding: 10px 16px; font-size: 13px; white-space: nowrap;" onclick="triggerAiAdvisor()">
             <span>✨ AI 分析</span>
@@ -1426,7 +1660,7 @@
         <div id="transferSearchResults" style="display: grid; gap: 6px; margin-bottom: 12px;"></div>
         <div id="transferActionPanel" style="display: none; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px;">
           <div id="transferSelectedStudentInfo" style="font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 10px;"></div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+          <div class="admin-form-grid-2" style="gap: 10px; margin-bottom: 10px;">
             <div>
               <label style="font-size: 12px;">目標社團（選「退選 / 清空社團」即設為未錄取）</label>
               <select id="transferClubSelect" class="form-control" style="font-size: 13px;"></select>
@@ -1440,7 +1674,7 @@
             <label style="margin: 0; font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
               <input type="checkbox" id="transferForceOverCheck"> 允許超出社團人數上限（行政特案超額安置）
             </label>
-            <button type="button" class="btn btn-primary" style="padding: 8px 18px; font-size: 13px;" onclick="submitAdminTransfer()">✅ 確認執行異動並重算名額</button>
+            <button type="button" class="btn btn-primary" style="width: auto; padding: 8px 18px; font-size: 13px;" onclick="submitAdminTransfer()">✅ 確認執行異動並重算名額</button>
           </div>
         </div>
       </div>
@@ -1448,33 +1682,34 @@
       <!-- 智慧行政一鍵自動化 -->
       <div style="margin-bottom: 22px;">
         <label style="font-size: 14px;">⚡ 智慧行政自動化工具箱</label>
-        
-        <button class="admin-action-btn" onclick="triggerSmartAllocation()">
-          <span>🤖 執行 AI 多志願公平適性分發（含防抱團限制）</span>
-          <span style="font-size: 12px; color: var(--primary-light);">一鍵分發 →</span>
-        </button>
+        <div class="admin-action-grid">
+          <button class="admin-action-btn" onclick="triggerSmartAllocation()">
+            <span>🤖 執行 AI 多志願公平適性分發（含防抱團限制）</span>
+            <span style="font-size: 12px; color: var(--primary); white-space: nowrap;">一鍵分發 →</span>
+          </button>
 
-        <button class="admin-action-btn" onclick="triggerBatchSendEmails()">
-          <span>📧 一鍵批次寄送全校分發錄取通知函 (Email)</span>
-          <span style="font-size: 12px; color: var(--emerald);">批次發信 →</span>
-        </button>
+          <button class="admin-action-btn" onclick="triggerBatchSendEmails()">
+            <span>📧 一鍵批次寄送全校分發錄取通知函 (Email)</span>
+            <span style="font-size: 12px; color: var(--emerald); white-space: nowrap;">批次發信 →</span>
+          </button>
 
-        <button class="admin-action-btn" onclick="triggerExportAttendance()">
-          <span>📊 一鍵產出各社團點名簽到單 (Google Sheets，含健康警示)</span>
-          <span style="font-size: 12px; color: var(--emerald);">匯出分頁 →</span>
-        </button>
+          <button class="admin-action-btn" onclick="triggerExportAttendance()">
+            <span>📊 一鍵產出各社團點名簽到單 (Google Sheets，含健康警示)</span>
+            <span style="font-size: 12px; color: var(--emerald); white-space: nowrap;">匯出分頁 →</span>
+          </button>
 
-        <button class="admin-action-btn" onclick="triggerGenerateManual()">
-          <span>📄 一鍵生成社團手冊與行政成果報告書 (Google Docs)</span>
-          <span style="font-size: 12px; color: var(--accent);">生成文件 →</span>
-        </button>
+          <button class="admin-action-btn" onclick="triggerGenerateManual()">
+            <span>📄 一鍵生成社團手冊與行政成果報告書 (Google Docs)</span>
+            <span style="font-size: 12px; color: var(--accent); white-space: nowrap;">生成文件 →</span>
+          </button>
+        </div>
       </div>
 
       <!-- 系統設定區 -->
       <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 20px;">
         <label style="margin-bottom: 14px;">系統參數設定</label>
         
-        <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px;">
+        <div class="admin-form-grid-title">
           <div class="form-group" style="margin-bottom: 6px;">
             <label style="font-size: 12px;">網頁與試算表統一名稱（首頁＋分頁＋試算表同步）</label>
             <input type="text" id="adminTitleInput" class="form-control" style="font-size: 13px;" maxlength="100" oninput="renderTitleSyncBadge()">
@@ -1489,7 +1724,7 @@
         </div>
         <div id="titleSyncStatus" style="margin: 0 0 12px; font-size: 11px; line-height: 1.5;"></div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="admin-form-grid-2">
           <div class="form-group">
             <label style="font-size: 12px;">開放選填時間</label>
             <input type="datetime-local" id="adminOpenTime" class="form-control" style="font-size: 13px;">
@@ -1500,7 +1735,7 @@
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="admin-form-grid-2">
           <div class="form-group">
             <label style="font-size: 12px;">各班每社人數上限 (防抱團)</label>
             <input type="number" id="adminMaxPerClass" class="form-control" style="font-size: 13px;" min="1" max="10">
@@ -1515,7 +1750,7 @@
         <button id="saveAdminSettingsBtn" class="btn btn-primary" style="font-size: 13px; padding: 11px;" onclick="saveAdminSettings()">儲存系統設定</button>
       </div>
 
-      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <div class="admin-footer-tools">
         <a id="bottomSpreadsheetLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 170px; text-decoration: none;" onclick="return openSpreadsheetDirectly(event)">🔗 開啟 Google 試算表資料庫 ↗</a>
         <button id="syncScoreUsersBtn" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 205px; color: #047857; border: 1px solid #a7f3d0; background: #ecfdf5;" onclick="triggerSyncScoreUsers()">🔄 從成績系統複製學生與導師</button>
         <button id="formatSheetsBtn" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 185px; color: #0369a1; border: 1px solid #bae6fd; background: #f0f9ff;" onclick="triggerFormatAllSheets()">📐 調整試算表欄寬與換列</button>
@@ -1527,11 +1762,11 @@
   </div>
 
   <!-- Glass Modal 彈窗 -->
-  <div class="modal-overlay" id="customModal">
-    <div class="modal-box">
+  <div class="modal-overlay" id="customModal" onclick="if (event.target === this) closeModal()">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <h3 style="font-size: 18px; font-weight: 900; color: #0f172a; margin-bottom: 12px;" id="modalTitle">系統通知</h3>
-      <div style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 20px;" id="modalMessage"></div>
-      <div id="modalButtons" style="display: flex; gap: 10px; justify-content: flex-end;">
+      <div class="modal-body-scroll" style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 16px;" id="modalMessage"></div>
+      <div id="modalButtons" style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
         <button class="btn btn-primary" id="modalConfirmBtn" onclick="closeModal()">確定</button>
       </div>
     </div>
@@ -1558,20 +1793,39 @@
   <button type="button" class="showcase-btn" onclick="demoToggleMode()">3️⃣ 切換搶社/三志願</button>
   <button type="button" class="showcase-btn" onclick="demoQuickHomeroom()">4️⃣ 導師專區查核</button>
   <button type="button" class="showcase-btn" onclick="demoQuickAdmin()">5️⃣ 學務處智慧後台</button>
-  <button type="button" class="showcase-btn" style="background: rgba(244,63,94,0.25); border-color: rgba(244,63,94,0.4);" onclick="toggleShowcaseDock(false)" title="隱藏導覽列">✕</button>
+  <button type="button" class="showcase-btn showcase-close-btn" onclick="toggleShowcaseDock(false)" title="隱藏導覽列">✕</button>
 </div>
 <button type="button" class="showcase-toggle-fab" id="showcaseFab" onclick="toggleShowcaseDock(true)">🎬 展開發表導覽</button>
 
 <script>
-  // ==================== 安全防 XSS 工具函式 ====================
+  // ==================== 安全防 XSS 工具與校園佈景主題 ====================
   function escapeHtml(str) {
-    if (!str) return '';
+    if (str === null || str === undefined) return '';
     return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  var THEME_LS_KEY_ = 'DX_CLUB_THEME_V1';
+  function getActiveTheme_() {
+    var attr = document.documentElement.getAttribute('data-theme');
+    if (attr === 'indigo' || attr === 'mint' || attr === 'amber') return attr;
+    return 'indigo';
+  }
+  function renderThemeSwitcherState_() {
+    var active = getActiveTheme_();
+    document.querySelectorAll('#themeSwitcher .theme-dot').forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-theme-id') === active);
+    });
+  }
+  function setTheme_(themeId) {
+    if (themeId !== 'indigo' && themeId !== 'mint' && themeId !== 'amber') themeId = 'indigo';
+    document.documentElement.setAttribute('data-theme', themeId);
+    try { localStorage.setItem(THEME_LS_KEY_, themeId); } catch (e) {}
+    renderThemeSwitcherState_();
   }
 
   // ==================== 本地 Mock 模擬環境 (供離線預覽與展示) ====================
@@ -1818,9 +2072,9 @@
               });
             }, 600);
           },
-          batchSendAllocationEmails: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', sentCount: 142, message: '已成功寄送 142 封個人化 HTML 錄取通知信至學生信箱！' }); }, 500); },
-          exportAttendanceSheets: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: '各社團點名簽到冊（含特殊病史健康警示標記與緊急分機）已成功建立分頁！' }); }, 400); },
-          generateClubDocManual: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', message: 'Google Docs 社團成果報告書與選社手冊已自動排版產出！' }); }, 500); },
+          batchSendAllocationEmails: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', sentCount: 142, failedCount: 0, message: '已成功寄送 142 封個人化 HTML 錄取通知信至學生信箱！' }); }, 500); },
+          exportAttendanceSheets: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', sheetUrl: 'https://docs.google.com/spreadsheets/d/1i8J-02K4qY5tZ_7aW9M6bK_mockDemoSheet/edit', message: '各社團點名簽到冊（含特殊病史健康警示標記與緊急分機）已成功建立分頁！' }); }, 400); },
+          generateClubDocManual: function(t) { var self = this; setTimeout(function(){ self._success({ status: 'success', docUrl: 'https://docs.google.com/document/d/1mockDemoClubManualDoc_2026/edit', message: 'Google Docs 社團成果報告書與選社手冊已自動排版產出！' }); }, 500); },
           loginTeacher: function(account, pwd) {
             var self = this;
             setTimeout(function(){
@@ -2054,19 +2308,35 @@
     currentHomeroomNotice: ''
   };
 
-  function callGas(fnName, args, onSuccess, customErrMsg) {
+  function callGas(fnName, args, onSuccess, customErrMsg, onError) {
     var onOk = function(res) {
       setLoading(false);
       onSuccess(res);
     };
     var onFail = function(err) {
       setLoading(false);
+      if (typeof onError === 'function') { try { onError(err); } catch (e) {} }
       console.error('API Error in ' + fnName + ':', err);
       var raw = String((err && err.message) || '網路波動').replace(/^(Error:\s*)+/, '');
-      if (/403/.test(raw)) {
-        var friendly = escapeHtml(raw.replace(/^403 Unauthorized:\s*/, ''));
+      if (/^403\b/.test(raw)) {
+        var friendly = escapeHtml(raw.replace(/^403 [^:]+:\s*/, ''));
+        var isTeacherAuthErr = (fnName === 'getHomeroomClassData' || fnName === 'changeTeacherPassword');
+        if (isTeacherAuthErr && appState.teacherToken) {
+          if (/PasswordChangeRequired/i.test(raw) && appState.currentTeacher) {
+            appState.currentTeacher.mustChangePassword = true;
+            renderHomeroomAuthUi();
+            showModal('首次登入須修改密碼', friendly);
+            return;
+          }
+          appState.teacherToken = null;
+          appState.currentTeacher = null;
+          renderHomeroomAuthUi();
+          showModal('導師授權逾時', friendly);
+          return;
+        }
         // 管理員 Session 逾時：清除 Token 並回到登入
-        if (appState.adminToken && fnName !== 'getHomeroomClassData') {
+        var isAdminFlow = fnName !== 'verifyAndGetClubs' && fnName !== 'submitSelection' && fnName !== 'submitPreferences' && fnName !== 'cancelSelection' && fnName !== 'loginTeacher';
+        if (appState.adminToken && isAdminFlow) {
           appState.adminToken = null;
           showModal('登入已逾時', friendly);
           openAdminLogin();
@@ -2095,7 +2365,7 @@
   // ==================== GitHub Pages ⇄ Google 試算表：遠端 API 傳輸層 ====================
   var LS_GAS_URL = 'daxi_club_gas_url';
   var DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbwBpYOIqQHD3QZoV_wov9mEV9e76sO-_shWaU6JuiS5zzlToa5yLoKHGnF_-GwsNA6o/exec';
-  var GAS_URL_RE = /^https:\/\/script\.google\.com\/(a\/[A-Za-z0-9.\-_]+\/)?macros\/s\/[A-Za-z0-9_\-]+\/exec$/;
+  var GAS_URL_RE = /^https:\/\/script\.google\.com\/(a\/(macros\/)?[A-Za-z0-9.\-_]+\/)?(macros\/)?s\/[A-Za-z0-9_\-]+\/exec$/;
 
   function isForcedMock() {
     try { return localStorage.getItem(LS_GAS_URL) === 'mock'; } catch (e) { return false; }
@@ -2239,7 +2509,10 @@
   }
 
   // 初始化
-  window.onload = function() { detectTransport(initApp); };
+  window.onload = function() {
+    renderThemeSwitcherState_();
+    detectTransport(initApp);
+  };
 
   function applySystemTitle(title) {
     var clean = String(title || '').replace(/[\r\n\t]+/g, ' ').trim();
@@ -2272,6 +2545,12 @@
 
   var countdownTimer_ = null;
 
+  function parseSafeDate_(val) {
+    if (!val) return null;
+    var d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
   function formatCountdown_(diffMs) {
     var sec = Math.max(0, Math.floor(diffMs / 1000));
     var d = Math.floor(sec / 86400);
@@ -2284,23 +2563,31 @@
 
   function updateCountdownUi_(settings) {
     var now = new Date();
-    var open = settings.openTime ? new Date(settings.openTime) : null;
-    var close = settings.closeTime ? new Date(settings.closeTime) : null;
+    var open = parseSafeDate_(settings.openTime);
+    var close = parseSafeDate_(settings.closeTime);
     var msg = '';
-    var bg = 'linear-gradient(135deg, #eff6ff, #f5f3ff)';
-    var border = '#bfdbfe';
-    var color = '#1e3a8a';
+    var bg = 'linear-gradient(135deg, var(--primary-soft), #f5f3ff)';
+    var border = 'var(--primary-border)';
+    var color = 'var(--primary-deep)';
 
+    var nextClosed = false;
     if (open && now < open) {
-      msg = '⏳ 距離系統開放選填還有：' + formatCountdown_(open - now) + '（開放時間：' + settings.openTime.replace('T', ' ') + '）';
+      nextClosed = true;
+      msg = '⏳ 距離系統開放選填還有：' + formatCountdown_(open - now) + '（開放時間：' + String(settings.openTime).replace('T', ' ') + '）';
       bg = '#fffbeb'; border = '#fde68a'; color = '#92400e';
     } else if (close && now <= close) {
       var remain = close - now;
-      msg = '⏱️ 距離選社截止倒數：' + formatCountdown_(remain) + '（截止時間：' + settings.closeTime.replace('T', ' ') + '）';
+      msg = '⏱️ 距離選社截止倒數：' + formatCountdown_(remain) + '（截止時間：' + String(settings.closeTime).replace('T', ' ') + '）';
       if (remain <= 86400000) { bg = '#fff1f2'; border = '#fecdd3'; color = '#be123c'; }
     } else if (close && now > close) {
-      msg = '🛑 本期社團選填已於 ' + settings.closeTime.replace('T', ' ') + ' 截止';
+      nextClosed = true;
+      msg = '🛑 本期社團選填已於 ' + String(settings.closeTime).replace('T', ' ') + ' 截止';
       bg = '#fff1f2'; border = '#fecdd3'; color = '#be123c';
+    }
+
+    if (nextClosed !== !!appState.isClosed) {
+      checkTimeStatus(settings, !!appState.adminToken);
+      return;
     }
 
     ['loginCountdownBanner', 'selectCountdownBanner'].forEach(function(id) {
@@ -2317,36 +2604,34 @@
 
   function checkTimeStatus(settings, silent) {
     var now = new Date();
-    var open = settings.openTime ? new Date(settings.openTime) : null;
-    var close = settings.closeTime ? new Date(settings.closeTime) : null;
+    var open = parseSafeDate_(settings.openTime);
+    var close = parseSafeDate_(settings.closeTime);
     var statusText = document.getElementById('timeStatusText');
     var dot = document.getElementById('statusDot');
     appState.isClosed = false;
 
     if (countdownTimer_) { clearInterval(countdownTimer_); countdownTimer_ = null; }
+
+    if (open && now < open) {
+      statusText.innerText = '系統尚未開放 (開放時間: ' + String(settings.openTime).replace('T', ' ') + ')';
+      dot.style.backgroundColor = 'var(--gold)';
+      appState.isClosed = true;
+      if (!silent) showClosedView('⏳', '系統尚未開放選社', '開放時間為：' + String(settings.openTime).replace('T', ' '));
+    } else if (close && now > close) {
+      statusText.innerText = '選社已截止 (截止時間: ' + String(settings.closeTime).replace('T', ' ') + ')';
+      dot.style.backgroundColor = 'var(--rose)';
+      appState.isClosed = true;
+      if (!silent) showClosedView('🛑', '選社已截止', '截止時間為：' + String(settings.closeTime).replace('T', ' '));
+    } else {
+      statusText.innerText = '開放選填中' + (close ? ' (截止：' + String(settings.closeTime).replace('T', ' ') + ')' : '');
+      dot.style.backgroundColor = 'var(--emerald)';
+    }
+
     updateCountdownUi_(settings);
     if (open || close) {
       countdownTimer_ = setInterval(function() { updateCountdownUi_(settings); }, 1000);
     }
-
-    if (open && now < open) {
-      statusText.innerText = '系統尚未開放 (開放時間: ' + settings.openTime.replace('T', ' ') + ')';
-      dot.style.backgroundColor = 'var(--gold)';
-      appState.isClosed = true;
-      if (!silent) showClosedView('⏳', '系統尚未開放選社', '開放時間為：' + settings.openTime.replace('T', ' '));
-      return false;
-    }
-    if (close && now > close) {
-      statusText.innerText = '選社已截止 (截止時間: ' + settings.closeTime.replace('T', ' ') + ')';
-      dot.style.backgroundColor = 'var(--rose)';
-      appState.isClosed = true;
-      if (!silent) showClosedView('🛑', '選社已截止', '截止時間為：' + settings.closeTime.replace('T', ' '));
-      return false;
-    }
-
-    statusText.innerText = '開放選填中' + (close ? ' (截止：' + settings.closeTime.replace('T', ' ') + ')' : '');
-    dot.style.backgroundColor = 'var(--emerald)';
-    return true;
+    return !appState.isClosed;
   }
 
   function showClosedView(icon, title, desc) {
@@ -2403,12 +2688,21 @@
   }
 
   function switchSelectionMode(mode) {
-    appState.settings.mode = mode;
+    var activeMode = mode;
+    if (!isMock) {
+      // 正式環境須遵守訓育組於「系統設定」所指定之全校統一選社制度
+      activeMode = (appState.settings && appState.settings.mode) || 'instant';
+    } else {
+      appState.settings.mode = activeMode;
+    }
     var tabInstant = document.getElementById('tabModeInstant');
     var tabPrefs = document.getElementById('tabModePrefs');
     var basket = document.getElementById('prefBasketBox');
 
-    if (mode === 'preferences') {
+    if (tabInstant) tabInstant.disabled = (!isMock && activeMode !== 'instant');
+    if (tabPrefs) tabPrefs.disabled = (!isMock && activeMode !== 'preferences');
+
+    if (activeMode === 'preferences') {
       tabInstant.classList.remove('active');
       tabPrefs.classList.add('active');
       basket.style.display = 'block';
@@ -2430,7 +2724,7 @@
     var html = '';
     cats.forEach(function(cat) {
       var activeCls = (appState.activeCategory === cat) ? 'cat-pill active' : 'cat-pill';
-      html += '<button type="button" class="' + activeCls + '" onclick="setCategoryFilter(\'' + escapeHtml(cat) + '\')">' + escapeHtml(cat) + '</button>';
+      html += '<button type="button" class="' + activeCls + '" data-cat="' + escapeHtml(cat) + '" onclick="setCategoryFilter(this.dataset.cat)">' + escapeHtml(cat) + '</button>';
     });
     document.getElementById('categoryPillsContainer').innerHTML = html;
   }
@@ -2500,21 +2794,28 @@
       var cardClass = 'club-card' + (isFull ? ' full' : '') + (isSelected ? ' selected' : '');
       var badgeClass = (avail <= 0) ? 'badge-quota badge-full' : 'badge-quota badge-avail';
       var badgeText = (avail <= 0) ? '額滿' : '餘 ' + avail + ' 席';
-      var clickAttr = isFull ? '' : 'onclick="onSelectClubCard(this, \'' + escapeHtml(club.name) + '\')"';
+      var clickAttr = isFull ? '' : 'onclick="onSelectClubCard(this, this.dataset.clubName)"';
 
       var clsQuotaClass = (clsCount >= maxPerClass) ? 'class-quota-pill warn' : 'class-quota-pill';
       var clsQuotaText = '👥 本班已選 ' + clsCount + '/' + maxPerClass + ' 人' + (clsCount >= maxPerClass ? ' (本班上限)' : '');
+      var capPct = (club.limit > 0) ? Math.min(100, Math.max(0, Math.round((club.current / club.limit) * 100))) : 0;
+      var capColor = capPct >= 90 ? '#dc2626' : (capPct >= 60 ? '#d97706' : 'var(--emerald)');
+      var reqHtml = '';
+      if (isFreeClub_(club)) {
+        reqHtml = '<div class="club-req-free">🆓 ' + escapeHtml(club.requirement || '免材料費 / 校內免費體驗') + '</div>';
+      } else if (club.requirement) {
+        reqHtml = '<div class="club-req-paid">⚠️ ' + escapeHtml(club.requirement) + '</div>';
+      }
 
-      html += '<div class="' + cardClass + '" id="club-card-' + escapeHtml(club.name) + '" ' + clickAttr + '>';
+      html += '<div class="' + cardClass + '" id="club-card-' + escapeHtml(club.name) + '" data-club-name="' + escapeHtml(club.name) + '" ' + clickAttr + '>';
       html += '  <div class="club-card-top">';
       html += '    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;"><span class="club-name">' + escapeHtml(club.name) + '</span><span class="club-category-tag">' + escapeHtml(club.category) + '</span><span class="' + clsQuotaClass + '">' + clsQuotaText + '</span></div>';
       html += '    <div>' + prefBadgeHtml + '<span class="' + badgeClass + '">' + badgeText + '</span></div>';
       html += '  </div>';
+      html += '  <div class="club-quota-bar" aria-hidden="true"><div class="club-quota-fill" style="width:' + capPct + '%; background:' + capColor + ';"></div></div>';
       html += '  <div class="club-meta">📍 地點：' + escapeHtml(club.location || '校內教室') + ' ｜ 👨‍🏫 老師：' + escapeHtml(club.teacher || '專業指導') + '</div>';
       html += '  <div class="club-desc">' + escapeHtml(club.desc) + '</div>';
-      if (club.requirement) {
-        html += '  <div style="font-size:12px; color:#b45309; margin-top:5px; font-weight:600;">⚠️ ' + escapeHtml(club.requirement) + '</div>';
-      }
+      html += reqHtml;
       html += '</div>';
     });
 
@@ -2643,36 +2944,58 @@
       appState.lastAiRecommendations.forEach(function(rec, idx) {
         recHtml += '<div class="ai-rec-card">';
         recHtml += '  <div>';
-        recHtml += '    <div class="ai-rec-title">🏅 推薦 ' + (idx + 1) + '：' + escapeHtml(rec.clubName) + ' <span style="font-size:11px; color:#2563eb; font-weight:800;">(適配度 ' + (rec.matchScore || 95) + '%)</span></div>';
+        recHtml += '    <div class="ai-rec-title">🏅 推薦 ' + (idx + 1) + '：' + escapeHtml(rec.clubName) + ' <span style="font-size:11px; color:var(--primary); font-weight:800;">(適配度 ' + (rec.matchScore || 95) + '%)</span></div>';
         recHtml += '    <div class="ai-rec-reason">' + escapeHtml(rec.reason) + '</div>';
         recHtml += '  </div>';
-        recHtml += '  <button class="btn-apply-rec" onclick="applyAiRecommendation(\'' + escapeHtml(rec.clubName) + '\')">選取社團</button>';
+        recHtml += '  <button type="button" class="btn-apply-rec" data-club-name="' + escapeHtml(rec.clubName) + '" onclick="applyAiRecommendation(this.dataset.clubName)">選取社團</button>';
         recHtml += '</div>';
       });
 
       listEl.innerHTML = recHtml;
       panel.style.display = 'block';
+    }, null, function() {
+      var sk = document.getElementById('aiSkeleton');
+      if (sk) sk.style.display = 'none';
     });
   }
 
+  function findClubCardByName_(clubName) {
+    var cards = document.querySelectorAll('#clubCardContainer .club-card');
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i].getAttribute('data-club-name') === clubName) return cards[i];
+    }
+    return null;
+  }
+
   function applyAiRecommendation(clubName) {
-    // 確保篩選器顯示全部以免卡片被隱藏
+    // 重置所有篩選器，確保推薦社團卡片完整顯示
     appState.activeCategory = '全部';
     if (document.getElementById('clubSearchInput')) document.getElementById('clubSearchInput').value = '';
+    if (document.getElementById('hideFullToggle')) document.getElementById('hideFullToggle').checked = false;
+    if (document.getElementById('freeClubToggle')) document.getElementById('freeClubToggle').checked = false;
     renderCategoryPills(appState.clubs);
     filterAndRenderClubs();
 
-    var targetCard = document.getElementById('club-card-' + clubName);
+    var targetCard = findClubCardByName_(clubName);
     if (targetCard) {
       targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      targetCard.click();
+      if (!targetCard.classList.contains('full')) {
+        targetCard.click();
+      } else {
+        showModal('提示', '該推薦社團目前名額已額滿或達本班人數上限。');
+      }
     } else {
-      showModal('提示', '目前名單中無該社團餘額');
+      showModal('提示', '目前社團清單中找不到該推薦社團。');
     }
   }
 
   function applyAllAiToPreferences() {
     if (!appState.lastAiRecommendations || appState.lastAiRecommendations.length === 0) return;
+    var mode = (appState.settings && appState.settings.mode) || 'instant';
+    if (!isMock && mode === 'instant') {
+      applyAiRecommendation(appState.lastAiRecommendations[0].clubName);
+      return;
+    }
     switchSelectionMode('preferences');
     appState.preferences = [];
     appState.lastAiRecommendations.slice(0, 3).forEach(function(r) {
@@ -2820,17 +3143,18 @@
         setLoading(true, '正在釋出原社團名額並載入最新清單...');
         callGas('cancelSelection', [appState.studentToken], function(res) {
           if (res.status === 'error') {
-            showModal('無法改選', res.message);
+            showModal('無法改選', escapeHtml(res.message));
             return;
           }
           appState.currentStudent = res.student;
           appState.clubs = res.clubs || appState.clubs;
+          if (res.settings) appState.settings = Object.assign({}, appState.settings, res.settings);
           appState.selectedClub = '';
+          appState.preferences = [];
           document.getElementById('displayStudentName').innerText = res.student.name;
           document.getElementById('displayClassSeat').innerText = '(' + res.student.className + '班 ' + res.student.seat + '號)';
           renderCategoryPills(appState.clubs);
-          filterAndRenderClubs();
-          updateConfirmButtonState();
+          switchSelectionMode((appState.settings && appState.settings.mode) || 'instant');
           showStep('Select');
         });
       }
@@ -2852,10 +3176,22 @@
     appState.studentToken = null;
     appState.selectedClub = '';
     appState.preferences = [];
+    appState.lastAiRecommendations = [];
+    appState.activeCategory = '全部';
     var pwdEl = document.getElementById('studentPwdInput');
     if (pwdEl) pwdEl.value = '';
     var errEl = document.getElementById('loginError');
     if (errEl) errEl.innerText = '';
+    var aiIn = document.getElementById('aiInterestInput');
+    if (aiIn) aiIn.value = '';
+    var aiPanel = document.getElementById('aiResultPanel');
+    if (aiPanel) aiPanel.style.display = 'none';
+    var aiSkel = document.getElementById('aiSkeleton');
+    if (aiSkel) aiSkel.style.display = 'none';
+    var srch = document.getElementById('clubSearchInput');
+    if (srch) srch.value = '';
+    if (document.getElementById('hideFullToggle')) document.getElementById('hideFullToggle').checked = false;
+    if (document.getElementById('freeClubToggle')) document.getElementById('freeClubToggle').checked = false;
     showStep('Login');
   }
 
@@ -2864,7 +3200,7 @@
   }
 
   // ==================== 導師班級專區（比照成績查詢系統帳號密碼與首次強制改密） ====================
-  function renderHomeroomAuthUi() {
+  function renderHomeroomAuthUi(preferAdmin) {
     var loginBox = document.getElementById('teacherLoginBox');
     var activeBar = document.getElementById('teacherActiveBar');
     var forceBox = document.getElementById('teacherForcePwdBox');
@@ -2873,6 +3209,17 @@
     var btnChg = document.getElementById('btnTeacherChangePwd');
     var btnOut = document.getElementById('btnTeacherLogout');
     var badge = document.getElementById('teacherIdentityBadge');
+
+    if (preferAdmin && appState.adminToken) {
+      loginBox.style.display = 'none';
+      activeBar.style.display = 'block';
+      adminPicker.style.display = 'block';
+      btnChg.style.display = 'none';
+      btnOut.style.display = 'none';
+      forceBox.style.display = 'none';
+      badge.innerText = '🛡️ 學務處管理員檢視模式（可跨班查核）';
+      return;
+    }
 
     if (appState.teacherToken && appState.currentTeacher) {
       var t = appState.currentTeacher;
@@ -2908,11 +3255,11 @@
     contentBox.style.display = 'none';
   }
 
-  function openHomeroomView() {
+  function openHomeroomView(preferAdmin) {
     document.getElementById('mainContainer').classList.remove('admin-expanded');
-    renderHomeroomAuthUi();
+    renderHomeroomAuthUi(preferAdmin);
     showStep('Homeroom');
-    if (appState.teacherToken && appState.currentTeacher && !appState.currentTeacher.mustChangePassword) {
+    if (!preferAdmin && appState.teacherToken && appState.currentTeacher && !appState.currentTeacher.mustChangePassword) {
       loadHomeroomData(appState.currentTeacher.assignedClass);
     }
   }
@@ -3008,11 +3355,11 @@
     renderHomeroomAuthUi();
   }
 
-  function loadHomeroomData(forcedClass) {
-    var cls = forcedClass || (appState.currentTeacher ? appState.currentTeacher.assignedClass : '') || document.getElementById('teacherClassSelect').value;
+  function loadHomeroomData(forcedClass, preferAdmin) {
+    var cls = forcedClass || (appState.currentTeacher && !preferAdmin ? appState.currentTeacher.assignedClass : '') || document.getElementById('teacherClassSelect').value;
     if (!cls) return;
 
-    var token = appState.teacherToken || appState.adminToken;
+    var token = preferAdmin ? appState.adminToken : (appState.teacherToken || appState.adminToken);
     if (!token) {
       renderHomeroomAuthUi();
       showModal('請先登入', '請先輸入成績查詢系統教師帳號密碼再查詢班級名單。');
@@ -3021,7 +3368,7 @@
     setLoading(true, '載入本班選社名單中...');
     callGas('getHomeroomClassData', [cls, token], function(res) {
       if (res && res.status === 'error') {
-        showModal('驗證失敗', res.message || '導師專區存取未獲授權');
+        showModal('驗證失敗', escapeHtml(res.message || '導師專區存取未獲授權'));
         return;
       }
       document.getElementById('hrClassTitle').innerText = res.className + ' 班社團選社進度';
@@ -3051,9 +3398,15 @@
 
   function copyLineNotice() {
     if (!appState.currentHomeroomNotice) return;
-    navigator.clipboard.writeText(appState.currentHomeroomNotice).then(function() {
-      showModal('複製成功', '催繳提醒文字已複製到剪貼簿！可直接貼至班級家長 LINE 群組。');
-    });
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(appState.currentHomeroomNotice).then(function() {
+        showModal('複製成功', '催繳提醒文字已複製到剪貼簿！可直接貼至班級家長 LINE 群組。');
+      }, function() {
+        showModal('請手動複製以下文字', '<textarea class="form-control" rows="5" readonly onclick="this.select()">' + escapeHtml(appState.currentHomeroomNotice) + '</textarea>');
+      });
+    } else {
+      showModal('請手動複製以下文字', '<textarea class="form-control" rows="5" readonly onclick="this.select()">' + escapeHtml(appState.currentHomeroomNotice) + '</textarea>');
+    }
   }
 
   // ==================== 教師管理後台 ====================
@@ -3175,7 +3528,7 @@
       '<div class="full"><label>先備要求／材料費</label><input type="text" id="ce_req" class="form-control" maxlength="120" value="' + escapeHtml(c.requirement) + '"></div>' +
       '</div>';
 
-    showConfirmModal(isNew ? '新增社團' : '編輯社團：' + escapeHtml(c.name), form, '儲存至試算表', function() {
+    showConfirmModal(isNew ? '新增社團' : ('編輯社團：' + c.name), form, '儲存至試算表', function() {
       var payload = {
         originalName: isNew ? '' : c.name,
         name: document.getElementById('ce_name').value.trim(),
@@ -3195,6 +3548,7 @@
         appState.adminClubs = res.clubs || [];
         renderClubAdminTable(appState.adminClubs);
         renderClubHeatmap(appState.adminClubs);
+        populateTransferClubOptions_(appState.adminClubs);
         showModal('已儲存', escapeHtml(res.message));
       });
     });
@@ -3210,6 +3564,7 @@
         appState.adminClubs = res.clubs || [];
         renderClubAdminTable(appState.adminClubs);
         renderClubHeatmap(appState.adminClubs);
+        populateTransferClubOptions_(appState.adminClubs);
         showModal('已刪除', escapeHtml(res.message));
       });
     });
@@ -3226,6 +3581,7 @@
           appState.adminClubs = res.clubs || [];
           renderClubAdminTable(appState.adminClubs);
           renderClubHeatmap(appState.adminClubs);
+          populateTransferClubOptions_(appState.adminClubs);
           showModal('載入成功', escapeHtml(res.message));
         });
       }
@@ -3279,8 +3635,11 @@
   function openPublicCatalogModal() {
     setLoading(true, '載入社團總覽...');
     callGas('getPublicClubCatalog', [], function(res) {
-      setLoading(false);
-      var clubs = (res && res.clubs) || mockClubs;
+      if (!res || res.status === 'error') {
+        showModal('載入失敗', escapeHtml((res && res.message) || '無法取得社團總覽資料'));
+        return;
+      }
+      var clubs = Array.isArray(res.clubs) ? res.clubs : [];
       publicCatalogCache_ = clubs.slice();
       var cats = [];
       clubs.forEach(function(c) {
@@ -3319,7 +3678,7 @@
       container.innerHTML = '<span style="font-size:13px; color:var(--emerald); font-weight:700;">🎉 全校學生均已完成社團錄取！</span>';
       return;
     }
-    html = '';
+    var html = '';
     list.forEach(function(s) {
       var prefTag = s.pref1 ? (' (第一志願: ' + escapeHtml(s.pref1) + ')') : ' (尚未填志願)';
       html += '<div class="student-badge-item st-unassigned">' + escapeHtml(s.className) + '班 ' + escapeHtml(s.seat) + '號 ' + escapeHtml(s.name) + prefTag + '</div>';
@@ -3352,7 +3711,7 @@
       var border = isDone ? '#a7f3d0' : (c.rate < 80 ? '#fecdd3' : '#fde68a');
       var bg = isDone ? '#ecfdf5' : (c.rate < 80 ? '#fff1f2' : '#fffbeb');
       var clr = isDone ? '#047857' : (c.rate < 80 ? '#be123c' : '#92400e');
-      html += '<button type="button" onclick="openAdminHomeroomClass(\'' + escapeHtml(c.className) + '\')" style="text-align:left; background:' + bg + '; border:1px solid ' + border + '; border-radius:10px; padding:10px 12px; cursor:pointer;">';
+      html += '<button type="button" data-cls="' + escapeHtml(c.className) + '" onclick="openAdminHomeroomClass(this.dataset.cls)" style="text-align:left; background:' + bg + '; border:1px solid ' + border + '; border-radius:10px; padding:10px 12px; cursor:pointer;">';
       html += '  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">';
       html += '    <strong style="font-size:13px; color:#0f172a;">' + escapeHtml(c.className) + ' 班</strong>';
       html += '    <span style="font-size:12px; font-weight:900; color:' + clr + ';">' + c.rate + '%</span>';
@@ -3364,10 +3723,10 @@
   }
 
   function openAdminHomeroomClass(cls) {
-    openHomeroomView();
+    openHomeroomView(true);
     var sel = document.getElementById('teacherClassSelect');
     if (sel) ensureClassOption(sel, cls);
-    loadHomeroomData(cls);
+    loadHomeroomData(cls, true);
   }
 
   var transferSearchCache_ = [];
@@ -3383,6 +3742,25 @@
     sel.innerHTML = html;
   }
 
+  function renderTransferSearchResults_() {
+    var box = document.getElementById('transferSearchResults');
+    if (!box) return;
+    if (transferSearchCache_.length === 0) {
+      box.innerHTML = '<div style="font-size:12.5px; color:var(--text-muted); padding:6px 0;">查無符合條件的學生資料。</div>';
+      return;
+    }
+    var html = '';
+    transferSearchCache_.forEach(function(st, idx) {
+      var cur = st.lockedClub ? ('🔒 ' + st.lockedClub + '（保障鎖定）') : (st.assignedClub ? ('✅ ' + st.assignedClub) : '⚠️ 尚未錄取');
+      var healthTag = st.healthNotice ? ' <span style="background:#fff1f2; color:#be123c; padding:1px 6px; border-radius:6px; font-size:11px;">🩺 健康提醒</span>' : '';
+      html += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:8px 12px; font-size:12.5px;">';
+      html += '  <div><strong>' + escapeHtml(st.className) + '班 ' + escapeHtml(st.seat) + '號 ' + escapeHtml(st.name) + '</strong> (' + escapeHtml(st.studentId) + ') ｜ 目前：' + escapeHtml(cur) + healthTag + '</div>';
+      html += '  <button type="button" class="tbl-btn" onclick="selectTransferStudent(' + idx + ')">選擇調整</button>';
+      html += '</div>';
+    });
+    box.innerHTML = html;
+  }
+
   function searchStudentForTransfer() {
     var kw = String((document.getElementById('transferSearchInput') || {}).value || '').trim();
     if (!kw) {
@@ -3396,22 +3774,7 @@
       transferSelectedStudent_ = null;
       var panel = document.getElementById('transferActionPanel');
       if (panel) panel.style.display = 'none';
-      var box = document.getElementById('transferSearchResults');
-      if (!box) return;
-      if (transferSearchCache_.length === 0) {
-        box.innerHTML = '<div style="font-size:12.5px; color:var(--text-muted); padding:6px 0;">查無符合「' + escapeHtml(kw) + '」的學生資料。</div>';
-        return;
-      }
-      var html = '';
-      transferSearchCache_.forEach(function(st, idx) {
-        var cur = st.lockedClub ? ('🔒 ' + st.lockedClub + '（保障鎖定）') : (st.assignedClub ? ('✅ ' + st.assignedClub) : '⚠️ 尚未錄取');
-        var healthTag = st.healthNotice ? ' <span style="background:#fff1f2; color:#be123c; padding:1px 6px; border-radius:6px; font-size:11px;">🩺 健康提醒</span>' : '';
-        html += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:9px; padding:8px 12px; font-size:12.5px;">';
-        html += '  <div><strong>' + escapeHtml(st.className) + '班 ' + escapeHtml(st.seat) + '號 ' + escapeHtml(st.name) + '</strong> (' + escapeHtml(st.studentId) + ') ｜ 目前：' + escapeHtml(cur) + healthTag + '</div>';
-        html += '  <button type="button" class="tbl-btn" onclick="selectTransferStudent(' + idx + ')">選擇調整</button>';
-        html += '</div>';
-      });
-      box.innerHTML = html;
+      renderTransferSearchResults_();
     });
   }
 
@@ -3453,6 +3816,7 @@
           }
           transferSelectedStudent_.assignedClub = targetClub;
           transferSelectedStudent_.lockedClub = '';
+          renderTransferSearchResults_();
           selectTransferStudent(transferSearchCache_.indexOf(transferSelectedStudent_));
           showModal('異動完成', escapeHtml(res.message));
           callGas('getAdminDashboardData', [appState.adminToken], function(d) {
@@ -3508,7 +3872,8 @@
     var win = window.open('', '_blank', 'width=860,height=720');
     if (!win) { showModal('提示', '請允許彈出視窗以使用列印功能。'); return; }
     var rows = (data.students || []).map(function(st, i) {
-      return '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(st.className) + '</td><td>' + escapeHtml(st.seat) + '</td><td>' + escapeHtml(st.name) + '</td><td>' + escapeHtml(st.studentId) + '</td><td>' + escapeHtml(st.healthNotice || st.note || '') + '</td><td style="width:90px;"></td></tr>';
+      var noteText = [st.healthNotice, st.note].filter(Boolean).join(' / ');
+      return '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(st.className) + '</td><td>' + escapeHtml(st.seat) + '</td><td>' + escapeHtml(st.name) + '</td><td>' + escapeHtml(st.studentId) + '</td><td>' + escapeHtml(noteText) + '</td><td style="width:90px;"></td></tr>';
     }).join('');
     win.document.write('<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><title>' + escapeHtml(data.club.name) + ' 點名單</title><style>body{font-family:sans-serif;padding:24px;} h2{margin:0 0 6px;} p{margin:0 0 14px;color:#475569;font-size:13px;} table{width:100%;border-collapse:collapse;font-size:13px;} th,td{border:1px solid #334155;padding:6px 8px;text-align:left;} th{background:#f1f5f9;}</style></head><body>' +
       '<h2>' + escapeHtml(data.club.name) + ' － 社團點名與健康安全紀錄表</h2>' +
@@ -3520,13 +3885,20 @@
 
   function renderClubHeatmap(clubs) {
     var container = document.getElementById('clubHeatmapList');
+    if (!container) return;
+    if (!clubs || clubs.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding:16px; color:var(--text-muted); font-size:13px;">尚無社團飽和度統計資料。</div>';
+      return;
+    }
     var html = '';
     clubs.forEach(function(c) {
-      var pct = Math.round((c.current / c.limit) * 100);
+      var rawPct = (c.limit > 0) ? Math.round((c.current / c.limit) * 100) : 0;
+      var pct = Math.min(100, Math.max(0, rawPct));
+      var barClr = rawPct >= 90 ? '#dc2626' : (rawPct >= 60 ? '#d97706' : '#059669');
       html += '<div class="club-heatmap-item">';
-      html += '  <div style="width:160px; font-weight:700;">' + escapeHtml(c.name) + '</div>';
-      html += '  <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:' + pct + '%;"></div></div>';
-      html += '  <div style="width:120px; text-align:right; font-size:12px; font-weight:700;">' + c.current + '/' + c.limit + '人 (' + pct + '%)</div>';
+      html += '  <div class="heatmap-name" title="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '</div>';
+      html += '  <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:' + pct + '%; background:' + barClr + ';"></div></div>';
+      html += '  <div class="heatmap-stat">' + c.current + '/' + c.limit + '人 (' + rawPct + '%)</div>';
       html += '</div>';
     });
     container.innerHTML = html;
@@ -3585,23 +3957,47 @@
       function() {
         setLoading(true, '正在批次發送錄取通知信件...');
         callGas('batchSendAllocationEmails', [appState.adminToken], function(res) {
-          showModal('發信完成', res.message);
+          if (!res || res.status === 'error') {
+            showModal('發信失敗', escapeHtml((res && res.message) || '批次發信過程發生異常'));
+            return;
+          }
+          showModal('發信完成', escapeHtml(res.message || '已完成錄取通知信件發送！'));
         });
       }
     );
   }
 
+  function renderExportModalBody_(message, url, btnText, iconEmoji) {
+    var html = '<div style="line-height:1.7;">' + escapeHtml(message || '') + '</div>';
+    if (url && /^https:\/\/docs\.google\.com\/(spreadsheets|document)\//i.test(url)) {
+      html += '<div style="margin-top:14px; padding:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">' +
+        '<span style="font-size:12.5px; color:#475569; font-weight:700;">' + iconEmoji + ' 已產出雲端檔案，可立即開啟檢視或列印：</span>' +
+        '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="width:auto; padding:8px 16px; font-size:13px; text-decoration:none;">' + escapeHtml(btnText) + ' ↗</a>' +
+        '</div>';
+    }
+    return html;
+  }
+
   function triggerExportAttendance() {
     setLoading(true, '正在產生各社團點名簽到單...');
     callGas('exportAttendanceSheets', [appState.adminToken], function(res) {
-      showModal('簽到單匯出成功', res.message);
+      if (!res || res.status === 'error') {
+        showModal('匯出失敗', escapeHtml((res && res.message) || '無法產出社團點名簽到單'));
+        return;
+      }
+      var targetUrl = res.sheetUrl || appState.settings.spreadsheetUrl || '';
+      showModal('簽到單匯出成功', renderExportModalBody_(res.message, targetUrl, '開啟 Google 試算表簽到冊', '📊'));
     });
   }
 
   function triggerGenerateManual() {
     setLoading(true, 'Gemini 正在彙整社團成果報告並建立 Google Docs...');
     callGas('generateClubDocManual', [appState.adminToken], function(res) {
-      showModal('成果報告產出成功', res.message);
+      if (!res || res.status === 'error') {
+        showModal('生成失敗', escapeHtml((res && res.message) || '無法建立 Google Docs 成果手冊'));
+        return;
+      }
+      showModal('成果報告產出成功', renderExportModalBody_(res.message, res.docUrl || '', '開啟 Google Docs 手冊', '📄'));
     });
   }
 
@@ -3786,6 +4182,14 @@
   function logoutAdmin() {
     appState.adminToken = null;
     appState.settings.spreadsheetUrl = '';
+    transferSearchCache_ = [];
+    transferSelectedStudent_ = null;
+    var srchIn = document.getElementById('transferSearchInput');
+    if (srchIn) srchIn.value = '';
+    var srchRes = document.getElementById('transferSearchResults');
+    if (srchRes) srchRes.innerHTML = '';
+    var trPanel = document.getElementById('transferActionPanel');
+    if (trPanel) trPanel.style.display = 'none';
     syncSpreadsheetLinks('');
     document.getElementById('mainContainer').classList.remove('admin-expanded');
     showStep('Login');
@@ -3800,7 +4204,11 @@
 
   function ensureClassOption(sel, cls) {
     if (!sel) return;
-    if (!sel.querySelector('option[value="' + cls + '"]')) {
+    var found = false;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === String(cls)) { found = true; break; }
+    }
+    if (!found) {
       var opt = document.createElement('option');
       opt.value = cls;
       opt.textContent = cls + ' 班';
@@ -3890,10 +4298,18 @@
     window.scrollTo(0, 0);
   }
 
+  var loadingCount_ = 0;
+
   function setLoading(show, text) {
     var el = document.getElementById('loadingOverlay');
-    if (text) document.getElementById('loadingText').innerText = text;
-    el.style.display = show ? 'flex' : 'none';
+    if (show) {
+      loadingCount_++;
+      if (text) document.getElementById('loadingText').innerText = text;
+      el.style.display = 'flex';
+    } else {
+      loadingCount_ = Math.max(0, loadingCount_ - 1);
+      if (loadingCount_ === 0) el.style.display = 'none';
+    }
   }
 
   function showModal(title, msg) {
