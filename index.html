@@ -183,6 +183,19 @@
     }
     .role-tab:hover { background: rgba(255,255,255,0.14); color: #fff; }
     .role-tab.active { background: #fff; color: var(--masthead-bg); border-color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+    .role-tab-logout {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      background: rgba(244, 63, 94, 0.22);
+      color: #fecdd3;
+      border: 1px solid rgba(251, 113, 133, 0.45);
+    }
+    .role-tab-logout:hover {
+      background: #e11d48;
+      color: #fff;
+      border-color: #fda4af;
+    }
     .masthead-status {
       max-width: 1100px;
       margin: 0 auto;
@@ -1146,7 +1159,7 @@
       .content-body { padding: 18px 14px; }
       .masthead-system { font-size: 15.5px; }
       .role-nav { width: 100%; justify-content: space-between; }
-      .role-tab { flex: 1; padding: 7px 6px; font-size: 12px; text-align: center; }
+      .role-tab { flex: 1 1 auto; padding: 7px 6px; font-size: 12px; text-align: center; white-space: nowrap; }
       .theme-switcher { margin-left: 0; }
       .ai-input-row { flex-direction: column; }
       .ai-input-row .btn { width: 100% !important; }
@@ -1183,6 +1196,7 @@
       <button type="button" class="role-tab active" id="roleTabStudent" onclick="goStudentHome()">👨‍🎓 學生選社</button>
       <button type="button" class="role-tab" id="roleTabHomeroom" onclick="openHomeroomView()">👨‍🏫 導師專區</button>
       <button type="button" class="role-tab" id="roleTabAdmin" onclick="openAdminEntry()">⚙️ 訓育組管理</button>
+      <button type="button" class="role-tab role-tab-logout" id="roleLogoutAdminBtn" onclick="logoutAdmin()" title="立即登出管理員模式">🚪 登出管理</button>
     </nav>
   </div>
   <div class="masthead-status">
@@ -1794,6 +1808,7 @@
         <button id="formatSheetsBtn" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 185px; color: #0369a1; border: 1px solid #bae6fd; background: #f0f9ff;" onclick="triggerFormatAllSheets()">📐 調整試算表欄寬與換列</button>
         <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 180px; color: #b91c1c; border: 1px solid #fecaca; background: #fff5f5;" onclick="openSheetAuditModal()">🧹 清理試算表多餘分頁</button>
         <button class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 130px;" onclick="showStep('ChangePwd')">🔑 修改密碼</button>
+        <button type="button" id="bottomAdminLogoutBtn" class="btn btn-secondary" style="font-size: 13px; flex: 1; min-width: 130px; color: #b91c1c; border: 1px solid #fecaca; background: #fff5f5;" onclick="logoutAdmin()">🚪 登出管理</button>
       </div>
     </div>
 
@@ -2376,6 +2391,7 @@
         var isAdminFlow = fnName !== 'verifyAndGetClubs' && fnName !== 'submitSelection' && fnName !== 'submitPreferences' && fnName !== 'cancelSelection' && fnName !== 'loginTeacher';
         if (appState.adminToken && isAdminFlow) {
           appState.adminToken = null;
+          syncAdminLogoutBtn_();
           showModal('登入已逾時', friendly);
           openAdminLogin();
           return;
@@ -4217,8 +4233,14 @@
     );
   }
 
+  function syncAdminLogoutBtn_() {
+    var btn = document.getElementById('roleLogoutAdminBtn');
+    if (btn) btn.style.display = appState.adminToken ? 'inline-flex' : 'none';
+  }
+
   function logoutAdmin() {
     appState.adminToken = null;
+    syncAdminLogoutBtn_();
     appState.settings.spreadsheetUrl = '';
     transferSearchCache_ = [];
     transferSelectedStudent_ = null;
@@ -4333,6 +4355,7 @@
     if (stepName !== 'AdminDashboard') {
       document.getElementById('mainContainer').classList.remove('admin-expanded');
     }
+    syncAdminLogoutBtn_();
     window.scrollTo(0, 0);
   }
 
