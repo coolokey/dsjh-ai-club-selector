@@ -240,6 +240,42 @@
     .theme-dot.t-mint { background: linear-gradient(135deg, #047857, #0284c7); }
     .theme-dot.t-amber { background: linear-gradient(135deg, #b45309, #c2410c); }
 
+    /* 互動式分頁使用說明手冊 */
+    .manual-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .manual-tab {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .manual-tab:hover { background: var(--primary-soft); color: var(--primary); border-color: var(--primary-border); }
+    .manual-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .manual-panel { display: none; font-size: 13px; line-height: 1.7; color: #334155; }
+    .manual-panel.active { display: block; }
+    .manual-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .manual-card h4 { font-size: 13.5px; font-weight: 900; color: var(--primary-deep); margin-bottom: 6px; }
+    .manual-card ol, .manual-card ul { padding-left: 20px; margin: 4px 0; }
+    .manual-card li { margin-bottom: 4px; }
+    .manual-code { background: #e2e8f0; color: #0f172a; padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; font-weight: 700; }
+
     /* ===== 重要公告列 ===== */
     .system-notice {
       background: linear-gradient(90deg, var(--primary-soft) 0%, #f0fdf4 100%);
@@ -1153,6 +1189,7 @@
     <span class="status-dot" id="statusDot"></span>
     <span id="timeStatusText">載入系統狀態中...</span>
     <button type="button" class="conn-pill demo" id="connPill" onclick="openConnectionModal()">⏳ 連線檢查中...</button>
+    <button type="button" class="conn-pill" id="openManualBtn" onclick="openUserManualModal()" style="background:rgba(59,130,246,0.22); border-color:rgba(147,197,253,0.55); color:#e0f2fe;">📖 使用手冊</button>
     <div class="theme-switcher" id="themeSwitcher" role="group" aria-label="校園佈景主題切換">
       <span class="theme-switcher-label">佈景</span>
       <button type="button" class="theme-dot t-indigo active" data-theme-id="indigo" title="學院湛藍（預設）" aria-label="學院湛藍主題" onclick="setTheme_('indigo')"></button>
@@ -1577,6 +1614,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
           <a id="topSpreadsheetLink" href="#" target="_blank" rel="noopener noreferrer" onclick="return openSpreadsheetDirectly(event)" style="display: inline-flex; align-items: center; gap: 5px; background: #ecfdf5; border: 1.5px solid #6ee7b7; color: #047857; padding: 7px 14px; border-radius: 9px; font-size: 13px; font-weight: 800; text-decoration: none; transition: all 0.2s;">📊 一鍵開啟試算表資料庫 ↗</a>
+          <button type="button" class="nav-btn" onclick="openUserManualModal('admin')">📖 操作手冊</button>
           <button type="button" class="nav-btn" style="color: #b91c1c; border-color: #fecaca; background: #fff5f5;" onclick="openSheetAuditModal()">🧹 清理多餘分頁</button>
           <button type="button" class="nav-btn" onclick="logoutAdmin()">登出管理</button>
         </div>
@@ -4334,6 +4372,102 @@
 
   function closeModal() {
     document.getElementById('customModal').style.display = 'none';
+  }
+
+  function switchManualTab(tabId) {
+    document.querySelectorAll('#userManualModalBody .manual-tab').forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-manual-tab') === tabId);
+    });
+    document.querySelectorAll('#userManualModalBody .manual-panel').forEach(function(panel) {
+      panel.classList.toggle('active', panel.getAttribute('data-manual-panel') === tabId);
+    });
+  }
+
+  function openUserManualModal(forcedTab) {
+    var activeStepEl = document.querySelector('.step-section.active');
+    var stepId = activeStepEl ? activeStepEl.id : '';
+    var defaultTab = forcedTab || (stepId === 'stepHomeroom' ? 'teacher' : ((stepId === 'stepAdminDashboard' || stepId === 'stepAdminLogin' || stepId === 'stepChangePwd') ? 'admin' : 'student'));
+
+    var html = '<div id="userManualModalBody" style="text-align:left;">' +
+      '<div class="manual-tabs" role="tablist">' +
+      '  <button type="button" class="manual-tab" data-manual-tab="student" onclick="switchManualTab(\'student\')">👨‍🎓 學生與家長</button>' +
+      '  <button type="button" class="manual-tab" data-manual-tab="teacher" onclick="switchManualTab(\'teacher\')">👨‍🏫 導師專區</button>' +
+      '  <button type="button" class="manual-tab" data-manual-tab="admin" onclick="switchManualTab(\'admin\')">⚙️ 訓育組管理</button>' +
+      '  <button type="button" class="manual-tab" data-manual-tab="sheets" onclick="switchManualTab(\'sheets\')">🗄️ 試算表與 AI</button>' +
+      '</div>' +
+
+      '<div class="manual-panel" data-manual-panel="student">' +
+      '  <div class="manual-card"><h4>1️⃣ 登入帳號與密碼規則</h4>' +
+      '    <ul>' +
+      '      <li><strong>帳號：</strong>請輸入 <span class="manual-code">7 碼學號</span>（與本校成績查詢系統一致）。</li>' +
+      '      <li><strong>預設密碼（共 8 碼）：</strong><span class="manual-code">身分證字號後 4 碼 ＋ 出生月日 4 碼</span>（例如末四碼 <span class="manual-code">5678</span>、5 月 9 日 → <span class="manual-code">56780509</span>）。</li>' +
+      '      <li>學生密碼由教務處註冊組統一管理，連續輸錯 5 次將鎖定 15 分鐘；若忘記密碼請洽教務處註冊組。</li>' +
+      '    </ul></div>' +
+      '  <div class="manual-card"><h4>2️⃣ 免登入預覽 ＆ Gemini 2.5 AI 適性導航</h4>' +
+      '    <ul>' +
+      '      <li>登入前可點擊「<strong>免登入預覽本學期 28 所跨校多元熱門社團</strong>」，依領域或「🆓 免材料費」條件先行與家長討論。</li>' +
+      '      <li>登入後可在 <strong>Gemini 2.5 智慧顧問</strong>輸入興趣關鍵字（或點擊探索標籤），系統將自動隱去個人姓名與學號後推薦最適合的 3 個社團。</li>' +
+      '    </ul></div>' +
+      '  <div class="manual-card"><h4>3️⃣ 雙軌選社模式與數位錄取憑證</h4>' +
+      '    <ul>' +
+      '      <li><strong>即時搶額制：</strong>選擇名額尚未額滿且未達「本班人數上限（防抱團）」之社團送出，立即錄取。</li>' +
+      '      <li><strong>三志願適性分發制：</strong>依序點選第 1～3 志願放入志願籃送出，截止後由學務處統一執行 AI 公平適性分發。</li>' +
+      '      <li>選社開放期間內皆可按「重新改選」調整結果；專案保障（如校隊）則依學務處鎖定為準。</li>' +
+      '    </ul></div>' +
+      '</div>' +
+
+      '<div class="manual-panel" data-manual-panel="teacher">' +
+      '  <div class="manual-card"><h4>1️⃣ 導師登入與首次強制改密</h4>' +
+      '    <ul>' +
+      '      <li>切換上方「👨‍🏫 導師專區」，輸入與成績查詢系統相同的<strong>教師帳號</strong>（如 <span class="manual-code">tf51056</span>）。</li>' +
+      '      <li>預設密碼為負責班級代碼重複兩次（如 <span class="manual-code">701701</span>），<strong>首次登入須修改為 6 碼以上個人密碼</strong>才可查閱班級資料。</li>' +
+      '    </ul></div>' +
+      '  <div class="manual-card"><h4>2️⃣ 班級選社追蹤與 LINE 家長群催繳</h4>' +
+      '    <ul>' +
+      '      <li>系統自動列出本班「已完成／尚未完成」選社學生明細與班級完成率。</li>' +
+      '      <li>點擊「📋 <strong>一鍵複製班級 LINE 催繳提醒文案</strong>」，即可快速貼到班級家長群組提醒未填學生。</li>' +
+      '    </ul></div>' +
+      '</div>' +
+
+      '<div class="manual-panel" data-manual-panel="admin">' +
+      '  <div class="manual-card"><h4>1️⃣ 選前準備（四步驟上線）</h4>' +
+      '    <ol>' +
+      '      <li>以管理密碼登入（首次預設 <span class="manual-code">admin888</span>，須立即改為 8 碼以上密碼）。</li>' +
+      '      <li>點擊底部「🔄 <strong>從成績系統複製學生與導師</strong>」，以唯讀方式同步最新名冊（絕不更動成績查詢系統，並保留社團錄取與密碼）。</li>' +
+      '      <li>於「社團資料開課與名額即時管理」新增／編輯社團，或點選「✨ <strong>一鍵載入 28 所跨校熱門社團</strong>」。</li>' +
+      '      <li>設定學年度標題、選社制度（即時搶額／三志願分發）、開放與截止時間、各班上限與 Gemini API Key，按「儲存系統設定」。</li>' +
+      '    </ol></div>' +
+      '  <div class="manual-card"><h4>2️⃣ 選中監控、人工轉社與點名單列印</h4>' +
+      '    <ul>' +
+      '      <li>點擊「各班選社完成率」任一班級卡可直接跨班檢視該班未選學生明細。</li>' +
+      '      <li>「🛟 <strong>人工轉社與個別調整</strong>」支援依學號／姓名搜尋、指定轉社或退選、特案超額安置，並自動重算全校名額且寫入「異動紀錄」。</li>' +
+      '      <li>點擊任一社團列右側「📋 <strong>名冊</strong>」可查看健康安全提醒（如氣喘）並一鍵列印紙本點名單。</li>' +
+      '    </ul></div>' +
+      '  <div class="manual-card"><h4>3️⃣ 選後結案一鍵自動化</h4>' +
+      '    <ul>' +
+      '      <li><strong>三志願分發：</strong>先產生預覽統計報告（含志願滿足率），確認無誤後一鍵套用正式寫入。</li>' +
+      '      <li><strong>批次寄信／簽到冊／手冊：</strong>支援批次寄送 HTML Email 通知，並可產出 Google Sheets 點名簽到冊與 Google Docs 成果手冊（彈窗內提供直接開啟連結）。</li>' +
+      '    </ul></div>' +
+      '</div>' +
+
+      '<div class="manual-panel" data-manual-panel="sheets">' +
+      '  <div class="manual-card"><h4>1️⃣ 試算表結構與密碼／API Key 管理</h4>' +
+      '    <ul>' +
+      '      <li><span class="manual-code">學生名單</span>／<span class="manual-code">導師名單</span>：由成績系統唯讀複製並擴充社團欄位與健康安全提醒。</li>' +
+      '      <li><span class="manual-code">管理者名單</span>／<span class="manual-code">系統設定</span>：可直接管理登入密碼，或於 <span class="manual-code">GEMINI_API_KEY</span> 列貼上 AIza 開頭金鑰（未設定金鑰時將自動使用智慧規則配對備援）。</li>' +
+      '      <li><span class="manual-code">異動紀錄</span>／<span class="manual-code">社團點名簽到冊</span>：自動留存轉社稽核軌跡與各社點名單（班級、座號皆強制文字格式保留前置 0）。</li>' +
+      '    </ul></div>' +
+      '  <div class="manual-card"><h4>2️⃣ 佈景主題、連線切換與表格健檢</h4>' +
+      '    <ul>' +
+      '      <li>頁首右上提供「學院湛藍／森語青綠／書院琥珀」三款校園佈景一鍵切換並自動記憶。</li>' +
+      '      <li>點擊頁首連線狀態標籤可設定 Google Apps Script 正式 <span class="manual-code">/exec</span> 網址，或輸入 <span class="manual-code">mock</span> 切換展示資料庫。</li>' +
+      '      <li>後台底部提供「📐 調整試算表欄寬與換列」與「🧹 清理試算表多餘分頁」工具協助維持試算表整潔。</li>' +
+      '    </ul></div>' +
+      '</div>' +
+      '</div>';
+
+    showModal('📖 大溪國中 AI 智慧選社系統 — 使用說明手冊', html);
+    switchManualTab(defaultTab);
   }
 </script>
 
