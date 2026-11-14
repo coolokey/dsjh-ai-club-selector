@@ -932,23 +932,39 @@
     .loading-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(255,255,255,0.86);
-      backdrop-filter: blur(4px);
+      background: rgba(15, 23, 42, 0.24);
+      backdrop-filter: blur(1.5px);
       display: none;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
+      padding: 16px;
       z-index: 1100;
     }
+    .loading-card {
+      background: var(--card-bg);
+      border: 1px solid var(--primary-border);
+      border-radius: 16px;
+      padding: 18px 24px;
+      min-width: 240px;
+      max-width: min(360px, 90vw);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 18px 40px -8px rgba(15, 23, 42, 0.28);
+      animation: modalPop 0.18s ease-out;
+    }
     .spinner {
-      width: 44px;
-      height: 44px;
-      border: 4px solid #e2e8f0;
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+      border: 3.5px solid var(--primary-border);
       border-top-color: var(--primary);
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-bottom: 14px;
+      animation: spin 0.75s linear infinite;
     }
+    .loading-text-group { min-width: 0; }
+    .loading-title { font-weight: 800; font-size: 14px; color: var(--text-main); line-height: 1.4; }
+    .loading-sub { font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin-top: 2px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .error-msg { color: var(--rose); font-size: 13px; text-align: center; margin-top: 8px; font-weight: 700; }
 
@@ -1799,6 +1815,17 @@
           </div>
         </div>
 
+        <div class="admin-form-grid-2" style="margin-bottom: 14px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;">
+          <label style="margin: 0; font-size: 12.5px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #1e293b;">
+            <input type="checkbox" id="adminAiAdvisorEnabled" checked>
+            <span>✨ 啟用 Gemini AI 智慧選社顧問（<code>AI_ADVISOR_ENABLED</code>）</span>
+          </label>
+          <label style="margin: 0; font-size: 12.5px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #1e293b;">
+            <input type="checkbox" id="adminEmailEnabled" checked>
+            <span>📧 錄取後自動寄發 Email 通知（<code>EMAIL_NOTIFICATION_ENABLED</code>）</span>
+          </label>
+        </div>
+
         <button id="saveAdminSettingsBtn" class="btn btn-primary" style="font-size: 13px; padding: 11px;" onclick="saveAdminSettings()">儲存系統設定</button>
       </div>
 
@@ -1826,9 +1853,14 @@
   </div>
 
   <!-- Loading 遮罩 -->
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="spinner"></div>
-    <div style="font-weight: 800; color: #1e293b;" id="loadingText">系統處理中...</div>
+  <div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite">
+    <div class="loading-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <div class="loading-text-group">
+        <div class="loading-title" id="loadingText">系統處理中...</div>
+        <div class="loading-sub">資料連線同步中，請稍候片刻</div>
+      </div>
+    </div>
   </div>
 </div>
 </div><!-- /page-shell -->
@@ -2212,6 +2244,8 @@
               mockSettings.spreadsheetName = cleanTitle;
             }
             if (s.maxPerClass) mockSettings.maxPerClass = s.maxPerClass;
+            if (s.aiAdvisorEnabled !== undefined) mockSettings.aiAdvisorEnabled = !!s.aiAdvisorEnabled;
+            if (s.emailNotificationEnabled !== undefined) mockSettings.emailNotificationEnabled = !!s.emailNotificationEnabled;
             if (s.geminiApiKey !== undefined && String(s.geminiApiKey).trim() !== '') {
               mockSettings.hasGeminiApiKey = true;
             }
@@ -3529,6 +3563,12 @@
       document.getElementById('adminOpenTime').value = res.settings.openTime || '';
       document.getElementById('adminCloseTime').value = res.settings.closeTime || '';
       document.getElementById('adminMaxPerClass').value = res.settings.maxPerClass || 4;
+      if (document.getElementById('adminAiAdvisorEnabled')) {
+        document.getElementById('adminAiAdvisorEnabled').checked = (res.settings.aiAdvisorEnabled !== false);
+      }
+      if (document.getElementById('adminEmailEnabled')) {
+        document.getElementById('adminEmailEnabled').checked = (res.settings.emailNotificationEnabled !== false);
+      }
       appState.settings.spreadsheetUrl = res.settings.spreadsheetUrl || '';
       syncSpreadsheetLinks(appState.settings.spreadsheetUrl);
       renderGeminiKeyStatusBadge(res.settings);
@@ -4096,7 +4136,9 @@
       openTime: document.getElementById('adminOpenTime').value,
       closeTime: document.getElementById('adminCloseTime').value,
       maxPerClass: parseInt(document.getElementById('adminMaxPerClass').value, 10) || 4,
-      geminiApiKey: document.getElementById('adminGeminiKey').value
+      geminiApiKey: document.getElementById('adminGeminiKey').value,
+      aiAdvisorEnabled: document.getElementById('adminAiAdvisorEnabled') ? document.getElementById('adminAiAdvisorEnabled').checked : true,
+      emailNotificationEnabled: document.getElementById('adminEmailEnabled') ? document.getElementById('adminEmailEnabled').checked : true
     };
 
     setLoading(true, '儲存設定並同步試算表名稱中...');

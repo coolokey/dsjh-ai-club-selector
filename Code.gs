@@ -571,6 +571,14 @@ function getGeminiApiKey_(ssOpt) {
 }
 
 // ==================== 系統設定存取 API (落實個資資安隔離) ====================
+function parseBoolSetting_(val, defaultVal) {
+  const s = String(val === undefined || val === null ? '' : val).trim();
+  if (!s) return defaultVal;
+  if (/^(true|1|yes|on|是|開啟|啟用)$/i.test(s)) return true;
+  if (/^(false|0|no|off|否|關閉|停用)$/i.test(s)) return false;
+  return defaultVal;
+}
+
 function getSystemSettings() {
   ensureSheetExists();
   const ss = getSpreadsheet();
@@ -602,10 +610,10 @@ function getSystemSettings() {
     else if (key === 'SELECTION_MODE') settings.mode = (val === 'preferences' ? 'preferences' : 'instant');
     else if (key === 'OPEN_TIME') settings.openTime = val;
     else if (key === 'CLOSE_TIME') settings.closeTime = val;
-    else if (key === 'AI_ADVISOR_ENABLED') settings.aiAdvisorEnabled = (val === 'true');
+    else if (key === 'AI_ADVISOR_ENABLED') settings.aiAdvisorEnabled = parseBoolSetting_(val, true);
     else if (key === 'MAX_PREFERENCES') settings.maxPreferences = parseInt(val, 10) || 3;
     else if (key === 'MAX_PER_CLASS_PER_CLUB') settings.maxPerClass = parseInt(val, 10) || CONFIG.MAX_PER_CLASS_PER_CLUB;
-    else if (key === 'EMAIL_NOTIFICATION_ENABLED') settings.emailNotificationEnabled = (val === 'true');
+    else if (key === 'EMAIL_NOTIFICATION_ENABLED') settings.emailNotificationEnabled = parseBoolSetting_(val, true);
     else if (key === 'GEMINI_API_KEY' && val) settings.hasGeminiApiKey = true;
   }
 

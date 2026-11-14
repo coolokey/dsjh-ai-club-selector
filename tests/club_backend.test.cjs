@@ -1050,4 +1050,22 @@ test('23. 已完成初始化且管理員已自訂密碼時 ensureSheetExists 不
   assert.equal(pwdRow[1], 'CustomStrongPassword123');
 });
 
+test('24. 試算表 AI_ADVISOR_ENABLED / EMAIL_NOTIFICATION_ENABLED 儲存為大寫 TRUE 時須正確解析為啟用', () => {
+  const { context, sheets } = createGasMockEnvironment();
+  const cfgSheet = sheets['系統設定'];
+  const cfgRows = cfgSheet.getDataRange().getValues();
+  const aiRowIdx = cfgRows.findIndex(r => r[0] === 'AI_ADVISOR_ENABLED') + 1;
+  const mailRowIdx = cfgRows.findIndex(r => r[0] === 'EMAIL_NOTIFICATION_ENABLED') + 1;
+  cfgSheet.getRange(aiRowIdx, 2).setValue('TRUE');
+  cfgSheet.getRange(mailRowIdx, 2).setValue('TRUE');
+
+  const settings = context.getSystemSettings();
+  assert.equal(settings.aiAdvisorEnabled, true);
+  assert.equal(settings.emailNotificationEnabled, true);
+
+  const aiRes = context.aiConsultantRecommend('我喜歡做機器人與程式', '701');
+  assert.equal(aiRes.status, 'success');
+  assert.ok(Array.isArray(aiRes.data.recommendations) && aiRes.data.recommendations.length > 0);
+});
+
 
