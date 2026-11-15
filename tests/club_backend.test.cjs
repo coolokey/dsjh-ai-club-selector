@@ -1246,5 +1246,39 @@ test('29. runAiSmartAllocation 於志願輪次與落選行政分流皆須遵守�
   }
 });
 
+test('30. 管理者密碼錯誤提示為可讀字串且系統設定自訂密碼可覆蓋預設 admin888', () => {
+  const { context, sheets } = createGasMockEnvironment();
+
+  // 錯誤密碼不得回傳 [object Object]，須回傳含剩餘次數的可讀文字
+  const wrongRes = context.loginAdmin('wrong-password-123');
+  assert.equal(wrongRes.status, 'error');
+  assert.equal(typeof wrongRes.message, 'string');
+  assert.ok(!wrongRes.message.includes('[object Object]'));
+  assert.match(wrongRes.message, /管理密碼錯誤/);
+
+  // 確認「管理者名單」仍為預設 admin888 時，若「系統設定!ADMIN_PASSWORD」已改為自訂密碼，應優先採用之
+  const adminSheet = sheets['管理者名單'];
+  assert.ok(adminSheet);
+  adminSheet.getRange(2, 3).setValue('admin888');
+  const cfgSheet = sheets['系統設定'];
+  const cfgRows = cfgSheet.getDataRange().getValues();
+  const cfgPwdIdx = cfgRows.findIndex(r => String(r[0] || '').trim() === 'ADMIN_PASSWORD');
+  if (cfgPwdIdx >= 1) {
+    cfgSheet.getRange(cfgPwdIdx + 1, 2).setValue('CustomSheetPass99');
+  } else {
+    cfgSheet.appendRow(['ADMIN_PASSWORD', 'CustomSheetPass99', '後台管理密碼']);
+  }
+
+  const okRes = context.loginAdmin('CustomSheetPass99');
+  assert.equal(okRes.status, 'success', okRes.message || '');
+  assert.equal(okRes.isDefault, false);
+  assert.ok(okRes.token);
+
+  const dash = context.getAdminDashboardData(okRes.token);
+  assert.equal(dash.status, 'success');
+  assert.ok(dash.stats);
+  assert.equal(typeof dash.stats.totalStudents, 'number');
+});
+
 
 

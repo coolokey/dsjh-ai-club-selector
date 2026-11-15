@@ -1839,13 +1839,16 @@
 
       <div class="form-group">
         <label>管理密碼</label>
-        <input type="password" id="adminPwdInput" class="form-control" placeholder="請輸入管理密碼">
+        <input type="password" id="adminPwdInput" class="form-control" placeholder="請輸入管理密碼" onkeydown="if(event.key==='Enter'){doAdminLogin();}">
       </div>
 
       <div id="adminLoginError" class="error-msg"></div>
 
       <button class="btn btn-primary" onclick="doAdminLogin()">登入管理中心</button>
       <button class="btn btn-secondary" onclick="showStep('Login')">取消返回</button>
+      <p style="font-size: 12px; color: var(--text-muted); margin-top: 12px; line-height: 1.5;">
+        💡 若忘記或欲重設管理密碼，可開啟綁定的 Google 試算表，於「<strong>管理者名單</strong>」工作表查看或修改 <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;">admin</code> 密碼列（首次預設為 <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;">admin888</code>）。
+      </p>
     </div>
 
     <!-- 教師修改密碼 -->
@@ -1865,7 +1868,7 @@
       </div>
       <div class="form-group">
         <label>確認新密碼</label>
-        <input type="password" id="newPwd2" class="form-control">
+        <input type="password" id="newPwd2" class="form-control" onkeydown="if(event.key==='Enter'){doChangePassword();}">
       </div>
 
       <div id="changePwdError" class="error-msg"></div>
@@ -4009,13 +4012,24 @@
   }
 
   function doAdminLogin() {
-    var pwd = document.getElementById('adminPwdInput').value;
-    if (!pwd) return;
+    var errEl = document.getElementById('adminLoginError');
+    if (errEl) errEl.innerText = '';
+    var pwd = String(document.getElementById('adminPwdInput').value || '').trim();
+    if (!pwd) {
+      if (errEl) errEl.innerText = '請輸入管理密碼！';
+      return;
+    }
 
     setLoading(true, '身分驗證中...');
     callGas('loginAdmin', [pwd], function(res) {
-      if (res.status === 'error') {
-        document.getElementById('adminLoginError').innerText = res.message;
+      if (!res || res.status === 'error') {
+        var msg = (res && res.message) ? res.message : '管理密碼驗證失敗，請重試。';
+        if (typeof msg !== 'string') {
+          msg = (msg && typeof msg.remaining === 'number')
+            ? ('管理密碼錯誤！剩餘嘗試次數：' + msg.remaining + ' 次。')
+            : '管理密碼錯誤，請檢查輸入內容。';
+        }
+        if (errEl) errEl.innerText = msg;
       } else {
         appState.adminToken = res.token;
         if (res.isDefault) {
@@ -4052,6 +4066,12 @@
   function loadAdminDashboard() {
     setLoading(true, '載入管理中心數據中...');
     callGas('getAdminDashboardData', [appState.adminToken], function(res) {
+      if (!res || res.status === 'error' || !res.stats) {
+        showModal('無法載入管理後台', escapeHtml((res && res.message) || '管理資料讀取失敗，請重新登入。'));
+        appState.adminToken = null;
+        openAdminLogin();
+        return;
+      }
       document.getElementById('mainContainer').classList.add('admin-expanded');
       document.getElementById('statEnrolled').innerText = res.stats.enrolledCount + ' / ' + res.stats.totalStudents;
       document.getElementById('statRate').innerText = res.stats.enrollmentRate + '%';

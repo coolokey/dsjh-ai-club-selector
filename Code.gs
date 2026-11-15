@@ -720,6 +720,8 @@ function getSystemSettings() {
 
 // ==================== 管理員權限驗證攔截器（密碼直接存於試算表「管理者名單」與「系統設定」） ====================
 function getAdminPassword_() {
+  let sheetAdminPwd = '';
+  let cfgAdminPwd = '';
   try {
     const ss = getSpreadsheet();
     // 1. 優先從「管理者名單」工作表讀取 (比照成績查詢系統)
@@ -742,8 +744,8 @@ function getAdminPassword_() {
       for (let r = 1; r < rows.length; r++) {
         const acc = String(rows[r][accCol] || '').trim().toLowerCase();
         if (acc === 'admin') {
-          const pwd = String(rows[r][pwdCol] || '').trim();
-          if (pwd) return pwd;
+          sheetAdminPwd = String(rows[r][pwdCol] || '').trim();
+          break;
         }
       }
     }
@@ -755,14 +757,21 @@ function getAdminPassword_() {
       for (let r = 1; r < cRows.length; r++) {
         const k = String(cRows[r][0] || '').trim();
         if (k === 'ADMIN_PASSWORD') {
-          const val = String(cRows[r][1] || '').trim();
-          if (val) return val;
+          cfgAdminPwd = String(cRows[r][1] || '').trim();
+          break;
         }
       }
     }
   } catch (e) {
     console.warn('讀取試算表管理者密碼失敗，改用屬性服務：' + e.message);
   }
+
+  // 若管理者名單仍為預設密碼 admin888，而系統設定已自訂非預設密碼，以系統設定為準
+  if (cfgAdminPwd && cfgAdminPwd !== CONFIG.DEFAULT_PASSWORD && (!sheetAdminPwd || sheetAdminPwd === CONFIG.DEFAULT_PASSWORD)) {
+    return cfgAdminPwd;
+  }
+  if (sheetAdminPwd) return sheetAdminPwd;
+  if (cfgAdminPwd) return cfgAdminPwd;
 
   // 3. 次之從 ScriptProperties 讀取
   const propPwd = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
@@ -873,7 +882,13 @@ function loginAdmin(pwd) {
       isDefault: (cleanInput === CONFIG.DEFAULT_PASSWORD || realPwd === CONFIG.DEFAULT_PASSWORD)
     };
   }
-  return { status: 'error', message: recordLoginFailure_('admin', 'admin', '管理密碼錯誤') };
+  const fail = recordLoginFailure_('admin', 'admin');
+  return {
+    status: 'error',
+    message: fail.remaining > 0
+      ? `管理密碼錯誤！剩餘嘗試次數：${fail.remaining} 次（可至 Google 試算表「管理者名單」查看或修改密碼）。`
+      : `密碼連續錯誤達 ${CONFIG.LOGIN_MAX_ATTEMPTS} 次，帳號暫時鎖定 15 分鐘；請稍候再試，或至試算表「管理者名單」確認密碼。`
+  };
 }
 
 function changeAdminPassword(adminToken, oldPwd, newPwd) {
