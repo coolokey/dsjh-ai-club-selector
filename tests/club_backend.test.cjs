@@ -1280,5 +1280,59 @@ test('30. 管理者密碼錯誤提示為可讀字串且系統設定自訂密碼�
   assert.equal(typeof dash.stats.totalStudents, 'number');
 });
 
+test('31. 中文班級年級解析、人工轉社跨年級防護、導師端保障生狀態與三志願退選清除', () => {
+  const { context, sheets } = createGasMockEnvironment();
+
+  // (1) 中文班級名稱如「八年七班」、「九年八班」不可因含七/八班號誤判年級
+  assert.equal(context.extractStudentGrade_('八年七班'), '8');
+  assert.equal(context.extractStudentGrade_('九年七班'), '9');
+  assert.equal(context.extractStudentGrade_('九年八班'), '9');
+  assert.equal(context.extractStudentGrade_('七年九班'), '7');
+
+  // (2) 預設 28 社團載入後，熱門流行樂團與合奏社應帶有 '8,9' 年級限制
+  const adminToken = context.loginAdmin('test-password').token;
+  context.seedCanonicalClubs(adminToken, true);
+  const catalog = context.getPublicClubCatalog();
+  const bandClub = catalog.clubs.find(c => c.name === '熱門流行樂團與合奏社');
+  assert.ok(bandClub);
+  assert.equal(bandClub.targetGrades, '8,9');
+
+  // (3) 人工轉社未勾選超額特案時，701 班學生不可轉入限 8,9 年級的熱音社；勾選後可特案安置
+  const blockedTransfer = context.adminTransferStudentClub(adminToken, '11470101', '熱門流行樂團與合奏社', '家長申請', false);
+  assert.equal(blockedTransfer.status, 'error');
+  assert.match(blockedTransfer.message, /僅開放/);
+
+  const forcedTransfer = context.adminTransferStudentClub(adminToken, '11470101', '熱門流行樂團與合奏社', '特殊生專案安置', true);
+  assert.equal(forcedTransfer.status, 'success');
+
+  // (4) 導師端查詢班級進度時，具「保障身分鎖定」（11470103 張志豪）的學生應計入已完成選社，不列入未選催繳名單
+  const hrRes = context.getHomeroomClassData('701', adminToken);
+  assert.equal(hrRes.status, 'success');
+  assert.ok(hrRes.enrolledList.some(s => s.studentId === '11470103' && s.club.includes('校隊保障')));
+  assert.ok(!hrRes.unassignedList.some(s => s.studentId === '11470103'));
+
+  // (5) 三志願模式下，學生點擊重新改選 (cancelSelection) 應一併清除已登記的前三志願
+  context.saveSystemSettings(adminToken, {
+    title: '大溪國中 AI 智慧社團選社系統',
+    mode: 'preferences',
+    openTime: '',
+    closeTime: '',
+    aiAdvisorEnabled: true,
+    maxPerClass: 2,
+    emailNotificationEnabled: true
+  });
+  const stuLogin = context.verifyAndGetClubs('11470102', '67890202');
+  assert.equal(stuLogin.status, 'success');
+  const prefSub = context.submitPreferences(stuLogin.token, 'AI機器人創客社', '熱血籃球戰術社', '數位動漫與繪畫社');
+  assert.equal(prefSub.status, 'success');
+
+  const cancelRes = context.cancelSelection(stuLogin.token);
+  assert.equal(cancelRes.status, 'success');
+  assert.equal(cancelRes.student.pref1, '');
+  assert.equal(cancelRes.student.pref2, '');
+  assert.equal(cancelRes.student.pref3, '');
+});
+
+
 
 

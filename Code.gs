@@ -165,44 +165,44 @@ function getSpreadsheet() {
  */
 const CANONICAL_CLUBS = [
   // 體育競技（7 社）
-  ['熱血籃球戰術社', 30, 0, '陳建勳 教練', '風雨球場A', '基礎運球技巧、傳切配合、團隊防守跑位、半場戰術演練與分組實戰對抗，鍛鍊心肺體能與團隊默契。', '請穿著運動服裝、攜帶毛巾與自備籃球鞋', '體育競技'],
-  ['羽球活力雙打社', 26, 0, '林志祥 老師', '學生活動中心羽球場', '正反手發球、網前小球切球、後場平高球與殺球跑位技巧，加強雙打走位默契與敏捷反應能力。', '自備羽球拍與運動鞋，耗損羽球由公費提供', '體育競技'],
-  ['桌球技巧精進社', 24, 0, '郭文彬 老師', '桌球地下防空避難室', '正反手推擋、弧圈球拉旋、發球落點變化與單雙打步法訓練，培養手眼協調與瞬間專注力。', '需自備桌球拍（膠皮不限），練習球由社團提供', '體育競技'],
-  ['競技排球與防守社', 26, 0, '黃俊傑 老師', '體育館排球場', '低手接發球、高手舉球配球、扣球步伐與陣形攔網訓練，著重團隊溝通呼應與不放棄救球精神。', '請穿著運動服裝與室內球鞋，建議自備護膝', '體育競技'],
-  ['流行街舞與律動社', 25, 0, 'Amy 舞蹈教練', '韻律舞蹈教室（鏡面教室）', 'Hip-Hop 基礎律動、Popping 震點定點練習、流行 K-Pop MV 舞步拆解與成果排舞展演。', '穿著寬鬆舒適服裝與乾淨平底球鞋，無舞蹈基礎可', '體育競技'],
-  ['跆拳防身自衛術社', 24, 0, '張教練（黑帶四段）', '柔道跆拳訓練教室', '基本踢腿防護、品勢步伐、防身脫困技巧與體能反應訓練，培養尊師重道品格與自我防護意識。', '穿著輕便運動服或道服，備有公用腳靶防具', '體育競技'],
-  ['五人制足球技巧社', 26, 0, '周教練', '操場草皮區／風雨球場B', '盤帶傳球控球技術、短傳滲透小組配合、守門撲救反應與小場地高強度對抗，強化下肢爆發力。', '穿著運動鞋或平底足球鞋（禁止金屬鋼釘鞋），自備長襪護脛', '體育競技'],
+  ['熱血籃球戰術社', 30, 0, '陳建勳 教練', '風雨球場A', '基礎運球技巧、傳切配合、團隊防守跑位、半場戰術演練與分組實戰對抗，鍛鍊心肺體能與團隊默契。', '請穿著運動服裝、攜帶毛巾與自備籃球鞋', '體育競技', '不限'],
+  ['羽球活力雙打社', 26, 0, '林志祥 老師', '學生活動中心羽球場', '正反手發球、網前小球切球、後場平高球與殺球跑位技巧，加強雙打走位默契與敏捷反應能力。', '自備羽球拍與運動鞋，耗損羽球由公費提供', '體育競技', '不限'],
+  ['桌球技巧精進社', 24, 0, '郭文彬 老師', '桌球地下防空避難室', '正反手推擋、弧圈球拉旋、發球落點變化與單雙打步法訓練，培養手眼協調與瞬間專注力。', '需自備桌球拍（膠皮不限），練習球由社團提供', '體育競技', '不限'],
+  ['競技排球與防守社', 26, 0, '黃俊傑 老師', '體育館排球場', '低手接發球、高手舉球配球、扣球步伐與陣形攔網訓練，著重團隊溝通呼應與不放棄救球精神。', '請穿著運動服裝與室內球鞋，建議自備護膝', '體育競技', '不限'],
+  ['流行街舞與律動社', 25, 0, 'Amy 舞蹈教練', '韻律舞蹈教室（鏡面教室）', 'Hip-Hop 基礎律動、Popping 震點定點練習、流行 K-Pop MV 舞步拆解與成果排舞展演。', '穿著寬鬆舒適服裝與乾淨平底球鞋，無舞蹈基礎可', '體育競技', '不限'],
+  ['跆拳防身自衛術社', 24, 0, '張教練（黑帶四段）', '柔道跆拳訓練教室', '基本踢腿防護、品勢步伐、防身脫困技巧與體能反應訓練，培養尊師重道品格與自我防護意識。', '穿著輕便運動服或道服，備有公用腳靶防具', '體育競技', '不限'],
+  ['五人制足球技巧社', 26, 0, '周教練', '操場草皮區／風雨球場B', '盤帶傳球控球技術、短傳滲透小組配合、守門撲救反應與小場地高強度對抗，強化下肢爆發力。', '穿著運動鞋或平底足球鞋（禁止金屬鋼釘鞋），自備長襪護脛', '體育競技', '不限'],
 
   // 科技創客（4 社）
-  ['AI機器人創客社', 22, 0, '李宗翰 組長', '科技創客教室', '結合 Arduino 感測器、Micro:bit 智慧控制與簡易 AI 影像辨識，親手組裝感應智能避障小車與物聯網裝置。', '提供公用電腦與套件，耗材材料費每學期 200 元', '科技創客'],
-  ['Python與演算法程式社', 25, 0, '鄭組長', '電腦教室一', '從圖形化 Blocky 銜接至 Python 核心語法，實作文字冒險遊戲、自動化爬蟲與邏輯解題思維訓練。', '無需程式基礎，使用學校電腦教室設備，請自備隨身碟存檔', '科技創客'],
-  ['3D列印與立體模型創客社', 20, 0, '劉老師', '生活科技木工創客教室', 'Tinkercad 3D 建模設計、3D 列印切片參數操作、雷射雕刻雷切鑰匙圈與機構齒輪動態手作。', '作品可帶回，耗材費（PLA線材與密集板）每人 180 元', '科技創客'],
-  ['無人機飛行與空拍攝影社', 20, 0, '許組長', '科技研討室與中庭草坪', '微型室內無人機飛行原理、手眼協調操控穿越障礙賽道、安全空拍法規與手機縮時縮影運鏡。', '校方提供公用訓練機，需具備高度安全操作紀律', '科技創客'],
+  ['AI機器人創客社', 22, 0, '李宗翰 組長', '科技創客教室', '結合 Arduino 感測器、Micro:bit 智慧控制與簡易 AI 影像辨識，親手組裝感應智能避障小車與物聯網裝置。', '提供公用電腦與套件，耗材材料費每學期 200 元', '科技創客', '不限'],
+  ['Python與演算法程式社', 25, 0, '鄭組長', '電腦教室一', '從圖形化 Blocky 銜接至 Python 核心語法，實作文字冒險遊戲、自動化爬蟲與邏輯解題思維訓練。', '無需程式基礎，使用學校電腦教室設備，請自備隨身碟存檔', '科技創客', '不限'],
+  ['3D列印與立體模型創客社', 20, 0, '劉老師', '生活科技木工創客教室', 'Tinkercad 3D 建模設計、3D 列印切片參數操作、雷射雕刻雷切鑰匙圈與機構齒輪動態手作。', '作品可帶回，耗材費（PLA線材與密集板）每人 180 元', '科技創客', '不限'],
+  ['無人機飛行與空拍攝影社', 20, 0, '許組長', '科技研討室與中庭草坪', '微型室內無人機飛行原理、手眼協調操控穿越障礙賽道、安全空拍法規與手機縮時縮影運鏡。', '校方提供公用訓練機，需具備高度安全操作紀律', '科技創客', '不限'],
 
   // 視覺藝術（5 社）
-  ['數位動漫與繪畫社', 25, 0, '王靜儀 老師', '電腦教室二', '專業電繪板感壓操作、動漫角色頭身骨架比例、光影層次上色、四格分鏡漫畫創作與個人插畫作品集。', '使用教室專業繪圖板與繪圖軟體，材料無額外收費', '視覺藝術'],
-  ['手作黏土與文創工藝社', 22, 0, '陳敏慧 老師', '美術教室一', '輕黏土仿真甜點、樹脂飾品手作、環保蝶谷巴特拼貼提袋與文青風手作杯墊，享受手作療癒時光。', '材料包（含黏土、五金吊飾、黏著劑）每人 150 元', '視覺藝術'],
-  ['水彩美學與素描寫生社', 22, 0, '簡老師', '美術教室二', '鉛筆素描明暗排線、校園景物靜物透視寫生、透明水彩渲染與混色疊色技法，打下扎實美術底子。', '需自備水彩用具（水彩餅或管狀、水彩筆、調色盤、洗筆筒）', '視覺藝術'],
-  ['經典書法與水墨文創社', 22, 0, '曾老師', '國學書法專用教室', '楷書隸書筆法運筆氣韻、水墨濃淡乾濕技法、創意春聯揮毫與扇面題字文創實作，陶冶心性沉靜氣質。', '需自備大楷、中楷毛筆各一支，宣紙與墨汁由社團備置', '視覺藝術'],
-  ['皮革工藝與生活布縫社', 23, 0, '何老師', '家政工藝教室', '植物鞣皮革基礎打孔、雙針鞍式手縫、皮邊修飾打磨，親手完成識別證套、零錢包與刺繡帆布小包。', '皮革材料包與縫紉針線組每人 160 元', '視覺藝術'],
+  ['數位動漫與繪畫社', 25, 0, '王靜儀 老師', '電腦教室二', '專業電繪板感壓操作、動漫角色頭身骨架比例、光影層次上色、四格分鏡漫畫創作與個人插畫作品集。', '使用教室專業繪圖板與繪圖軟體，材料無額外收費', '視覺藝術', '不限'],
+  ['手作黏土與文創工藝社', 22, 0, '陳敏慧 老師', '美術教室一', '輕黏土仿真甜點、樹脂飾品手作、環保蝶谷巴特拼貼提袋與文青風手作杯墊，享受手作療癒時光。', '材料包（含黏土、五金吊飾、黏著劑）每人 150 元', '視覺藝術', '不限'],
+  ['水彩美學與素描寫生社', 22, 0, '簡老師', '美術教室二', '鉛筆素描明暗排線、校園景物靜物透視寫生、透明水彩渲染與混色疊色技法，打下扎實美術底子。', '需自備水彩用具（水彩餅或管狀、水彩筆、調色盤、洗筆筒）', '視覺藝術', '不限'],
+  ['經典書法與水墨文創社', 22, 0, '曾老師', '國學書法專用教室', '楷書隸書筆法運筆氣韻、水墨濃淡乾濕技法、創意春聯揮毫與扇面題字文創實作，陶冶心性沉靜氣質。', '需自備大楷、中楷毛筆各一支，宣紙與墨汁由社團備置', '視覺藝術', '不限'],
+  ['皮革工藝與生活布縫社', 23, 0, '何老師', '家政工藝教室', '植物鞣皮革基礎打孔、雙針鞍式手縫、皮邊修飾打磨，親手完成識別證套、零錢包與刺繡帆布小包。', '皮革材料包與縫紉針線組每人 160 元', '視覺藝術', '不限'],
 
   // 音樂表演（5 社）
-  ['烏克麗麗與吉他彈唱社', 24, 0, '林家宏 老師', '音樂教室B', '由簡入繁學習三和弦切換、民謠節奏刷法、指彈撥弦與最新流行華語流行金曲彈唱，自信登台表演。', '強烈建議自備吉他或烏克麗麗，教室提供 8 把備用琴供輪流練習', '音樂表演'],
-  ['熱門流行樂團與合奏社', 20, 0, '潘老師', '熱音社團練室（隔音間）', '電吉他破音特效、電貝斯低音律動、流行爵士鼓重音節奏與鍵盤合成器配器，合奏流行搖滾曲目。', '需具備基礎樂器彈奏經驗者為佳，備有公用音箱與專業爵士鼓', '音樂表演'],
-  ['管樂合奏與長笛小號初階社', 25, 0, '蕭老師', '管樂團大合奏室', '長笛、單簧管、小號、長號吹奏嘴型呼吸與指法訓練，認識五線譜與齊奏重奏合聲之美。', '學校管樂團備有公用管樂器借用，需自備個人專用吹嘴（或簧片）', '音樂表演'],
-  ['節奏打擊樂與木箱鼓社', 20, 0, '高老師', '音樂教室A', '木箱鼓（Cajon）打法手勢、非洲鼓節奏呼應、動態杯子打擊樂（Cup Song）與節奏合奏重擊震撼。', '使用教室公用木箱鼓與非洲鼓，無打擊基礎亦可快速上手', '音樂表演'],
-  ['戲劇表演與舞台主持社', 21, 0, '蔡老師', '多功能演藝階梯教室', '即興表演練習、口條發聲發音投射、肢體開發模仿、情境短劇排演與大型校園活動舞台主持技巧培訓。', '喜愛說話、表達或想要突破害羞內向者皆非常歡迎，無材料費', '音樂表演'],
+  ['烏克麗麗與吉他彈唱社', 24, 0, '林家宏 老師', '音樂教室B', '由簡入繁學習三和弦切換、民謠節奏刷法、指彈撥弦與最新流行華語流行金曲彈唱，自信登台表演。', '強烈建議自備吉他或烏克麗麗，教室提供 8 把備用琴供輪流練習', '音樂表演', '不限'],
+  ['熱門流行樂團與合奏社', 20, 0, '潘老師', '熱音社團練室（隔音間）', '電吉他破音特效、電貝斯低音律動、流行爵士鼓重音節奏與鍵盤合成器配器，合奏流行搖滾曲目。', '需具備基礎樂器彈奏經驗者為佳，備有公用音箱與專業爵士鼓', '音樂表演', '8,9'],
+  ['管樂合奏與長笛小號初階社', 25, 0, '蕭老師', '管樂團大合奏室', '長笛、單簧管、小號、長號吹奏嘴型呼吸與指法訓練，認識五線譜與齊奏重奏合聲之美。', '學校管樂團備有公用管樂器借用，需自備個人專用吹嘴（或簧片）', '音樂表演', '不限'],
+  ['節奏打擊樂與木箱鼓社', 20, 0, '高老師', '音樂教室A', '木箱鼓（Cajon）打法手勢、非洲鼓節奏呼應、動態杯子打擊樂（Cup Song）與節奏合奏重擊震撼。', '使用教室公用木箱鼓與非洲鼓，無打擊基礎亦可快速上手', '音樂表演', '不限'],
+  ['戲劇表演與舞台主持社', 21, 0, '蔡老師', '多功能演藝階梯教室', '即興表演練習、口條發聲發音投射、肢體開發模仿、情境短劇排演與大型校園活動舞台主持技巧培訓。', '喜愛說話、表達或想要突破害羞內向者皆非常歡迎，無材料費', '音樂表演', '不限'],
 
   // 策略邏輯與語文思辨（4 社）
-  ['桌遊與邏輯推理社', 28, 0, '張育誠 老師', '七年級多功能教室', '精選德式策略資源管理桌遊（卡卡頌、卡坦島）、邏輯劇本解謎與陣營心機推理，激發批判性思考。', '學校購置豐富全新正版桌遊盒裝，無須自備道具，愛好思考互動者佳', '策略邏輯'],
-  ['棋藝研究社（象棋、圍棋與西洋棋）', 26, 0, '洪老師（業餘段位棋士）', '靜態閱覽教室', '布局定式解析、中局算子博弈、殘局攻殺戰術演練與社內循環定段賽，培養沉著冷靜與全局推演眼界。', '教室備有標準棋盤棋具，無基礎亦可自基礎棋規學起', '策略邏輯'],
-  ['日語生活基礎與動漫文化社', 25, 0, '佐藤老師 / 林老師', '語言研習教室', '平假名片假名五十音記憶法、生活日常問候、旅遊點餐情境模擬、熱門動漫主題曲歌詞賞析與日本文化探索。', '印製專屬日語自編手冊，免教材費', '語文思辨'],
-  ['英語電影賞析與情境對話社', 25, 0, '外師 + 英語科輔導教師', '視聽階梯演講廳', '精選歐美得獎動畫與青少年電影經典片段，解析道地口語流行俚語、角色扮演情境對話與跨文化分享。', '全程多媒體放映與情境互動，無材料費', '語文思辨'],
+  ['桌遊與邏輯推理社', 28, 0, '張育誠 老師', '七年級多功能教室', '精選德式策略資源管理桌遊（卡卡頌、卡坦島）、邏輯劇本解謎與陣營心機推理，激發批判性思考。', '學校購置豐富全新正版桌遊盒裝，無須自備道具，愛好思考互動者佳', '策略邏輯', '7,8'],
+  ['棋藝研究社（象棋、圍棋與西洋棋）', 26, 0, '洪老師（業餘段位棋士）', '靜態閱覽教室', '布局定式解析、中局算子博弈、殘局攻殺戰術演練與社內循環定段賽，培養沉著冷靜與全局推演眼界。', '教室備有標準棋盤棋具，無基礎亦可自基礎棋規學起', '策略邏輯', '不限'],
+  ['日語生活基礎與動漫文化社', 25, 0, '佐藤老師 / 林老師', '語言研習教室', '平假名片假名五十音記憶法、生活日常問候、旅遊點餐情境模擬、熱門動漫主題曲歌詞賞析與日本文化探索。', '印製專屬日語自編手冊，免教材費', '語文思辨', '不限'],
+  ['英語電影賞析與情境對話社', 25, 0, '外師 + 英語科輔導教師', '視聽階梯演講廳', '精選歐美得獎動畫與青少年電影經典片段，解析道地口語流行俚語、角色扮演情境對話與跨文化分享。', '全程多媒體放映與情境互動，無材料費', '語文思辨', '不限'],
 
   // 自然實驗與生活服務（3 社）
-  ['趣味生活科學實驗社', 24, 0, '黃柏翰 老師', '理化實驗室三', '生活化學趣味顯色、大氣壓力水火箭試射、分子料理晶球、乾冰仙境與磁浮陀螺，在動手中驗證科學奧秘。', '需穿著棉質長褲與防護實驗圍裙，材料費 150 元', '自然實驗'],
-  ['童軍野外求生與探索社', 26, 0, '李木榮 團長（童軍木章持有人）', '童軍露營營地／童軍教室', '實用繩結編織、雙旗密碼信號、野外無具野炊、方位指北針定位定向越野與急救包紮包紮實用技能。', '戶外活動需具備團隊紀律，自備童軍繩（學校亦可代購 50 元）', '生活服務'],
-  ['校園新聞播報與自媒體攝影社', 22, 0, '趙組長', '校園主播攝影棚', '校園熱門話題新聞採訪、單眼相機與手機運鏡構圖技巧、剪映/CapCut 剪輯音效配樂與大溪國中影音校刊製作。', '無經驗可，適合喜愛表達、拍照、剪片或幕後技術探索者', '生活服務']
+  ['趣味生活科學實驗社', 24, 0, '黃柏翰 老師', '理化實驗室三', '生活化學趣味顯色、大氣壓力水火箭試射、分子料理晶球、乾冰仙境與磁浮陀螺，在動手中驗證科學奧秘。', '需穿著棉質長褲與防護實驗圍裙，材料費 150 元', '自然實驗', '不限'],
+  ['童軍野外求生與探索社', 26, 0, '李木榮 團長（童軍木章持有人）', '童軍露營營地／童軍教室', '實用繩結編織、雙旗密碼信號、野外無具野炊、方位指北針定位定向越野與急救包紮包紮實用技能。', '戶外活動需具備團隊紀律，自備童軍繩（學校亦可代購 50 元）', '生活服務', '7,8'],
+  ['校園新聞播報與自媒體攝影社', 22, 0, '趙組長', '校園主播攝影棚', '校園熱門話題新聞採訪、單眼相機與手機運鏡構圖技巧、剪映/CapCut 剪輯音效配樂與大溪國中影音校刊製作。', '無經驗可，適合喜愛表達、拍照、剪片或幕後技術探索者', '生活服務', '不限']
 ];
 
 function ensureAdminCredentialsSheet_(ss) {
@@ -295,9 +295,16 @@ function ensureAdminCredentialsSheet_(ss) {
 function extractStudentGrade_(classNameOrGrade) {
   const s = String(classNameOrGrade || '').trim();
   if (!s) return '';
-  if (/^7|七|國一/.test(s)) return '7';
-  if (/^8|八|國二/.test(s)) return '8';
-  if (/^9|九|國三/.test(s)) return '9';
+  const gradeMatch = s.match(/([789七八九])\s*年|國([一二三])/);
+  if (gradeMatch) {
+    const token = gradeMatch[1] || gradeMatch[2];
+    if (token === '7' || token === '七' || token === '一') return '7';
+    if (token === '8' || token === '八' || token === '二') return '8';
+    if (token === '9' || token === '九' || token === '三') return '9';
+  }
+  if (/^(?:[7七]|國一)/.test(s)) return '7';
+  if (/^(?:[8八]|國二)/.test(s)) return '8';
+  if (/^(?:[9九]|國三)/.test(s)) return '9';
   const m = s.match(/([789])/);
   return m ? m[1] : '';
 }
@@ -398,6 +405,7 @@ function seedCanonicalClubsToSheet_(ss, force) {
 
   const totalAssigned = Object.values(existingMap).reduce((s, c) => s + (c.current || 0), 0);
   if (!force && existingRows.length >= 28 && totalAssigned > 0) {
+    ensureClubGradeColumn_(clubSheet);
     return { status: 'skipped', message: '已有選社學生且社團已達規格，跳過自動覆蓋。' };
   }
 
@@ -1140,6 +1148,13 @@ function seedCanonicalClubs(adminToken, overwrite) {
   const ss = getSpreadsheet();
   const res = seedCanonicalClubsToSheet_(ss, !!overwrite);
   PropertiesService.getScriptProperties().setProperty('CANONICAL_CLUBS_V', '28');
+  if (res && res.status === 'skipped') {
+    return {
+      status: 'success',
+      message: res.message,
+      clubs: getClubList()
+    };
+  }
   return {
     status: 'success',
     message: `成功載入 28 所跨校熱門多元社團（共 ${res.count || getClubList().length} 個社團），名額已同步至試算表！`,
@@ -1823,14 +1838,14 @@ function cancelSelection(studentToken) {
     const ss = getSpreadsheet();
     const studentSheet = getStudentSheet_(ss);
     const clubSheet = ss.getSheetByName('社團設定');
-    if (!studentSheet) return { status: 'error', message: '查無學生名單工作表！' };
+    if (!studentSheet || !clubSheet) return { status: 'error', message: '查無學生名單或社團設定工作表！' };
     const sData = studentSheet.getDataRange().getDisplayValues();
     const cols = getStudentColIndex_(sData[0]);
-    const cData = clubSheet.getDataRange().getValues();
 
     let studentRowIndex = -1;
     let oldClub = '';
     let lockedClub = '';
+    let oldPrefs = [];
 
     for (let i = 1; i < sData.length; i++) {
       const rowId = String(sData[i][cols.studentId] || '').trim();
@@ -1838,6 +1853,9 @@ function cancelSelection(studentToken) {
         studentRowIndex = i + 1;
         oldClub = String(sData[i][cols.assignedClub] || '').trim();
         lockedClub = String(sData[i][cols.lockedClub] || '').trim();
+        oldPrefs = [sData[i][cols.pref1], sData[i][cols.pref2], sData[i][cols.pref3]]
+          .map(v => String(v || '').trim())
+          .filter(Boolean);
         break;
       }
     }
@@ -1845,17 +1863,14 @@ function cancelSelection(studentToken) {
     if (studentRowIndex === -1) return { status: 'error', message: '查無此學生資料！' };
     if (lockedClub) return { status: 'error', message: '您為專案保障錄取身分，無法自行退選！' };
 
-    if (oldClub) {
-      for (let j = 1; j < cData.length; j++) {
-        if (String(cData[j][0]).trim() === oldClub) {
-          const cur = parseInt(cData[j][2], 10) || 0;
-          clubSheet.getRange(j + 1, 3).setValue(Math.max(0, cur - 1));
-          break;
-        }
-      }
-      studentSheet.getRange(studentRowIndex, cols.assignedClub + 1).setValue('');
-      studentSheet.getRange(studentRowIndex, cols.note + 1).setValue('開放期間重新改選');
-      appendAuditLog_(ss, '學生本人', '開放期退選改選', `學號 ${session.studentId}`, oldClub, '', '釋出原社團名額');
+    if (oldClub || oldPrefs.length > 0) {
+      if (cols.assignedClub >= 0) studentSheet.getRange(studentRowIndex, cols.assignedClub + 1).setValue('');
+      if (cols.pref1 >= 0) studentSheet.getRange(studentRowIndex, cols.pref1 + 1).setValue('');
+      if (cols.pref2 >= 0) studentSheet.getRange(studentRowIndex, cols.pref2 + 1).setValue('');
+      if (cols.pref3 >= 0) studentSheet.getRange(studentRowIndex, cols.pref3 + 1).setValue('');
+      if (cols.note >= 0) studentSheet.getRange(studentRowIndex, cols.note + 1).setValue('開放期間重新改選');
+      recalculateClubEnrollmentCounts_(ss);
+      appendAuditLog_(ss, '學生本人', '開放期退選改選', `學號 ${session.studentId}`, oldClub || oldPrefs.join(' > '), '', '釋出原社團名額或重選志願');
     }
 
     return buildStudentDashboardResponse_(session.studentId, studentToken);
@@ -2112,11 +2127,11 @@ function sendAdmissionEmail_(student, club, timestamp, systemTitleOpt) {
   <div style="font-family: 'Microsoft JhengHei', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
     <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 24px; text-align: center; color: white;">
       <h2 style="margin: 0; font-size: 20px; font-weight: bold;">桃園市立大溪國民中學</h2>
-      <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9;">${systemTitle} — 錄取結果通知書</p>
+      <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9;">${esc(systemTitle)} — 錄取結果通知書</p>
     </div>
     
     <div style="padding: 24px; background: #ffffff;">
-      <p style="font-size: 15px; color: #334155;">親愛的 <strong>${student.name}</strong> 同學及家長您好：</p>
+      <p style="font-size: 15px; color: #334155;">親愛的 <strong>${esc(student.name)}</strong> 同學及家長您好：</p>
       <p style="font-size: 14px; color: #475569; line-height: 1.6;">
         恭喜您已順利完成本學期社團選社程序！系統已正式為您保留開課席次，相關資訊如下：
       </p>
@@ -2125,27 +2140,27 @@ function sendAdmissionEmail_(student, club, timestamp, systemTitleOpt) {
         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <tr>
             <td style="padding: 6px 0; color: #64748b; width: 90px;">錄取社團：</td>
-            <td style="padding: 6px 0; color: #1e3a8a; font-size: 18px; font-weight: bold;">${club.name}</td>
+            <td style="padding: 6px 0; color: #1e3a8a; font-size: 18px; font-weight: bold;">${esc(club.name)}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: #64748b;">學生班級：</td>
-            <td style="padding: 6px 0; color: #334155;">${student.className} 班 ${student.seat} 號</td>
+            <td style="padding: 6px 0; color: #334155;">${esc(student.className)} 班 ${esc(student.seat)} 號</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: #64748b;">指導師資：</td>
-            <td style="padding: 6px 0; color: #334155;">${club.teacher || '校內專業師資'}</td>
+            <td style="padding: 6px 0; color: #334155;">${esc(club.teacher || '校內專業師資')}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: #64748b;">活動地點：</td>
-            <td style="padding: 6px 0; color: #334155;">${club.location || '依學務處公告為準'}</td>
+            <td style="padding: 6px 0; color: #334155;">${esc(club.location || '依學務處公告為準')}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: #64748b;">選填時間：</td>
-            <td style="padding: 6px 0; color: #334155;">${timestamp}</td>
+            <td style="padding: 6px 0; color: #334155;">${esc(timestamp)}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: #64748b;">驗證序號：</td>
-            <td style="padding: 6px 0; color: #0284c7; font-family: monospace; font-weight: bold;">${serialNo}</td>
+            <td style="padding: 6px 0; color: #0284c7; font-family: monospace; font-weight: bold;">${esc(serialNo)}</td>
           </tr>
         </table>
       </div>
@@ -2418,15 +2433,23 @@ function adminTransferStudentClub(adminToken, studentId, newClubName, reason, fo
 
     if (targetClub) {
       let targetLimit = -1;
+      let targetGrades = '不限';
       for (let j = 1; j < cData.length; j++) {
         if (String(cData[j][0] || '').trim() === targetClub) {
           targetLimit = parseInt(cData[j][1], 10) || 0;
+          targetGrades = normalizeTargetGrades_(cData[j][8]);
           break;
         }
       }
       if (targetLimit < 0) return { status: 'error', message: '找不到社團「' + targetClub + '」！' };
 
       if (!forceOverLimit && targetClub !== stuObj.prevClub) {
+        if (!isClubAllowedForGrade_(targetGrades, stuObj.className)) {
+          return {
+            status: 'error',
+            message: `【${targetClub}】僅開放「${formatTargetGradesLabel_(targetGrades)}」學生（該生為 ${stuObj.className} 班）。若因特殊需求須跨年級安置，請勾選「允許超額特殊安置」再儲存。`
+          };
+        }
         let actualCount = 0;
         for (let i = 1; i < sData.length; i++) {
           if (String(sData[i][cols.assignedClub] || '').trim() === targetClub) actualCount++;
@@ -3148,11 +3171,13 @@ function getHomeroomClassData(className, authToken) {
 
   for (let i = 1; i < data.length; i++) {
     if (isClassMatch_(data[i][cols.className], targetClass)) {
+      const assigned = String(data[i][cols.assignedClub] || '').trim();
+      const locked = String(data[i][cols.lockedClub] || '').trim();
       const item = {
         studentId: String(data[i][cols.studentId] || '').trim(),
         seat: padSeatNo_(data[i][cols.seat]),
         name: String(data[i][cols.name] || '').trim(),
-        club: String(data[i][cols.assignedClub] || '').trim()
+        club: assigned || (locked ? ('保障：' + locked) : '')
       };
       if (item.club) enrolled.push(item);
       else unassigned.push(item);
