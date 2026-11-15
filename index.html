@@ -763,6 +763,53 @@
       color: #475569;
       margin-left: 4px;
     }
+    .club-grade-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      white-space: nowrap;
+    }
+    .club-grade-tag.restricted {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fde68a;
+    }
+    .club-grade-tag.blocked {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-color: #fecaca;
+    }
+    .grade-filter-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .grade-check-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-top: 4px;
+    }
+    .grade-check-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0;
+      cursor: pointer;
+    }
     .club-meta { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
     .club-desc { font-size: 13px; color: #334155; line-height: 1.5; }
     .club-quota-bar {
@@ -1594,6 +1641,9 @@
           <label style="margin: 0; font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap;">
             <input type="checkbox" id="freeClubToggle" onchange="filterAndRenderClubs()"> 🆓 免材料費
           </label>
+          <label style="margin: 0; font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; color: #1d4ed8; font-weight: 700;">
+            <input type="checkbox" id="gradeEligibleToggle" checked onchange="filterAndRenderClubs()"> 🎓 <span id="gradeEligibleToggleText">僅顯示本年級可選</span>
+          </label>
         </div>
         <div class="cat-pills-row" id="categoryPillsContainer">
           <!-- 分類膠囊由 JS 動態渲染 -->
@@ -1888,16 +1938,24 @@
       <!-- 社團資料管理（直接寫回 Google 試算表「社團設定」） -->
       <div style="background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 22px;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
-          <label style="margin: 0; font-size: 14px;">🗂️ 社團資料管理 <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">（修改後即時寫入試算表）</span></label>
+          <label style="margin: 0; font-size: 14px;">🗂️ 社團資料管理 <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">（修改後即時寫入試算表，支援分年級開放）</span></label>
           <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             <button type="button" class="nav-btn" style="background: #f0fdf4; border-color: #86efac; color: #166534; font-weight: 700;" onclick="triggerSeedCanonicalClubs()">🔄 匯入跨校多元熱門社團 (28社)</button>
             <button type="button" class="nav-btn" onclick="openClubEditor(-1)">＋ 新增社團</button>
           </div>
         </div>
+        <div class="grade-filter-pills" id="adminClubGradeFilterBar" style="margin-bottom: 10px;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">🎓 篩選開放年級：</span>
+          <button type="button" class="cat-pill active" data-grade="全部" onclick="setAdminClubGradeFilter('全部')">全部</button>
+          <button type="button" class="cat-pill" data-grade="7" onclick="setAdminClubGradeFilter('7')">7 年級可選</button>
+          <button type="button" class="cat-pill" data-grade="8" onclick="setAdminClubGradeFilter('8')">8 年級可選</button>
+          <button type="button" class="cat-pill" data-grade="9" onclick="setAdminClubGradeFilter('9')">9 年級可選</button>
+          <button type="button" class="cat-pill" data-grade="不限" onclick="setAdminClubGradeFilter('不限')">不限年級</button>
+        </div>
         <div style="overflow-x: auto;">
           <table class="club-admin-table">
             <thead>
-              <tr><th>社團名稱</th><th>類別</th><th>指導老師</th><th>地點</th><th>名額</th><th>操作</th></tr>
+              <tr><th>社團名稱</th><th>類別</th><th>開放年級</th><th>指導老師</th><th>地點</th><th>名額</th><th>操作</th></tr>
             </thead>
             <tbody id="clubAdminTbody"></tbody>
           </table>
@@ -2122,7 +2180,7 @@
       { name: 'AI機器人創客社', limit: 22, current: 17, classCount: 2, teacher: '李宗翰 組長', location: '科技創客教室', desc: '結合 Arduino 感測器、Micro:bit 智慧控制與簡易 AI 影像辨識，親手組裝感應智能避障小車與物聯網裝置。', requirement: '提供公用電腦與套件，材料費每學期 200 元', category: '科技創客' },
       { name: 'Python與演算法程式社', limit: 25, current: 16, classCount: 1, teacher: '鄭組長', location: '電腦教室一', desc: '從圖形化 Blocky 銜接至 Python 核心語法，實作文字冒險遊戲、自動化爬蟲與邏輯解題思維訓練。', requirement: '無需程式基礎，使用學校電腦教室設備，請自備隨身碟存檔', category: '科技創客' },
       { name: '3D列印與立體模型創客社', limit: 20, current: 15, classCount: 2, teacher: '劉老師', location: '生活科技木工創客教室', desc: 'Tinkercad 3D 建模設計、3D 列印切片參數操作、雷射雕刻雷切鑰匙圈與機構齒輪動態手作。', requirement: '作品可帶回，耗材費（PLA線材與密集板）每人 180 元', category: '科技創客' },
-      { name: '無人機飛行與空拍攝影社', limit: 20, current: 14, classCount: 1, teacher: '許組長', location: '科技研討室與中庭草坪', desc: '微型室內無人機飛行原理、手眼協調操控穿越障礙賽道、安全空拍法規與手機縮時縮影運鏡。', requirement: '校方提供公用訓練機，需具備高度安全操作紀律', category: '科技創客' },
+      { name: '無人機飛行與空拍攝影社', limit: 20, current: 14, classCount: 1, teacher: '許組長', location: '科技研討室與中庭草坪', desc: '微型室內無人機飛行原理、手眼協調操控穿越障礙賽道、安全空拍法規與手機縮時縮影運鏡。', requirement: '校方提供公用訓練機，需具備高度安全操作紀律', category: '科技創客', targetGrades: '8,9' },
 
       // 視覺藝術（5 社）
       { name: '數位動漫與繪畫社', limit: 25, current: 21, classCount: 3, teacher: '王靜儀 老師', location: '電腦教室二', desc: '專業電繪板感壓操作、動漫角色頭身骨架比例、光影層次上色、四格分鏡漫畫創作與個人插畫作品集。', requirement: '使用教室專業繪圖板與繪圖軟體，材料無額外收費', category: '視覺藝術' },
@@ -2133,20 +2191,20 @@
 
       // 音樂表演（5 社）
       { name: '烏克麗麗與吉他彈唱社', limit: 24, current: 18, classCount: 2, teacher: '林家宏 老師', location: '音樂教室B', desc: '由簡入繁學習三和弦切換、民謠節奏刷法、指彈撥弦與最新流行華語流行金曲彈唱，自信登台表演。', requirement: '強烈建議自備吉他或烏克麗麗，教室提供 8 把備用琴供輪流練習', category: '音樂表演' },
-      { name: '熱門流行樂團與合奏社', limit: 20, current: 16, classCount: 1, teacher: '潘老師', location: '熱音社團練室（隔音間）', desc: '電吉他破音特效、電貝斯低音律動、流行爵士鼓重音節奏與鍵盤合成器配器，合奏流行搖滾曲目。', requirement: '需具備基礎樂器彈奏經驗者為佳，備有公用音箱與專業爵士鼓', category: '音樂表演' },
+      { name: '熱門流行樂團與合奏社', limit: 20, current: 16, classCount: 1, teacher: '潘老師', location: '熱音社團練室（隔音間）', desc: '電吉他破音特效、電貝斯低音律動、流行爵士鼓重音節奏與鍵盤合成器配器，合奏流行搖滾曲目。', requirement: '需具備基礎樂器彈奏經驗者為佳，備有公用音箱與專業爵士鼓', category: '音樂表演', targetGrades: '8,9' },
       { name: '管樂合奏與長笛小號初階社', limit: 25, current: 19, classCount: 2, teacher: '蕭老師', location: '管樂團大合奏室', desc: '長笛、單簧管、小號、長號吹奏嘴型呼吸與指法訓練，認識五線譜與齊奏重奏合聲之美。', requirement: '學校管樂團備有公用管樂器借用，需自備個人專用吹嘴（或簧片）', category: '音樂表演' },
       { name: '節奏打擊樂與木箱鼓社', limit: 20, current: 15, classCount: 1, teacher: '高老師', location: '音樂教室A', desc: '木箱鼓（Cajon）打法手勢、非洲鼓節奏呼應、動態杯子打擊樂（Cup Song）與節奏合奏重擊震撼。', requirement: '使用教室公用木箱鼓與非洲鼓，無打擊基礎亦可快速上手', category: '音樂表演' },
       { name: '戲劇表演與舞台主持社', limit: 21, current: 14, classCount: 1, teacher: '蔡老師', location: '多功能演藝階梯教室', desc: '即興表演練習、口條發聲發音投射、肢體開發模仿、情境短劇排演與大型校園活動舞台主持技巧培訓。', requirement: '喜愛說話、表達或想要突破害羞內向者皆非常歡迎，無材料費', category: '音樂表演' },
 
       // 策略邏輯與語文思辨（4 社）
-      { name: '桌遊與邏輯推理社', limit: 28, current: 24, classCount: 3, teacher: '張育誠 老師', location: '七年級多功能教室', desc: '精選德式策略資源管理桌遊（卡卡頌、卡坦島）、邏輯劇本解謎與陣營心機推理，激發批判性思考。', requirement: '學校購置豐富全新正版桌遊盒裝，無須自備道具，愛好思考互動者佳', category: '策略邏輯' },
+      { name: '桌遊與邏輯推理社', limit: 28, current: 24, classCount: 3, teacher: '張育誠 老師', location: '七年級多功能教室', desc: '精選德式策略資源管理桌遊（卡卡頌、卡坦島）、邏輯劇本解謎與陣營心機推理，激發批判性思考。', requirement: '學校購置豐富全新正版桌遊盒裝，無須自備道具，愛好思考互動者佳', category: '策略邏輯', targetGrades: '7,8' },
       { name: '棋藝研究社（象棋、圍棋與西洋棋）', limit: 26, current: 18, classCount: 2, teacher: '洪老師（業餘段位棋士）', location: '靜態閱覽教室', desc: '布局定式解析、中局算子博弈、殘局攻殺戰術演練與社內循環定段賽，培養沉著冷靜與全局推演眼界。', requirement: '教室備有標準棋盤棋具，無基礎亦可自基礎棋規學起', category: '策略邏輯' },
       { name: '日語生活基礎與動漫文化社', limit: 25, current: 20, classCount: 2, teacher: '佐藤老師 / 林老師', location: '語言研習教室', desc: '平假名片假名五十音記憶法、生活日常問候、旅遊點餐情境模擬、熱門動漫主題曲歌詞賞析與日本文化探索。', requirement: '印製專屬日語自編手冊，免教材費', category: '語文思辨' },
       { name: '英語電影賞析與情境對話社', limit: 25, current: 17, classCount: 2, teacher: '外師 + 英語科輔導教師', location: '視聽階梯演講廳', desc: '精選歐美得獎動畫與青少年電影經典片段，解析道地口語流行俚語、角色扮演情境對話與跨文化分享。', requirement: '全程多媒體放映與情境互動，無材料費', category: '語文思辨' },
 
       // 自然實驗與生活服務（3 社）
       { name: '趣味生活科學實驗社', limit: 24, current: 18, classCount: 2, teacher: '黃柏翰 老師', location: '理化實驗室三', desc: '生活化學趣味顯色、大氣壓力水火箭試射、分子料理晶球、乾冰仙境與磁浮陀螺，在動手中驗證科學奧秘。', requirement: '需穿著棉質長褲與防護實驗圍裙，材料費 150 元', category: '自然實驗' },
-      { name: '童軍野外求生與探索社', limit: 26, current: 19, classCount: 2, teacher: '李木榮 團長（童軍木章持有人）', location: '童軍露營營地／童軍教室', desc: '實用繩結編織、雙旗密碼信號、野外無具野炊、方位指北針定位定向越野與急救包紮包紮實用技能。', requirement: '戶外活動需具備團隊紀律，自備童軍繩（學校亦可代購 50 元）', category: '生活服務' },
+      { name: '童軍野外求生與探索社', limit: 26, current: 19, classCount: 2, teacher: '李木榮 團長（童軍木章持有人）', location: '童軍露營營地／童軍教室', desc: '實用繩結編織、雙旗密碼信號、野外無具野炊、方位指北針定位定向越野與急救包紮包紮實用技能。', requirement: '戶外活動需具備團隊紀律，自備童軍繩（學校亦可代購 50 元）', category: '生活服務', targetGrades: '7,8' },
       { name: '校園新聞播報與自媒體攝影社', limit: 22, current: 15, classCount: 1, teacher: '趙組長', location: '校園主播攝影棚', desc: '校園熱門話題新聞採訪、單眼相機與手機運鏡構圖技巧、剪映/CapCut 剪輯音效配樂與大溪國中影音校刊製作。', requirement: '無經驗可，適合喜愛表達、拍照、剪片或幕後技術探索者', category: '生活服務' }
     ];
 
@@ -2200,13 +2258,15 @@
               });
             }, 100);
           },
-          aiConsultantRecommend: function(input) {
+          aiConsultantRecommend: function(input, gradeInfo) {
             var self = this;
             var txt = String(input || '').toLowerCase();
+            var stuGrade = gradeInfo || (appState.currentStudent && appState.currentStudent.className) || '701';
             setTimeout(function(){
               var tokens = txt.split(/[\s，,、。；;!！?？]+/).filter(function(k) { return k.length >= 2; });
               var avoidOutdoor = /不[想愛喜歡要].*(曬太陽|跑步|流汗|戶外)|室內冷氣/.test(txt);
-              var scored = mockClubs.map(function(c) {
+              var pool = mockClubs.filter(function(c) { return isClubAllowedForGrade_(c.targetGrades, stuGrade); });
+              var scored = pool.map(function(c) {
                 var s = 60;
                 var hay = (c.name + ' ' + c.category + ' ' + c.desc + ' ' + c.requirement).toLowerCase();
                 tokens.forEach(function(tk) {
@@ -2241,6 +2301,12 @@
             var self = this;
             setTimeout(function(){
               if (token !== 'mock-stu-token') { self._success({ status: 'error', message: '登入已逾時！' }); return; }
+              var stuClass = (appState.currentStudent && appState.currentStudent.className) || '701';
+              var target = mockClubs.filter(function(c) { return c.name === club; })[0];
+              if (target && !isClubAllowedForGrade_(target.targetGrades, stuClass)) {
+                self._success({ status: 'error', message: '抱歉！【' + club + '】目前僅開放給「' + formatTargetGradesLabel_(target.targetGrades) + '」學生報名！' });
+                return;
+              }
               var nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
               self._success({ status: 'success', clubName: club, timestamp: nowStr, emailSent: true });
             }, 400);
@@ -2249,6 +2315,15 @@
             var self = this;
             setTimeout(function(){
               if (token !== 'mock-stu-token') { self._success({ status: 'error', message: '登入已逾時！' }); return; }
+              var stuClass = (appState.currentStudent && appState.currentStudent.className) || '701';
+              var chosen = [p1, p2, p3].filter(Boolean);
+              for (var i = 0; i < chosen.length; i++) {
+                var target = mockClubs.filter(function(c) { return c.name === chosen[i]; })[0];
+                if (target && !isClubAllowedForGrade_(target.targetGrades, stuClass)) {
+                  self._success({ status: 'error', message: '所選志願「' + chosen[i] + '」目前僅開放給「' + formatTargetGradesLabel_(target.targetGrades) + '」學生選填！' });
+                  return;
+                }
+              }
               var nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
               self._success({ status: 'success', preferences: [p1, p2, p3], timestamp: nowStr });
             }, 400);
@@ -2315,11 +2390,11 @@
                 if (idx === -1) { self._success({ status: 'error', message: '找不到要修改的原社團！' }); return; }
                 if (name !== club.originalName && dup !== -1) { self._success({ status: 'error', message: '已有同名社團，請改用其他名稱！' }); return; }
                 if (limit < mockClubs[idx].current) { self._success({ status: 'error', message: '人數上限不可低於目前已錄取人數（' + mockClubs[idx].current + ' 人）！' }); return; }
-                mockClubs[idx] = Object.assign({}, mockClubs[idx], { name: name, limit: limit, teacher: club.teacher, location: club.location, desc: club.desc, requirement: club.requirement, category: club.category || '綜合興趣' });
+                mockClubs[idx] = Object.assign({}, mockClubs[idx], { name: name, limit: limit, teacher: club.teacher, location: club.location, desc: club.desc, requirement: club.requirement, category: club.category || '綜合興趣', targetGrades: normalizeTargetGrades_(club.targetGrades) });
                 self._success({ status: 'success', message: '社團【' + name + '】已更新（展示資料庫）。', clubs: mockClubs.slice() });
               } else {
                 if (dup !== -1) { self._success({ status: 'error', message: '已有同名社團，請改用其他名稱！' }); return; }
-                mockClubs.push({ name: name, limit: limit, current: 0, classCount: 0, teacher: club.teacher, location: club.location, desc: club.desc, requirement: club.requirement, category: club.category || '綜合興趣' });
+                mockClubs.push({ name: name, limit: limit, current: 0, classCount: 0, teacher: club.teacher, location: club.location, desc: club.desc, requirement: club.requirement, category: club.category || '綜合興趣', targetGrades: normalizeTargetGrades_(club.targetGrades) });
                 self._success({ status: 'success', message: '社團【' + name + '】已新增（展示資料庫）。', clubs: mockClubs.slice() });
               }
             }, 300);
@@ -2971,6 +3046,11 @@
 
         document.getElementById('displayStudentName').innerText = res.student.name;
         document.getElementById('displayClassSeat').innerText = '(' + res.student.className + '班 ' + res.student.seat + '號)';
+        var stuGradeCode = extractStudentGrade_(res.student.className);
+        var gradeToggle = document.getElementById('gradeEligibleToggle');
+        var gradeToggleText = document.getElementById('gradeEligibleToggleText');
+        if (gradeToggle) gradeToggle.checked = true;
+        if (gradeToggleText) gradeToggleText.innerText = stuGradeCode ? ('僅顯示本年級可選（' + stuGradeCode + '年級）') : '僅顯示本年級可選';
 
         var mode = (appState.settings && appState.settings.mode) ? appState.settings.mode : 'instant';
         appState.preferences = [];
@@ -3033,6 +3113,41 @@
     filterAndRenderClubs();
   }
 
+  function extractStudentGrade_(classNameOrGrade) {
+    var s = String(classNameOrGrade || '').trim();
+    if (!s) return '';
+    if (/^7|七|國一/.test(s)) return '7';
+    if (/^8|八|國二/.test(s)) return '8';
+    if (/^9|九|國三/.test(s)) return '9';
+    var m = s.match(/([789])/);
+    return m ? m[1] : '';
+  }
+
+  function normalizeTargetGrades_(raw) {
+    if (Array.isArray(raw)) raw = raw.join(',');
+    var str = String(raw === undefined || raw === null ? '' : raw).trim();
+    if (!str || str === '不限' || str === '全校' || str === '全年級' || str === 'all' || str === 'ALL') return '不限';
+    var normalized = str.replace(/七/g, '7').replace(/八/g, '8').replace(/九/g, '9');
+    var found = [];
+    ['7', '8', '9'].forEach(function(g) {
+      if (normalized.indexOf(g) !== -1 && found.indexOf(g) === -1) found.push(g);
+    });
+    return (found.length === 0 || found.length === 3) ? '不限' : found.join(',');
+  }
+
+  function formatTargetGradesLabel_(targetGrades) {
+    var norm = normalizeTargetGrades_(targetGrades);
+    return norm === '不限' ? '不限年級' : ('限 ' + norm.split(',').join('、') + ' 年級');
+  }
+
+  function isClubAllowedForGrade_(targetGrades, classNameOrGrade) {
+    var norm = normalizeTargetGrades_(targetGrades);
+    if (norm === '不限') return true;
+    var g = extractStudentGrade_(classNameOrGrade);
+    if (!g) return true;
+    return norm.split(',').indexOf(g) !== -1;
+  }
+
   function isFreeClub_(c) {
     var req = String((c && c.requirement) || '');
     if (/無額外收費|無材料費|免教材費|免材料費/.test(req)) return true;
@@ -3043,14 +3158,17 @@
     var kw = (document.getElementById('clubSearchInput') ? document.getElementById('clubSearchInput').value : '').trim().toLowerCase();
     var hideFull = document.getElementById('hideFullToggle') ? document.getElementById('hideFullToggle').checked : false;
     var freeOnly = document.getElementById('freeClubToggle') ? document.getElementById('freeClubToggle').checked : false;
+    var gradeOnly = document.getElementById('gradeEligibleToggle') ? document.getElementById('gradeEligibleToggle').checked : false;
+    var stuClass = appState.currentStudent ? appState.currentStudent.className : '';
     var cat = appState.activeCategory || '全部';
 
     var filtered = appState.clubs.filter(function(c) {
+      if (gradeOnly && stuClass && !isClubAllowedForGrade_(c.targetGrades, stuClass)) return false;
       if (cat !== '全部' && c.category !== cat) return false;
       if (hideFull && (c.limit - c.current) <= 0) return false;
       if (freeOnly && !isFreeClub_(c)) return false;
       if (kw) {
-        var text = (c.name + ' ' + c.teacher + ' ' + c.location + ' ' + c.desc + ' ' + c.category + ' ' + (c.requirement || '')).toLowerCase();
+        var text = (c.name + ' ' + c.teacher + ' ' + c.location + ' ' + c.desc + ' ' + c.category + ' ' + (c.requirement || '') + ' ' + formatTargetGradesLabel_(c.targetGrades)).toLowerCase();
         if (text.indexOf(kw) === -1) return false;
       }
       return true;
@@ -3063,19 +3181,23 @@
     var container = document.getElementById('clubCardContainer');
     var mode = (appState.settings && appState.settings.mode) || 'instant';
     var maxPerClass = (appState.settings && appState.settings.maxPerClass) || 4;
+    var stuClass = appState.currentStudent ? appState.currentStudent.className : '';
     document.getElementById('clubCountInfo').innerText = '顯示 ' + clubs.length + ' / 共 ' + appState.clubs.length + ' 個社團';
     var html = '';
 
     if (clubs.length === 0) {
-      container.innerHTML = '<div style="text-align:center; padding:28px; color:var(--text-muted); font-size:13px;">查無符合篩選條件的社團，請調整搜尋關鍵字或分類。</div>';
+      container.innerHTML = '<div style="text-align:center; padding:28px; color:var(--text-muted); font-size:13px;">查無符合篩選條件的社團，請調整搜尋關鍵字、分類或年級篩選。</div>';
       return;
     }
 
     clubs.forEach(function(club) {
       var avail = club.limit - club.current;
       var clsCount = club.classCount || 0;
+      var normGrade = normalizeTargetGrades_(club.targetGrades);
+      var gradeLabel = formatTargetGradesLabel_(normGrade);
+      var isGradeAllowed = isClubAllowedForGrade_(normGrade, stuClass);
       var isClassFull = (mode === 'instant') && (clsCount >= maxPerClass);
-      var isFull = (mode === 'instant') ? (avail <= 0 || isClassFull) : false;
+      var isFull = !isGradeAllowed || ((mode === 'instant') ? (avail <= 0 || isClassFull) : false);
 
       var isSelected = false;
       var prefBadgeHtml = '';
@@ -3090,9 +3212,10 @@
       }
 
       var cardClass = 'club-card' + (isFull ? ' full' : '') + (isSelected ? ' selected' : '');
-      var badgeClass = (avail <= 0) ? 'badge-quota badge-full' : 'badge-quota badge-avail';
-      var badgeText = (avail <= 0) ? '額滿' : '餘 ' + avail + ' 席';
+      var badgeClass = (!isGradeAllowed || avail <= 0) ? 'badge-quota badge-full' : 'badge-quota badge-avail';
+      var badgeText = !isGradeAllowed ? ('⛔ ' + gradeLabel) : ((avail <= 0) ? '額滿' : '餘 ' + avail + ' 席');
       var clickAttr = isFull ? '' : 'onclick="onSelectClubCard(this, this.dataset.clubName)"';
+      var gradeTagHtml = '<span class="club-grade-tag' + (!isGradeAllowed ? ' blocked' : (normGrade !== '不限' ? ' restricted' : '')) + '">🎓 ' + escapeHtml(gradeLabel) + '</span>';
 
       var clsQuotaClass = (clsCount >= maxPerClass) ? 'class-quota-pill warn' : 'class-quota-pill';
       var clsQuotaText = '👥 本班已選 ' + clsCount + '/' + maxPerClass + ' 人' + (clsCount >= maxPerClass ? ' (本班上限)' : '');
@@ -3107,7 +3230,7 @@
 
       html += '<div class="' + cardClass + '" id="club-card-' + escapeHtml(club.name) + '" data-club-name="' + escapeHtml(club.name) + '" ' + clickAttr + '>';
       html += '  <div class="club-card-top">';
-      html += '    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;"><span class="club-name">' + escapeHtml(club.name) + '</span><span class="club-category-tag">' + escapeHtml(club.category) + '</span><span class="' + clsQuotaClass + '">' + clsQuotaText + '</span></div>';
+      html += '    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;"><span class="club-name">' + escapeHtml(club.name) + '</span><span class="club-category-tag">' + escapeHtml(club.category) + '</span>' + gradeTagHtml + '<span class="' + clsQuotaClass + '">' + clsQuotaText + '</span></div>';
       html += '    <div>' + prefBadgeHtml + '<span class="' + badgeClass + '">' + badgeText + '</span></div>';
       html += '  </div>';
       html += '  <div class="club-quota-bar" aria-hidden="true"><div class="club-quota-fill" style="width:' + capPct + '%; background:' + capColor + ';"></div></div>';
@@ -3432,6 +3555,12 @@
     if (document.getElementById('clubSearchInput')) document.getElementById('clubSearchInput').value = '';
     if (document.getElementById('hideFullToggle')) document.getElementById('hideFullToggle').checked = false;
     if (document.getElementById('freeClubToggle')) document.getElementById('freeClubToggle').checked = false;
+    var stuClass = appState.currentStudent ? appState.currentStudent.className : '';
+    var clubObj = appState.clubs.filter(function(c) { return c.name === clubName; })[0];
+    if (clubObj && !isClubAllowedForGrade_(clubObj.targetGrades, stuClass)) {
+      showModal('年級資格不符', '【' + escapeHtml(clubName) + '】目前僅開放給「' + escapeHtml(formatTargetGradesLabel_(clubObj.targetGrades)) + '」學生選填。');
+      return;
+    }
     renderCategoryPills(appState.clubs);
     filterAndRenderClubs();
 
@@ -3441,7 +3570,7 @@
       if (!targetCard.classList.contains('full')) {
         targetCard.click();
       } else {
-        showModal('提示', '該推薦社團目前名額已額滿或達本班人數上限。');
+        showModal('提示', '該推薦社團目前名額已額滿、達本班人數上限或不符年級資格。');
       }
     } else {
       showModal('提示', '目前社團清單中找不到該推薦社團。');
@@ -3455,9 +3584,13 @@
       applyAiRecommendation(appState.lastAiRecommendations[0].clubName);
       return;
     }
+    var stuClass = appState.currentStudent ? appState.currentStudent.className : '';
     switchSelectionMode('preferences');
     appState.preferences = [];
-    appState.lastAiRecommendations.slice(0, 3).forEach(function(r) {
+    appState.lastAiRecommendations.forEach(function(r) {
+      if (appState.preferences.length >= 3) return;
+      var clubObj = appState.clubs.filter(function(c) { return c.name === r.clubName; })[0];
+      if (clubObj && !isClubAllowedForGrade_(clubObj.targetGrades, stuClass)) return;
       if (appState.preferences.indexOf(r.clubName) === -1) {
         appState.preferences.push(r.clubName);
       }
@@ -3955,17 +4088,36 @@
   }
 
   // ==================== 後台：社團資料管理（寫回試算表） ====================
+  function setAdminClubGradeFilter(grade) {
+    appState.adminClubGradeFilter = grade || '全部';
+    var bar = document.getElementById('adminClubGradeFilterBar');
+    if (bar) {
+      bar.querySelectorAll('.cat-pill').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-grade') === appState.adminClubGradeFilter);
+      });
+    }
+    renderClubAdminTable(appState.adminClubs);
+  }
+
   function renderClubAdminTable(clubs) {
     var tbody = document.getElementById('clubAdminTbody');
+    var gradeFilter = appState.adminClubGradeFilter || '全部';
     if (!clubs || clubs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">尚未建立任何社團，請點選「＋ 新增社團」。</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:20px;">尚未建立任何社團，請點選「＋ 新增社團」。</td></tr>';
       return;
     }
     var html = '';
+    var shownCount = 0;
     clubs.forEach(function(c, idx) {
+      var normGrade = normalizeTargetGrades_(c.targetGrades);
+      if (gradeFilter === '不限' && normGrade !== '不限') return;
+      if ((gradeFilter === '7' || gradeFilter === '8' || gradeFilter === '9') && !isClubAllowedForGrade_(normGrade, gradeFilter)) return;
+      shownCount++;
+      var gradeTag = '<span class="club-grade-tag' + (normGrade !== '不限' ? ' restricted' : '') + '">' + escapeHtml(formatTargetGradesLabel_(normGrade)) + '</span>';
       html += '<tr>';
       html += '<td style="font-weight:800;">' + escapeHtml(c.name) + '</td>';
       html += '<td>' + escapeHtml(c.category) + '</td>';
+      html += '<td style="white-space:nowrap;">' + gradeTag + '</td>';
       html += '<td>' + escapeHtml(c.teacher) + '</td>';
       html += '<td>' + escapeHtml(c.location) + '</td>';
       html += '<td style="white-space:nowrap;">' + c.current + ' / ' + c.limit + '</td>';
@@ -3975,18 +4127,35 @@
               '<button type="button" class="tbl-btn danger" onclick="confirmDeleteClub(' + idx + ')">刪除</button></td>';
       html += '</tr>';
     });
+    if (shownCount === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:20px;">目前無符合此開放年級條件的社團。</td></tr>';
+      return;
+    }
     tbody.innerHTML = html;
   }
 
   function openClubEditor(idx) {
     var isNew = (idx < 0);
-    var c = isNew ? { name: '', limit: 20, teacher: '', location: '', desc: '', requirement: '', category: '' } : appState.adminClubs[idx];
+    var c = isNew ? { name: '', limit: 20, teacher: '', location: '', desc: '', requirement: '', category: '', targetGrades: '不限' } : appState.adminClubs[idx];
     if (!c) return;
+
+    var normGrade = normalizeTargetGrades_(c.targetGrades);
+    var allow7 = (normGrade === '不限' || normGrade.split(',').indexOf('7') !== -1);
+    var allow8 = (normGrade === '不限' || normGrade.split(',').indexOf('8') !== -1);
+    var allow9 = (normGrade === '不限' || normGrade.split(',').indexOf('9') !== -1);
 
     var form = '<div class="editor-grid">' +
       '<div class="full"><label>社團名稱 *</label><input type="text" id="ce_name" class="form-control" maxlength="40" value="' + escapeHtml(c.name) + '"></div>' +
       '<div><label>人數上限 *</label><input type="number" id="ce_limit" class="form-control" min="1" max="500" value="' + escapeHtml(c.limit) + '"></div>' +
       '<div><label>社團類別</label><input type="text" id="ce_category" class="form-control" maxlength="20" placeholder="如：科技創客" value="' + escapeHtml(c.category) + '"></div>' +
+      '<div class="full"><label>開放年級 *</label>' +
+      '  <div class="grade-check-group">' +
+      '    <label class="grade-check-label"><input type="checkbox" id="ce_g7"' + (allow7 ? ' checked' : '') + '> 7 年級</label>' +
+      '    <label class="grade-check-label"><input type="checkbox" id="ce_g8"' + (allow8 ? ' checked' : '') + '> 8 年級</label>' +
+      '    <label class="grade-check-label"><input type="checkbox" id="ce_g9"' + (allow9 ? ' checked' : '') + '> 9 年級</label>' +
+      '    <button type="button" class="tbl-btn" onclick="[\'ce_g7\',\'ce_g8\',\'ce_g9\'].forEach(function(id){var e=document.getElementById(id);if(e)e.checked=true;})">全校不限</button>' +
+      '  </div>' +
+      '</div>' +
       '<div><label>指導老師</label><input type="text" id="ce_teacher" class="form-control" maxlength="40" value="' + escapeHtml(c.teacher) + '"></div>' +
       '<div><label>活動地點</label><input type="text" id="ce_location" class="form-control" maxlength="60" value="' + escapeHtml(c.location) + '"></div>' +
       '<div class="full"><label>社團簡介</label><textarea id="ce_desc" class="form-control" rows="2" maxlength="300">' + escapeHtml(c.desc) + '</textarea></div>' +
@@ -3994,11 +4163,18 @@
       '</div>';
 
     showConfirmModal(isNew ? '新增社團' : ('編輯社團：' + c.name), form, '儲存至試算表', function() {
+      var pickedGrades = [];
+      ['7', '8', '9'].forEach(function(g) {
+        var el = document.getElementById('ce_g' + g);
+        if (el && el.checked) pickedGrades.push(g);
+      });
+      if (pickedGrades.length === 0) { showModal('資料不完整', '請至少勾選一個開放年級（若全校皆可選請全選三個年級）！'); return; }
       var payload = {
         originalName: isNew ? '' : c.name,
         name: document.getElementById('ce_name').value.trim(),
         limit: parseInt(document.getElementById('ce_limit').value, 10),
         category: document.getElementById('ce_category').value.trim(),
+        targetGrades: pickedGrades.length === 3 ? '不限' : pickedGrades.join(','),
         teacher: document.getElementById('ce_teacher').value.trim(),
         location: document.getElementById('ce_location').value.trim(),
         desc: document.getElementById('ce_desc').value.trim(),
@@ -4061,13 +4237,15 @@
     if (!container) return;
     var kw = (document.getElementById('publicCatalogSearch') ? document.getElementById('publicCatalogSearch').value : '').trim().toLowerCase();
     var cat = document.getElementById('publicCatalogCat') ? document.getElementById('publicCatalogCat').value : '全部';
+    var gradeFilter = document.getElementById('publicCatalogGrade') ? document.getElementById('publicCatalogGrade').value : '全部';
     var freeOnly = document.getElementById('publicCatalogFree') ? document.getElementById('publicCatalogFree').checked : false;
 
     var matched = publicCatalogCache_.filter(function(c) {
       if (cat !== '全部' && (c.category || '綜合興趣') !== cat) return false;
+      if (gradeFilter !== '全部' && !isClubAllowedForGrade_(c.targetGrades, gradeFilter)) return false;
       if (freeOnly && !isFreeClub_(c)) return false;
       if (kw) {
-        var text = (c.name + ' ' + (c.teacher || '') + ' ' + (c.location || '') + ' ' + (c.desc || '') + ' ' + (c.category || '') + ' ' + (c.requirement || '')).toLowerCase();
+        var text = (c.name + ' ' + (c.teacher || '') + ' ' + (c.location || '') + ' ' + (c.desc || '') + ' ' + (c.category || '') + ' ' + (c.requirement || '') + ' ' + formatTargetGradesLabel_(c.targetGrades)).toLowerCase();
         if (text.indexOf(kw) === -1) return false;
       }
       return true;
@@ -4075,17 +4253,19 @@
 
     if (countEl) countEl.innerText = '共顯示 ' + matched.length + ' / ' + publicCatalogCache_.length + ' 社';
     if (matched.length === 0) {
-      container.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:13px;">找不到符合條件的社團，請嘗試更換關鍵字或取消免費篩選。</div>';
+      container.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:13px;">找不到符合條件的社團，請嘗試更換關鍵字、年級或取消免費篩選。</div>';
       return;
     }
 
     var html = '';
     matched.forEach(function(c, i) {
       var freeTag = isFreeClub_(c) ? '<span style="font-size:11px; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; padding:1px 7px; border-radius:999px; font-weight:700;">🆓 免材料費</span>' : '';
+      var normGrade = normalizeTargetGrades_(c.targetGrades);
+      var gradeTag = '<span class="club-grade-tag' + (normGrade !== '不限' ? ' restricted' : '') + '">🎓 ' + escapeHtml(formatTargetGradesLabel_(normGrade)) + '</span>';
       html += '<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px;">';
       html += '  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:4px;">';
       html += '    <strong style="font-size:14px; color:#1e293b;">' + (i + 1) + '. ' + escapeHtml(c.name) + '</strong>';
-      html += '    <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">' + freeTag + '<span class="club-category-tag">' + escapeHtml(c.category || '綜合興趣') + '</span></div>';
+      html += '    <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">' + freeTag + gradeTag + '<span class="club-category-tag">' + escapeHtml(c.category || '綜合興趣') + '</span></div>';
       html += '  </div>';
       html += '  <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">📍 地點：' + escapeHtml(c.location || '校內教室') + ' ｜ 👨‍🏫 指導：' + escapeHtml(c.teacher || '專業指導') + ' ｜ 👥 名額：' + c.limit + ' 人</div>';
       html += '  <div style="font-size:12px; color:#475569; line-height:1.4;">' + escapeHtml(c.desc || '') + '</div>';
@@ -4113,9 +4293,15 @@
       });
 
       var html = '<div style="text-align: left;">';
-      html += '<p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 10px;">本學期共開設 ' + clubs.length + ' 所跨校熱門多元社團，免登入即可先由家長與同學搜尋與比較：</p>';
+      html += '<p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 10px;">本學期共開設 ' + clubs.length + ' 所跨校熱門多元社團，免登入即可先由家長與同學依年級、領域與關鍵字搜尋與比較：</p>';
       html += '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; background:#f8fafc; padding:10px; border-radius:10px; border:1px solid #e2e8f0;">';
       html += '  <input type="text" id="publicCatalogSearch" class="form-control" style="flex:1; min-width:150px; padding:7px 10px; font-size:12.5px;" placeholder="🔍 搜尋社團、老師、關鍵字..." oninput="renderPublicCatalogList()">';
+      html += '  <select id="publicCatalogGrade" class="form-control" style="width:auto; padding:7px 10px; font-size:12.5px;" onchange="renderPublicCatalogList()">';
+      html += '    <option value="全部">全部年級</option>';
+      html += '    <option value="7">7 年級可選</option>';
+      html += '    <option value="8">8 年級可選</option>';
+      html += '    <option value="9">9 年級可選</option>';
+      html += '  </select>';
       html += '  <select id="publicCatalogCat" class="form-control" style="width:auto; padding:7px 10px; font-size:12.5px;" onchange="renderPublicCatalogList()">';
       html += '    <option value="全部">全部領域</option>';
       cats.forEach(function(cat) { html += '<option value="' + escapeHtml(cat) + '">' + escapeHtml(cat) + '</option>'; });
@@ -4202,7 +4388,7 @@
     if (!sel) return;
     var html = '<option value="">🧹 退選 / 清空目前社團（設為未錄取）</option>';
     (clubs || []).forEach(function(c) {
-      html += '<option value="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '（' + c.current + '/' + c.limit + '）</option>';
+      html += '<option value="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '（' + c.current + '/' + c.limit + '｜' + escapeHtml(formatTargetGradesLabel_(c.targetGrades)) + '）</option>';
     });
     sel.innerHTML = html;
   }
@@ -4456,7 +4642,7 @@
   }
 
   function triggerGenerateManual() {
-    setLoading(true, 'Gemini 正在彙整社團成果報告並建立 Google Docs...');
+    setLoading(true, '正在彙整社團課程大綱並建立 Google Docs 報告書...');
     callGas('generateClubDocManual', [appState.adminToken], function(res) {
       if (!res || res.status === 'error') {
         showModal('生成失敗', escapeHtml((res && res.message) || '無法建立 Google Docs 成果手冊'));
@@ -4875,7 +5061,7 @@
       '    <ol>' +
       '      <li>以管理密碼登入（首次預設 <span class="manual-code">admin888</span>，須立即改為 8 碼以上密碼）。</li>' +
       '      <li>點擊底部「🔄 <strong>從成績系統複製學生與導師</strong>」，以唯讀方式同步最新名冊（絕不更動成績查詢系統，並保留社團錄取與密碼）。</li>' +
-      '      <li>於「社團資料開課與名額即時管理」新增／編輯社團，或點選「✨ <strong>一鍵載入 28 所跨校熱門社團</strong>」。</li>' +
+      '      <li>於「社團資料開課與名額即時管理」新增／編輯社團（可勾選<strong>開放年級</strong>：7／8／9 年級或全校不限），或點選「✨ <strong>一鍵載入 28 所跨校熱門社團</strong>」。</li>' +
       '      <li>設定學年度標題、選社制度（即時搶額／三志願分發）、開放與截止時間、各班上限與 Gemini API Key，按「儲存系統設定」。</li>' +
       '    </ol></div>' +
       '  <div class="manual-card"><h4>2️⃣ 選中監控、人工轉社與點名單列印</h4>' +

@@ -289,6 +289,89 @@ function ensureAdminCredentialsSheet_(ss) {
   props.setProperty('ADMIN_PASSWORD', currentPwd);
 }
 
+/**
+ * 從班級或年級字串抽取國中生年級代碼（'7' | '8' | '9' | ''）。
+ */
+function extractStudentGrade_(classNameOrGrade) {
+  const s = String(classNameOrGrade || '').trim();
+  if (!s) return '';
+  if (/^7|七|國一/.test(s)) return '7';
+  if (/^8|八|國二/.test(s)) return '8';
+  if (/^9|九|國三/.test(s)) return '9';
+  const m = s.match(/([789])/);
+  return m ? m[1] : '';
+}
+
+/**
+ * 將「開放年級」設定正規化為 '不限' 或排序後的逗號字串（如 '7'、'7,8'、'8,9'）。
+ */
+function normalizeTargetGrades_(raw) {
+  if (Array.isArray(raw)) {
+    raw = raw.join(',');
+  }
+  const str = String(raw === undefined || raw === null ? '' : raw).trim();
+  if (!str || str === '不限' || str === '全校' || str === '全年級' || str === 'all' || str === 'ALL') {
+    return '不限';
+  }
+  const found = [];
+  const normalized = str.replace(/七/g, '7').replace(/八/g, '8').replace(/九/g, '9');
+  ['7', '8', '9'].forEach(g => {
+    if (normalized.indexOf(g) !== -1 && found.indexOf(g) === -1) {
+      found.push(g);
+    }
+  });
+  if (found.length === 0 || found.length === 3) {
+    return '不限';
+  }
+  return found.join(',');
+}
+
+/**
+ * 格式化「開放年級」顯示標籤。
+ */
+function formatTargetGradesLabel_(targetGrades) {
+  const norm = normalizeTargetGrades_(targetGrades);
+  return norm === '不限' ? '不限年級' : ('限 ' + norm.split(',').join('、') + ' 年級');
+}
+
+/**
+ * 判斷指定年級（或班級）的學生是否可報名該社團。
+ */
+function isClubAllowedForGrade_(targetGrades, classNameOrGrade) {
+  const norm = normalizeTargetGrades_(targetGrades);
+  if (norm === '不限') return true;
+  const studentGrade = extractStudentGrade_(classNameOrGrade);
+  if (!studentGrade) return true; // 若系統無年級資訊則不誤擋
+  return norm.split(',').indexOf(studentGrade) !== -1;
+}
+
+/**
+ * 確保「社團設定」工作表具有第 9 欄「開放年級」（向下相容舊版 8 欄工作表）。
+ */
+function ensureClubGradeColumn_(clubSheet) {
+  if (!clubSheet) return;
+  const lastCol = clubSheet.getLastColumn();
+  if (lastCol < 9) {
+    const lastRow = clubSheet.getLastRow();
+    if (lastRow >= 1) {
+      const colVals = [['開放年級']];
+      for (let r = 2; r <= lastRow; r++) {
+        colVals.push(['不限']);
+      }
+      clubSheet.getRange(1, 9, lastRow, 1).setValues(colVals);
+      clubSheet.getRange(1, 9, 1, 1).setBackground('#1a73e8').setFontColor('#ffffff').setFontWeight('bold');
+    } else {
+      clubSheet.getRange(1, 9).setValue('開放年級');
+    }
+  } else {
+    const h9 = String(clubSheet.getRange(1, 9, 1, 1).getValues()[0][0] || '').trim();
+    if (!h9) {
+      clubSheet.getRange(1, 9, 1, 1).setValue('開放年級')
+        .setBackground('#1a73e8').setFontColor('#ffffff').setFontWeight('bold');
+    }
+  }
+}
+
 function seedCanonicalClubsToSheet_(ss, force) {
   let clubSheet = ss.getSheetByName('社團設定');
   if (!clubSheet) {
@@ -307,7 +390,8 @@ function seedCanonicalClubsToSheet_(ss, force) {
         location: existingRows[i][4] || '',
         desc: existingRows[i][5] || '',
         req: existingRows[i][6] || '',
-        cat: existingRows[i][7] || ''
+        cat: existingRows[i][7] || '',
+        targetGrades: normalizeTargetGrades_(existingRows[i][8])
       };
     }
   }
@@ -317,7 +401,7 @@ function seedCanonicalClubsToSheet_(ss, force) {
     return { status: 'skipped', message: '已有選社學生且社團已達規格，跳過自動覆蓋。' };
   }
 
-  const headers = ['社團名稱', '人數上限', '已錄取人數', '授課教師', '活動地點', '社團簡介', '先備要求與材料費', '社團類別'];
+  const headers = ['社團名稱', '人數上限', '已錄取人數', '授課教師', '活動地點', '社團簡介', '先備要求與材料費', '社團類別', '開放年級'];
   const nextRows = [headers];
 
   CANONICAL_CLUBS.forEach(c => {
@@ -332,23 +416,24 @@ function seedCanonicalClubsToSheet_(ss, force) {
         prev.location || c[4],
         prev.desc || c[5],
         prev.req || c[6],
-        prev.cat || c[7]
+        prev.cat || c[7],
+        prev.targetGrades || normalizeTargetGrades_(c[8])
       ]);
       delete existingMap[name];
     } else {
-      nextRows.push([c[0], c[1], (prev && prev.current) || 0, c[3], c[4], c[5], c[6], c[7]]);
+      nextRows.push([c[0], c[1], (prev && prev.current) || 0, c[3], c[4], c[5], c[6], c[7], (prev && prev.targetGrades) || normalizeTargetGrades_(c[8])]);
       delete existingMap[name];
     }
   });
 
   Object.keys(existingMap).forEach(k => {
     const ex = existingMap[k];
-    nextRows.push([k, ex.limit, ex.current, ex.teacher, ex.location, ex.desc, ex.req, ex.cat]);
+    nextRows.push([k, ex.limit, ex.current, ex.teacher, ex.location, ex.desc, ex.req, ex.cat, ex.targetGrades || '不限']);
   });
 
   if (typeof clubSheet.clearContents === 'function') clubSheet.clearContents();
-  clubSheet.getRange(1, 1, nextRows.length, 8).setValues(nextRows);
-  clubSheet.getRange(1, 1, 1, 8).setBackground('#1a73e8').setFontColor('#ffffff').setFontWeight('bold');
+  clubSheet.getRange(1, 1, nextRows.length, 9).setValues(nextRows);
+  clubSheet.getRange(1, 1, 1, 9).setBackground('#1a73e8').setFontColor('#ffffff').setFontWeight('bold');
   formatSheetLayout_(clubSheet);
 
   return { status: 'success', count: nextRows.length - 1 };
@@ -392,6 +477,15 @@ function ensureSheetExists() {
         props.setProperty('GEMINI_KEY_ROW_V', '20261114_v25');
       } catch (e) {
         console.warn('Auto Gemini key row ensure skipped: ' + e.message);
+      }
+    }
+    if (props.getProperty('CLUB_GRADE_COL_V') !== '1') {
+      try {
+        const clubSheet = getSpreadsheet().getSheetByName('社團設定');
+        if (clubSheet) ensureClubGradeColumn_(clubSheet);
+        props.setProperty('CLUB_GRADE_COL_V', '1');
+      } catch (e) {
+        console.warn('Auto club grade column ensure skipped: ' + e.message);
       }
     }
     if (props.getProperty('SHEET_LAYOUT_V') !== '1') {
@@ -960,7 +1054,8 @@ function saveClub(adminToken, club) {
       sanitizeCell_(club.location, 60),
       sanitizeCell_(club.desc, 300),
       sanitizeCell_(club.requirement, 120),
-      sanitizeCell_(club.category || '綜合興趣', 20)
+      sanitizeCell_(club.category || '綜合興趣', 20),
+      normalizeTargetGrades_(club.targetGrades)
     ];
 
     if (original) {
@@ -973,12 +1068,14 @@ function saveClub(adminToken, club) {
       if (limit < current) {
         return { status: 'error', message: '人數上限不可低於目前已錄取人數（' + current + ' 人）！' };
       }
-      sheet.getRange(originalRow, 1, 1, 8).setValues([[name, limit, current].concat(fields)]);
+      ensureClubGradeColumn_(sheet);
+      sheet.getRange(originalRow, 1, 1, 9).setValues([[name, limit, current].concat(fields)]);
       try { formatSheetLayout_(sheet); } catch (e) {}
       return { status: 'success', message: '社團【' + name + '】已更新並寫入試算表。', clubs: getClubList() };
     }
 
     if (nameRow !== -1) return { status: 'error', message: '已有同名社團，請改用其他名稱！' };
+    ensureClubGradeColumn_(sheet);
     sheet.appendRow([name, limit, 0].concat(fields));
     try { formatSheetLayout_(sheet); } catch (e) {}
     return { status: 'success', message: '社團【' + name + '】已新增並寫入試算表。', clubs: getClubList() };
@@ -1405,7 +1502,8 @@ function getClubList() {
         location: String(data[i][4] || ''),
         desc: String(data[i][5] || ''),
         requirement: String(data[i][6] || ''),
-        category: String(data[i][7] || '綜合興趣')
+        category: String(data[i][7] || '綜合興趣'),
+        targetGrades: normalizeTargetGrades_(data[i][8])
       });
     }
   }
@@ -1497,12 +1595,13 @@ function submitSelection(studentToken, selectedClub) {
       return { status: 'error', message: '查無該學生資料！' };
     }
 
-    // 2. 驗證社團與名額（以學生名單實際人數核對，防計數漂移）
+    // 2. 驗證社團、年級資格與名額（以學生名單實際人數核對，防計數漂移）
     let clubRowIndex = -1;
     let matchedClubName = cleanClubName;
     let limit = 0;
     let teacher = '';
     let location = '';
+    let targetGrades = '不限';
 
     for (let j = 1; j < cData.length; j++) {
       const rowClubName = String(cData[j][0] || '').trim();
@@ -1512,12 +1611,20 @@ function submitSelection(studentToken, selectedClub) {
         limit = parseInt(cData[j][1], 10) || 0;
         teacher = cData[j][3];
         location = cData[j][4];
+        targetGrades = normalizeTargetGrades_(cData[j][8]);
         break;
       }
     }
 
     if (clubRowIndex === -1) {
       return { status: 'error', message: '所選社團不存在！' };
+    }
+
+    if (!isClubAllowedForGrade_(targetGrades, studentObj.className)) {
+      return {
+        status: 'error',
+        message: '抱歉！【' + matchedClubName + '】目前僅開放給「' + formatTargetGradesLabel_(targetGrades) + '」學生報名！'
+      };
     }
 
     let actualClubCount = 0;
@@ -1614,10 +1721,12 @@ function submitPreferences(studentToken, pref1, pref2, pref3) {
     const clubSheet = ss.getSheetByName('社團設定');
     if (!sheet || !clubSheet) return { status: 'error', message: '查無學生名單或社團設定工作表！' };
 
-    const validClubNames = new Set(getClubList().map(c => c.name));
+    const clubList = getClubList();
+    const clubMapByName = {};
+    clubList.forEach(c => { clubMapByName[c.name] = c; });
     const chosen = [p1, p2, p3].filter(Boolean);
     for (let k = 0; k < chosen.length; k++) {
-      if (!validClubNames.has(chosen[k])) {
+      if (!clubMapByName[chosen[k]]) {
         return { status: 'error', message: '所選志願「' + chosen[k] + '」不存在於本社團清單中！' };
       }
     }
@@ -1643,6 +1752,16 @@ function submitPreferences(studentToken, pref1, pref2, pref3) {
     }
 
     if (studentRowIndex === -1) return { status: 'error', message: '查無此學生資料！' };
+
+    for (let k = 0; k < chosen.length; k++) {
+      const targetClub = clubMapByName[chosen[k]];
+      if (!isClubAllowedForGrade_(targetClub.targetGrades, stuClass)) {
+        return {
+          status: 'error',
+          message: '所選志願「' + chosen[k] + '」目前僅開放給「' + formatTargetGradesLabel_(targetClub.targetGrades) + '」學生選填！'
+        };
+      }
+    }
 
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
     sheet.getRange(studentRowIndex, cols.pref1 + 1).setValue(sanitizeCell_(p1, 60));
@@ -1758,18 +1877,28 @@ function aiConsultantRecommend(studentInput, studentGrade) {
   const rawGrade = (studentGrade && typeof studentGrade === 'object')
     ? (studentGrade.className || studentGrade.grade || '')
     : studentGrade;
-  const gradeLevel = (rawGrade && /^[789七八九]/.test(String(rawGrade)))
-    ? String(rawGrade).slice(0, 1) + '年級'
-    : '國中生';
+  const extractedGrade = extractStudentGrade_(rawGrade);
+  const gradeLevel = extractedGrade ? (extractedGrade + '年級') : '國中生';
 
-  const validClubNames = new Set(clubs.map(c => c.name));
-  const clubSummaries = clubs.map((c, idx) => 
-    `${idx + 1}. 【${c.name}】(${c.category}) 簡介:${c.desc}，要求:${c.requirement}，名額餘裕:${Math.max(0, c.limit - c.current)}人`
+  const eligibleClubs = clubs.filter(c => isClubAllowedForGrade_(c.targetGrades, rawGrade));
+  if (eligibleClubs.length === 0) {
+    return {
+      status: 'success',
+      data: {
+        recommendations: [],
+        encouragement: '目前沒有開放給「' + gradeLevel + '」的社團，請洽學務處確認社團年級開放設定。'
+      },
+      source: 'rule-fallback'
+    };
+  }
+  const validClubNames = new Set(eligibleClubs.map(c => c.name));
+  const clubSummaries = eligibleClubs.map((c, idx) =>
+    `${idx + 1}. 【${c.name}】(${c.category}｜${formatTargetGradesLabel_(c.targetGrades)}) 簡介:${c.desc}，要求:${c.requirement}，名額餘裕:${Math.max(0, c.limit - c.current)}人`
   ).join('\n');
 
   const apiKey = getGeminiApiKey_();
   if (!apiKey) {
-    return ruleBasedRecommendFallback(sanitizedInput, clubs);
+    return ruleBasedRecommendFallback(sanitizedInput, eligibleClubs, rawGrade);
   }
 
   const systemInstruction = `你是一位專業且熱忱的國中生涯發展與適性選社輔導專家。
@@ -1820,19 +1949,19 @@ function aiConsultantRecommend(studentInput, studentGrade) {
 
     if (response.getResponseCode() !== 200) {
       console.warn('Gemini API 異常，切換至備援規則引擎');
-      return ruleBasedRecommendFallback(sanitizedInput, clubs);
+      return ruleBasedRecommendFallback(sanitizedInput, eligibleClubs, rawGrade);
     }
 
     const json = JSON.parse(response.getContentText());
     const candidate = json.candidates?.[0];
     if (!candidate || candidate.finishReason === 'SAFETY' || !candidate.content?.parts?.[0]?.text) {
-      return ruleBasedRecommendFallback(sanitizedInput, clubs);
+      return ruleBasedRecommendFallback(sanitizedInput, eligibleClubs, rawGrade);
     }
 
     let cleanText = candidate.content.parts[0].text.trim().replace(/^```(?:json)?\s*|\s*```$/gi, '');
     const result = JSON.parse(cleanText);
 
-    // 🛡️ 防幻覺落地校驗：過濾掉不在學校名單的假社團，並去重與確保結構安全
+    // 🛡️ 防幻覺落地校驗：過濾掉不在學校名單或不符合年級的社團，並去重與確保結構安全
     const seenRec = new Set();
     const rawList = Array.isArray(result.recommendations) ? result.recommendations : [];
     result.recommendations = rawList.filter(r => {
@@ -1842,18 +1971,31 @@ function aiConsultantRecommend(studentInput, studentGrade) {
       return true;
     });
     if (result.recommendations.length === 0) {
-      return ruleBasedRecommendFallback(sanitizedInput, clubs);
+      return ruleBasedRecommendFallback(sanitizedInput, eligibleClubs, rawGrade);
     }
 
     return { status: 'success', data: result, source: 'gemini', model: CONFIG.GEMINI_MODEL };
 
   } catch (err) {
     console.error('aiConsultantRecommend error: ' + err.message);
-    return ruleBasedRecommendFallback(sanitizedInput, clubs);
+    return ruleBasedRecommendFallback(sanitizedInput, eligibleClubs, rawGrade);
   }
 }
 
-function ruleBasedRecommendFallback(input, clubs) {
+function ruleBasedRecommendFallback(input, clubs, studentGrade) {
+  const pool = studentGrade
+    ? (clubs || []).filter(c => isClubAllowedForGrade_(c.targetGrades, studentGrade))
+    : (clubs || []);
+  if (pool.length === 0) {
+    return {
+      status: 'success',
+      data: {
+        recommendations: [],
+        encouragement: '目前沒有符合本年級開放條件的社團，請洽學務處確認設定！'
+      },
+      source: 'rule-fallback'
+    };
+  }
   const text = String(input || '').toLowerCase();
   const avoidOutdoor = /不[想愛喜歡要].*(曬太陽|跑步|流汗|戶外)|室內冷氣|怕熱|討厭跑步/.test(text);
   const wantQuiet = /安靜|沉靜|專注|個人創作|不愛吵/.test(text);
@@ -1890,7 +2032,7 @@ function ruleBasedRecommendFallback(input, clubs) {
     { re: /英語|英文|電影|美劇|外師/, clubRe: /英語|電影/, catRe: /語文思辨/, boost: 46 }
   ];
 
-  const scoredClubs = clubs.map(club => {
+  const scoredClubs = pool.map(club => {
     let score = 52;
     const cName = String(club.name || '').toLowerCase();
     const cDesc = String(club.desc || '').toLowerCase();
@@ -2446,7 +2588,7 @@ function runAiSmartAllocation(adminToken, previewToken) {
       return { status: 'success', report: plan.report };
     }
 
-    // 1. 初始化社團容量與各班人數統計
+    // 1. 初始化社團容量、開放年級與各班人數統計
     const clubMap = {};
     for (let j = 1; j < cData.length; j++) {
       const name = String(cData[j][0]).trim();
@@ -2455,6 +2597,7 @@ function runAiSmartAllocation(adminToken, previewToken) {
         limit: parseInt(cData[j][1], 10) || 0,
         assigned: [],
         classCounts: {}, // 統計該社團各班已有的人數
+        targetGrades: normalizeTargetGrades_(cData[j][8]),
         rowIdx: j
       };
     }
@@ -2473,6 +2616,7 @@ function runAiSmartAllocation(adminToken, previewToken) {
       const studentObj = {
         rowIdx: i,
         className: cls,
+        grade: extractStudentGrade_(cls),
         seat: padSeatNo_(sData[i][cols.seat]),
         name: sName,
         email: String(sData[i][cols.email] || '').trim(),
@@ -2520,8 +2664,8 @@ function runAiSmartAllocation(adminToken, previewToken) {
             const cInfo = clubMap[desiredClub];
             const currentClassCount = cInfo.classCounts[s.className] || 0;
 
-            // 雙條件檢查：名額未滿 且 該班未達上限
-            if (cInfo.assigned.length < cInfo.limit && currentClassCount < maxPerClass) {
+            // 三條件檢查：名額未滿、該班未達上限、且符合社團開放年級
+            if (cInfo.assigned.length < cInfo.limit && currentClassCount < maxPerClass && isClubAllowedForGrade_(cInfo.targetGrades, s.grade || s.className)) {
               cInfo.assigned.push(s);
               cInfo.classCounts[s.className] = currentClassCount + 1;
               s.assigned = desiredClub;
@@ -2544,7 +2688,7 @@ function runAiSmartAllocation(adminToken, previewToken) {
           const target = availableClubs[idx];
           const cInfo = clubMap[target];
           const curClassCount = cInfo.classCounts[s.className] || 0;
-          if (cInfo.assigned.length < cInfo.limit && curClassCount < maxPerClass) {
+          if (cInfo.assigned.length < cInfo.limit && curClassCount < maxPerClass && isClubAllowedForGrade_(cInfo.targetGrades, s.grade || s.className)) {
             cInfo.assigned.push(s);
             cInfo.classCounts[s.className] = curClassCount + 1;
             s.assigned = target;
@@ -2789,9 +2933,9 @@ function generateClubDocManual(adminToken) {
   body.appendParagraph('一、社團課程特色與核心素養架構').setHeading(DocumentApp.ParagraphHeading.HEADING1);
 
   clubs.forEach((c, idx) => {
-    body.appendParagraph(`${idx + 1}. 【${c.name}】（領域：${c.category}）`).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    body.appendParagraph(`${idx + 1}. 【${c.name}】（領域：${c.category}｜${formatTargetGradesLabel_(c.targetGrades)}）`).setHeading(DocumentApp.ParagraphHeading.HEADING2);
     body.appendParagraph(`• 指導教師：${c.teacher || '校內專業師資'} ｜ 上課教室：${c.location || '專科教室'}`);
-    body.appendParagraph(`• 開課人數上限：${c.limit} 人 ｜ 目前已報名：${c.current} 人`);
+    body.appendParagraph(`• 開課人數上限：${c.limit} 人 ｜ 目前已報名：${c.current} 人 ｜ 開放年級：${formatTargetGradesLabel_(c.targetGrades)}`);
     body.appendParagraph(`• 核心素養目標：${c.desc}`);
     if (c.requirement) body.appendParagraph(`• 先備要求或注意事項：${c.requirement}`).setItalic(true);
     body.appendParagraph('');
@@ -3107,7 +3251,7 @@ function cleanupUnusedSheets(adminToken, targetNames) {
 const COLUMN_WIDTH_RULES_ = [
   { pattern: /^(班級|座號|負責班級|人數上限|已錄取人數|出生月日|首次登入標記)$/, min: 82, max: 120 },
   { pattern: /^第\d+週簽到$/, min: 92, max: 120 },
-  { pattern: /^(姓名|教師姓名|教師帳號|帳號|學號|授課教師|指導教師|社團類別|設定項目)$/, min: 112, max: 185 },
+  { pattern: /^(姓名|教師姓名|教師帳號|帳號|學號|授課教師|指導教師|社團類別|開放年級|設定項目)$/, min: 112, max: 185 },
   { pattern: /^(身分證字號|身分證後四碼|選填時間)$/, min: 135, max: 195 },
   { pattern: /^(社團名稱|錄取社團|活動地點|第一志願|第二志願|第三志願|學生Email|公務信箱|設定值)$/, min: 155, max: 255 },
   { pattern: /^(密碼|登入密碼|社團簡介|先備要求與材料費|分發備註|保障身分鎖定|健康安全提醒|說明)$/, min: 210, max: 360 }
